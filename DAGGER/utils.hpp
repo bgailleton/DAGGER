@@ -103,8 +103,8 @@ T random_number(T min, T max)
 // Equivalent of argsort in numpy or other platforms
 // Shamelessly ripped from https://stackoverflow.com/a/12399290/7114716 
 // - credits to Lukasz Wiklendt
-template <typename T>
-std::vector<size_t> sort_indexes(const std::vector<T> &v) {
+template <class U>
+std::vector<size_t> sort_indexes(U &v) {
 
 	// initialize original index locations
 	std::vector<size_t> idx(v.size());
