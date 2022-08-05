@@ -37,7 +37,8 @@
 	namespace py = pybind11;
 #endif
 
-
+namespace DAGGER
+{
 
 
 
@@ -128,8 +129,8 @@ numvec<T> format_input(numvec<T>& yolo)
 
 
 
-
-
+// end of namesapce DAGGER
+};
 
 
 

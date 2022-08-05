@@ -4,15 +4,6 @@
 
 
 /*
-graph stands for Static Multiple flow Graph.
-It is a very memory efficient way to represent a graph and manipulate it.
-It stores less informations than a fully fledged MGraph and therefore needs more processing to 
-retrieve the same level of information (e.g. donors, distances, ...)
-But is way more efficient in term of building/updating speed and extremely low in memory usage
-It is useful for different cases, for example when updating and building the graph needs to be 
-done multiple times and represents a significant part of the computation time (e.g. LEMs); or cases where
-memory use becomes limitting.
-It has a limitation though, the nodes need a fixed and even number of neighbours.
 
 B.G. 2022
 */
@@ -58,6 +49,7 @@ namespace DAGGER
 {
 
 
+template<class float_t>
 class graph
 {
 
@@ -86,10 +78,10 @@ public:
 	std::vector<int> Sreceivers,nSdonors,Sdonors;
 
 	// Single graph distance to receivers
-	std::vector<double> Sdistance2receivers;
+	std::vector<float_t> Sdistance2receivers;
 
 	// Steepest slope
-	std::vector<double> SS;
+	std::vector<float_t> SS;
 	
 	// Topological order and Single graph topological order
 	std::vector<size_t> stack, Sstack;
@@ -125,27 +117,47 @@ public:
 	// topography is the vetor-like topography
 	// connector is the connector
 	template<class Connector_t,class topo_t, class out_t>
-	out_t compute_graph(std::string depression_solver, topo_t& ttopography, Connector_t& connector)
+	out_t compute_graph(
+		std::string depression_solver,
+	  topo_t& ttopography, 
+	  Connector_t& connector, 
+	  bool only_SS
+	  )
 	{
-		// std::cout << "DEBUGGRAPH6::1" << std::endl;
+		// Formatting the input to match all the wrappers
 		auto topography = format_input(ttopography);
+
+		// Formatting hte output topo
+		std::vector<float_t> faketopo(to_vec(topography));
+
+
+		if(depression_solver == "priority_flood")
+			faketopo = connector.PriorityFlood_Wei2018(topography);
+
+		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
-		// std::cout << "DEBUGGRAPH6::2" << std::endl;
-		this->update_recs(topography,connector);
+
+		// Updates the isrec vector and the Srecs vector by checking each link new elevation
+		this->update_recs(faketopo, connector);
 		// std::cout << "DEBUGGRAPH6::3" << std::endl;
 		
-		this->compute_SF_donors_from_receivers();
+
 		// std::cout << "DEBUGGRAPH6::4" << std::endl;
 		
 		this->compute_TO_SF_stack_version();
 		// std::cout << "DEBUGGRAPH6::5" << std::endl;
 
-		std::vector<double> faketopo(to_vec(topography));
-		
-		LMRerouter depsolver;
-		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-		bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->links);
-		// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
+
+		bool need_recompute = false;
+
+		if(depression_solver == "carve" || depression_solver == "fill")
+		{
+	
+			LMRerouter depsolver;
+			// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
+			need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->links);
+			// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
+		}
 
 		if(need_recompute)
 		{
@@ -156,18 +168,26 @@ public:
 
 			if(depression_solver == "carve")
 				this->carve_topo_v2(1e-5, connector, faketopo);
+
+			if(only_SS)
+				return format_output(faketopo);
 					
 			this->compute_MF_topological_order_insort(faketopo);
 			this->update_Mrecs(faketopo,connector);
 
 
 			return format_output(faketopo);
+			
 		}
-		else
+		else if (only_SS == false)
 		{
 			// std::cout << "nodep" << std::endl;
 			this->compute_MF_topological_order_insort(faketopo);
 			return format_output(faketopo);	
+		}
+		else
+		{
+			return format_output(faketopo);
 		}
 
 	}
@@ -188,7 +208,7 @@ public:
 		this->compute_TO_SF_stack_version();
 		// std::cout << "DEBUGGRAPH6::5" << std::endl;
 
-		std::vector<double> faketopo(to_vec(topography));
+		std::vector<float_t> faketopo(to_vec(topography));
 		
 		LMRerouter depsolver;
 		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
@@ -227,7 +247,7 @@ public:
 		
 		this->compute_TO_SF_stack_version();
 
-		std::vector<double> faketopo(to_vec(topography));
+		std::vector<float_t> faketopo(to_vec(topography));
 		this->compute_MF_topological_order_insort(faketopo);
 
 	
@@ -241,7 +261,7 @@ public:
 		// std::cout << "DEBUGGRAPH6::1" << std::endl;
 		auto topography = format_input(ttopography);
 
-		std::vector<double> faketopo = connector.PriorityFlood_Wei2018(topography);
+		std::vector<float_t> faketopo = connector.PriorityFlood_Wei2018(topography);
 
 		this->reinit_graph(connector);
 		// std::cout << "DEBUGGRAPH6::2" << std::endl;
@@ -318,8 +338,8 @@ public:
 			// if(connector.is_active(from) == false || connector.is_active(to) == false )
 			// 	continue;
 
-			double dx = connector.get_dx_from_isrec_idx(i);
-			double slope = (topography[from] - topography[to])/dx;
+			float_t dx = connector.get_dx_from_isrec_idx(i);
+			float_t slope = (topography[from] - topography[to])/dx;
 			// std::cout << from << "|" << to << "|";
 
 			if(slope>0)
@@ -345,6 +365,9 @@ public:
 			}
 
 		}
+
+		this->compute_SF_donors_from_receivers();
+
 
 
 	}
@@ -378,8 +401,8 @@ public:
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
 		for(int i=0;i<this->nnodes; ++i)
 			this->Sreceivers[i] = i;
-		this->Sdistance2receivers = std::vector<double >(this->nnodes,-1);
-		this->SS = std::vector<double>(this->nnodes,0.);
+		this->Sdistance2receivers = std::vector<float_t >(this->nnodes,-1);
+		this->SS = std::vector<float_t>(this->nnodes,0.);
 	}
 	void _reallocate_vectors()
 	{
@@ -398,7 +421,7 @@ public:
 
 #ifdef DAGGER_FT_PYTHON
 	py::array_t<int,1> get_Sreceivers(){return py::array_t<int,1>(this->Sreceivers.size(),this->Sreceivers.data() ) ;} 
-	py::array_t<double,1> get_dx_array(){return py::array_t<double,1>(this->Sdistance2receivers.size(),this->Sdistance2receivers.data() ) ;} 
+	py::array_t<float_t,1> get_dx_array(){return py::array_t<float_t,1>(this->Sdistance2receivers.size(),this->Sdistance2receivers.data() ) ;} 
 #endif
 
 
@@ -496,7 +519,7 @@ public:
 
 	/// this function enforces minimal slope 
 	template<class Connector_t, class topo_t>
-	std::vector<int> carve_topo_v2(double slope, Connector_t& connector, topo_t& topography)
+	std::vector<int> carve_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
 	{
 
 		std::cout << std::setprecision(8);
@@ -514,7 +537,7 @@ public:
 			// if(node == 148880)
 				// std::cout << "PASSED" << std::endl;
 			int rec = this->Sreceivers[node];
-			double dz = topography[node] - topography[rec];
+			float_t dz = topography[node] - topography[rec];
 			if(dz <= 0)
 			{
 				topography[rec] = topography[node] - slope + connector.randu.get() * 1e-7;// * d2rec;
@@ -526,7 +549,7 @@ public:
 	}
 	/// this function enforces minimal slope 
 	template<class Connector_t, class topo_t>
-	std::vector<int> fill_topo_v2(double slope, Connector_t& connector, topo_t& topography)
+	std::vector<int> fill_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
 	{
 		std::vector<int> to_recompute;
 		for(int i=0; i < this->nnodes; ++i)
@@ -536,7 +559,7 @@ public:
 				continue;
 
 			int rec = this->Sreceivers[node];
-			double dz = topography[node] - topography[rec];
+			float_t dz = topography[node] - topography[rec];
 
 			if(dz <= 0)
 			{
@@ -692,7 +715,7 @@ public:
 	{
 		auto topography = format_input(ttopography);
 
-		std::vector<double> DA(connector.nnodes,0.);
+		std::vector<float_t> DA(connector.nnodes,0.);
 		for(int i = connector.nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
@@ -702,8 +725,8 @@ public:
 			{
 				auto receivers = this->get_receiver_indices(node, connector);
 
-				std::vector<double> slopes(receivers.size());
-				double sumslopes = 0;
+				std::vector<float_t> slopes(receivers.size());
+				float_t sumslopes = 0;
 				for(size_t j = 0;j < receivers.size(); ++j)
 				{
 					int rec = receivers[j];
@@ -734,7 +757,7 @@ public:
 	{
 		auto topography = format_input(ttopography);
 
-		std::vector<double> DA(connector.nnodes,0.);
+		std::vector<float_t> DA(connector.nnodes,0.);
 		for(int i = connector.nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
@@ -834,7 +857,7 @@ public:
 	out_t keep_only_at_outlets(Connector_t& connector, array_t& tarray, bool include_internal_pits = true)
 	{
 		auto array = format_input(tarray);
-		std::vector<double> out = std::vector<double> (this->nnodes,0);
+		std::vector<float_t> out = std::vector<float_t> (this->nnodes,0);
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			if (this->Sreceivers[i] == i)
