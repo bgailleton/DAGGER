@@ -256,9 +256,9 @@ public:
 	}
 
 
-	// This function feed is isrec bool vector of a SMGraph
+	// This function feed is links bool vector of a SMGraph
 	template<class topo_t>
-	void build_smgraph_only_MF(topo_t& topography, std::vector<bool>& isrec)
+	void build_smgraph_only_MF(topo_t& topography, std::vector<bool>& links)
 	{		
 		// looping thorugh row col to being able to deal with BC
 		for(int row = 0; row < this->ny; ++row)
@@ -282,36 +282,36 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottomright_SMG(i);
 				tn = this->get_bottomright_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottom_SMG(i);
 				tn = this->get_bottom_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottomleft_SMG(i);
 				tn = this->get_bottomleft_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 
 			}
@@ -320,9 +320,9 @@ public:
 	}
 
 	
-	// This function feed is isrec bool vector of a SMGraph
+	// This function feed is links bool vector of a SMGraph
 	template<class topo_t>
-	void buildSrecfromIsrec(topo_t& topography, std::vector<bool>& isrec, std::vector<int>& Sreceivers, std::vector<double>& SS)
+	void buildSrecfromlinks(topo_t& topography, std::vector<bool>& links, std::vector<int>& Sreceivers, std::vector<double>& SS)
 	{		
 
 		// looping thorugh row col to being able to deal with BC
@@ -345,7 +345,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -367,7 +367,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -389,7 +389,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -411,7 +411,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -432,9 +432,9 @@ public:
 		}
 	}
 
-	// This function feed is isrec bool vector of a SMGraph
+	// This function feed is links bool vector of a SMGraph
 	template<class topo_t>
-	void build_smgraph_only_MF_mask(topo_t& topography, std::vector<bool>& isrec, std::vector<bool>& mask)
+	void build_smgraph_only_MF_mask(topo_t& topography, std::vector<bool>& links, std::vector<bool>& mask)
 	{		
 
 		
@@ -464,36 +464,36 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottomright_SMG(i);
 				tn = this->get_bottomright_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottom_SMG(i);
 				tn = this->get_bottom_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 				n = this->get_id_bottomleft_SMG(i);
 				tn = this->get_bottomleft_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = true;
+						links[n] = true;
 					else
-						isrec[n] = false;
+						links[n] = false;
 				}
 
 				n = this->get_id_left_SMG(i);
@@ -501,36 +501,36 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = false;
+						links[n] = false;
 					else
-						isrec[n] = true;
+						links[n] = true;
 				}
 				n = this->get_id_topleft_SMG(i);
 				tn = this->get_topleft_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = false;
+						links[n] = false;
 					else
-						isrec[n] = true;
+						links[n] = true;
 				}
 				n = this->get_id_top_SMG(i);
 				tn = this->get_top_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = false;
+						links[n] = false;
 					else
-						isrec[n] = true;
+						links[n] = true;
 				}
 				n = this->get_id_topright_SMG(i);
 				tn = this->get_topright_index(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
-						isrec[n] = false;
+						links[n] = false;
 					else
-						isrec[n] = true;
+						links[n] = true;
 				}
 
 			}
@@ -538,9 +538,9 @@ public:
 
 	}
 
-	// This function feed is isrec bool vector of a SMGraph
+	// This function feed is links bool vector of a SMGraph
 	template<class topo_t>
-	void buildSrecfromIsrec_mask(topo_t& topography, std::vector<bool>& isrec, std::vector<int>& Sreceivers, std::vector<double>& SS, std::vector<bool>& mask)
+	void buildSrecfromlinks_mask(topo_t& topography, std::vector<bool>& links, std::vector<int>& Sreceivers, std::vector<double>& SS, std::vector<bool>& mask)
 	{		
 
 		// looping thorugh row col to being able to deal with BC
@@ -563,7 +563,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -585,7 +585,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -607,7 +607,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -629,7 +629,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n])
+					if(links[n])
 					{
 						if(SS[i] < slope)
 						{
@@ -652,7 +652,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
-					if(isrec[n] == false)
+					if(links[n] == false)
 					{
 						if(SS[i] < slope)
 						{
@@ -674,7 +674,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n] == false)
+					if(links[n] == false)
 					{
 						if(SS[i] < slope)
 						{
@@ -696,7 +696,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
-					if(isrec[n] == false)
+					if(links[n] == false)
 					{
 						if(SS[i] < slope)
 						{
@@ -718,7 +718,7 @@ public:
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
-					if(isrec[n] == false)
+					if(links[n] == false)
 					{
 						if(SS[i] < slope)
 						{
@@ -1633,7 +1633,7 @@ public:
 	// void fill_neighbour_matrices()
 
 	template<class i_t>
-	T get_dx_from_isrec_idx( i_t i)
+	T get_dx_from_links_idx( i_t i)
 	{
 		if(i%4 == 0)
 			return this->dx;
@@ -1651,7 +1651,7 @@ public:
 	T get_dx_from_linknodes_idx( i_t i)
 	{
 		int j = std::floor(i/2);
-		return this->get_dx_from_isrec_idx(j);
+		return this->get_dx_from_links_idx(j);
 	}
 
 	std::vector<int> get_ilinknodes_from_node(int i)
