@@ -101,7 +101,7 @@ public:
 	{
 		// Allocate vectors
 		this->_allocate_vectors();
-		connector.fill_linknodes_SMG(this->linknodes);
+		connector.fill_linknodes(this->linknodes);
 	}
 
 	// used to reinitialise the the vectors
@@ -572,11 +572,12 @@ public:
 
 
 	
-
+	// NEXT TARGET TO REFACTOR
 	template<class Connector_t>
 	std::vector<int> get_receiver_indices(int i, Connector_t& connector)
 	{
 		std::vector<int> recs; recs.reserve(8);
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		int i_r = connector.get_id_right_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
