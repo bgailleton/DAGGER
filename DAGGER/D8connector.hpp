@@ -236,20 +236,20 @@ public:
 
 	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
 
-	void fill_linknodes_SMG(std::vector<int>& linknodes)
+	void fill_linknodes(std::vector<int>& linknodes)
 	{
 		for(int i=0; i<this->nnodes; ++i)
 		{
-			int o = this->get_right_index(i); 
+			int o = this->get_right_idx(i); 
 			linknodes[i*8] = (this->is_in_bound(o) ? i:-1);
 			linknodes[i*8 + 1] = (this->is_in_bound(o) ? o:-1);
-			o = this->get_bottomright_index(i); 
+			o = this->get_bottomright_idx(i); 
 			linknodes[i*8 + 2] = (this->is_in_bound(o) ? i:-1);
 			linknodes[i*8 + 3] = (this->is_in_bound(o) ? o:-1);
-			o = this->get_bottom_index(i); 
+			o = this->get_bottom_idx(i); 
 			linknodes[i*8 + 4] = (this->is_in_bound(o) ? i:-1);
 			linknodes[i*8 + 5] = (this->is_in_bound(o) ? o:-1);
-			o = this->get_bottomleft_index(i); 
+			o = this->get_bottomleft_idx(i); 
 			linknodes[i*8 + 6] = (this->is_in_bound(o) ? i:-1);
 			linknodes[i*8 + 7] = (this->is_in_bound(o) ? o:-1);
 		}
@@ -277,8 +277,8 @@ public:
 
 				double this_topo = topography[i];
 
-				int n = this->get_id_right_SMG(i);
-				int tn = this->get_right_index(i);
+				int n = this->get_right_idx_links(i);
+				int tn = this->get_right_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -286,8 +286,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottomright_SMG(i);
-				tn = this->get_bottomright_index(i);
+				n = this->get_bottomright_idx_links(i);
+				tn = this->get_bottomright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -295,8 +295,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottom_SMG(i);
-				tn = this->get_bottom_index(i);
+				n = this->get_bottom_idx_links(i);
+				tn = this->get_bottom_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -304,8 +304,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottomleft_SMG(i);
-				tn = this->get_bottomleft_index(i);
+				n = this->get_bottomleft_idx_links(i);
+				tn = this->get_bottomleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -340,8 +340,8 @@ public:
 
 				double this_topo = topography[i];
 
-				int n = this->get_id_right_SMG(i);
-				int tn = this->get_right_index(i);
+				int n = this->get_right_idx_links(i);
+				int tn = this->get_right_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
@@ -362,8 +362,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottomright_SMG(i);
-				tn = this->get_bottomright_index(i);
+				n = this->get_bottomright_idx_links(i);
+				tn = this->get_bottomright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -384,8 +384,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottom_SMG(i);
-				tn = this->get_bottom_index(i);
+				n = this->get_bottom_idx_links(i);
+				tn = this->get_bottom_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
@@ -406,8 +406,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottomleft_SMG(i);
-				tn = this->get_bottomleft_index(i);
+				n = this->get_bottomleft_idx_links(i);
+				tn = this->get_bottomleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -459,8 +459,8 @@ public:
 
 				double this_topo = topography[i];
 
-				int n = this->get_id_right_SMG(i);
-				int tn = this->get_right_index(i);
+				int n = this->get_right_idx_links(i);
+				int tn = this->get_right_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -468,8 +468,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottomright_SMG(i);
-				tn = this->get_bottomright_index(i);
+				n = this->get_bottomright_idx_links(i);
+				tn = this->get_bottomright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -477,8 +477,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottom_SMG(i);
-				tn = this->get_bottom_index(i);
+				n = this->get_bottom_idx_links(i);
+				tn = this->get_bottom_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -486,8 +486,8 @@ public:
 					else
 						links[n] = false;
 				}
-				n = this->get_id_bottomleft_SMG(i);
-				tn = this->get_bottomleft_index(i);
+				n = this->get_bottomleft_idx_links(i);
+				tn = this->get_bottomleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -496,8 +496,8 @@ public:
 						links[n] = false;
 				}
 
-				n = this->get_id_left_SMG(i);
-				tn = this->get_left_index(i);
+				n = this->get_left_idx_links(i);
+				tn = this->get_left_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -505,8 +505,8 @@ public:
 					else
 						links[n] = true;
 				}
-				n = this->get_id_topleft_SMG(i);
-				tn = this->get_topleft_index(i);
+				n = this->get_topleft_idx_links(i);
+				tn = this->get_topleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -514,8 +514,8 @@ public:
 					else
 						links[n] = true;
 				}
-				n = this->get_id_top_SMG(i);
-				tn = this->get_top_index(i);
+				n = this->get_top_idx_links(i);
+				tn = this->get_top_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -523,8 +523,8 @@ public:
 					else
 						links[n] = true;
 				}
-				n = this->get_id_topright_SMG(i);
-				tn = this->get_topright_index(i);
+				n = this->get_topright_idx_links(i);
+				tn = this->get_topright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					if(topography[tn] < this_topo)
@@ -558,8 +558,8 @@ public:
 
 				double this_topo = topography[i];
 
-				int n = this->get_id_right_SMG(i);
-				int tn = this->get_right_index(i);
+				int n = this->get_right_idx_links(i);
+				int tn = this->get_right_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
@@ -580,8 +580,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottomright_SMG(i);
-				tn = this->get_bottomright_index(i);
+				n = this->get_bottomright_idx_links(i);
+				tn = this->get_bottomright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -602,8 +602,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottom_SMG(i);
-				tn = this->get_bottom_index(i);
+				n = this->get_bottom_idx_links(i);
+				tn = this->get_bottom_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
@@ -624,8 +624,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_bottomleft_SMG(i);
-				tn = this->get_bottomleft_index(i);
+				n = this->get_bottomleft_idx_links(i);
+				tn = this->get_bottomleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -647,8 +647,8 @@ public:
 					}
 				}
 
-				n = this->get_id_left_SMG(i);
-				tn = this->get_left_index(i);
+				n = this->get_left_idx_links(i);
+				tn = this->get_left_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dx;
@@ -669,8 +669,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_topleft_SMG(i);
-				tn = this->get_topleft_index(i);
+				n = this->get_topleft_idx_links(i);
+				tn = this->get_topleft_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -691,8 +691,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_top_SMG(i);
-				tn = this->get_top_index(i);
+				n = this->get_top_idx_links(i);
+				tn = this->get_top_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dy;
@@ -713,8 +713,8 @@ public:
 						}
 					}
 				}
-				n = this->get_id_topright_SMG(i);
-				tn = this->get_topright_index(i);
+				n = this->get_topright_idx_links(i);
+				tn = this->get_topright_idx(i);
 				if(n>=0 && n< this->nnodes * 4 && tn >=0 && tn < this->nnodes)
 				{
 					double slope = std::abs(this_topo - topography[tn])/this->dxy;
@@ -742,18 +742,36 @@ public:
 
 	// std::vector<int> get_
 
-	int get_id_right_SMG(int i){return i*4;}
-	int get_id_bottomright_SMG(int i){return i*4 + 1;}
-	int get_id_bottom_SMG(int i){return i*4 + 2;}
-	int get_id_bottomleft_SMG(int i){return i*4 + 3;}
-	int get_id_left_SMG(int i){int yolo = this->get_left_index(i); if (yolo>=0){ return this->get_id_right_SMG(yolo);} else{ return this->not_a_node;}}
-	int get_id_topleft_SMG(int i){int yolo = this->get_topleft_index(i); if (yolo>=0){ return this->get_id_bottomright_SMG(yolo);} else{ return this->not_a_node;}}
-	int get_id_top_SMG(int i){int yolo = this->get_top_index(i); if (yolo>=0){ return this->get_id_bottom_SMG(yolo);} else{ return this->not_a_node;}}
-	int get_id_topright_SMG(int i){int yolo = this->get_topright_index(i); if (yolo>=0){ return this->get_id_bottomleft_SMG(yolo);} else{ return this->not_a_node;}}
+	int get_right_idx_links(int i){return i*4;}
+	int get_bottomright_idx_links(int i){return i*4 + 1;}
+	int get_bottom_idx_links(int i){return i*4 + 2;}
+	int get_bottomleft_idx_links(int i){return i*4 + 3;}
+	int get_left_idx_links(int i){int yolo = this->get_left_idx(i); if (yolo>=0){ return this->get_right_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_topleft_idx_links(int i){int yolo = this->get_topleft_idx(i); if (yolo>=0){ return this->get_bottomright_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_top_idx_links(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_topright_idx_links(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
+
+	int get_right_idx_linknodes(int i){return 2 * i * 4;}
+	int get_bottomright_idx_linknodes(int i){return 2 * (i*4 + 1);}
+	int get_bottom_idx_linknodes(int i){return 2 * (i*4 + 2);}
+	int get_bottomleft_idx_linknodes(int i){return 2 * (i*4 + 3);}
+	int get_left_idx_linknodes(int i){int yolo = this->get_left_idx(i); if (yolo>=0){ return 2 * this->get_right_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_topleft_idx_linknodes(int i){int yolo = this->get_topleft_idx(i); if (yolo>=0){ return 2 * this->get_bottomright_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_top_idx_linknodes(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return 2 * this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
+	int get_topright_idx_linknodes(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return 2 * this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
 
 	std::vector<int> get_neighourer_indices_SMG(int i)
 	{
-		return std::vector<int>{this->get_id_right_SMG(i),this->get_id_bottomright_SMG(i),this->get_id_bottom_SMG(i),this->get_id_bottomleft_SMG(i),this->get_id_left_SMG(i),this->get_id_topleft_SMG(i),this->get_id_top_SMG(i),this->get_id_topright_SMG};
+		return std::vector<int>{
+			this->get_right_idx_links(i),
+			this->get_bottomright_idx_links(i),
+			this->get_bottom_idx_links(i),
+			this->get_bottomleft_idx_links(i),
+			this->get_left_idx_links(i),
+			this->get_topleft_idx_links(i),
+			this->get_top_idx_links(i),
+			this->get_topright_idx_links(i)
+		};
 	}
 
 		// ------------------------------------------------
@@ -1055,32 +1073,32 @@ public:
 	}
 
 	// D4 single neighbour routines
-	int get_left_index(int i)
+	int get_left_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][3] + i;
 	}
 
-	int get_top_index(int i)
+	int get_top_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][1] + i;
 	}
 
-	int get_right_index(int i)
+	int get_right_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][4] + i;
 	}
 
-	int get_bottom_index(int i)
+	int get_bottom_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][6] + i;
 	}
 
 	// D8 single neighbour extra routines
-	int get_topleft_index(int i)
+	int get_topleft_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][0] + i;
@@ -1092,13 +1110,13 @@ public:
 		return this->neighbourer[id_neighbourer][2] + i;
 	}
 
-	int get_bottomleft_index(int i)
+	int get_bottomleft_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][5] + i;
 	}
 
-	int get_bottomright_index(int i)
+	int get_bottomright_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][7] + i;
@@ -1107,16 +1125,16 @@ public:
 	std::vector<int> get_D4_neighbours_only_id(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(4);
-		int tn = this->get_left_index(i);
+		int tn = this->get_left_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_top_index(i);
+		tn = this->get_top_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_right_index(i);
+		tn = this->get_right_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_bottom_index(i);
+		tn = this->get_bottom_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
 		return neighs;
@@ -1125,28 +1143,28 @@ public:
 	std::vector<int> get_neighbours_only_id(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(8);
-		int tn = this->get_left_index(i);
+		int tn = this->get_left_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_top_index(i);
+		tn = this->get_top_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_right_index(i);
+		tn = this->get_right_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_bottom_index(i);
+		tn = this->get_bottom_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_topleft_index(i);
+		tn = this->get_topleft_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_topright_index(i);
+		tn = this->get_topright_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_bottomright_index(i);
+		tn = this->get_bottomright_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
-		tn = this->get_bottomleft_index(i);
+		tn = this->get_bottomleft_idx(i);
 		if(tn >= 0 )
 			neighs.emplace_back(tn);
 
@@ -1160,14 +1178,14 @@ public:
 	std::vector<int> get_neighbours_only_id_richdemlike(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(8);
-		neighs.emplace_back(this->get_left_index(i));
-		neighs.emplace_back(this->get_topleft_index(i));
-		neighs.emplace_back(this->get_top_index(i));
-		neighs.emplace_back(this->get_topright_index(i));
-		neighs.emplace_back(this->get_right_index(i));
-		neighs.emplace_back(this->get_bottomright_index(i));
-		neighs.emplace_back(this->get_bottom_index(i));
-		neighs.emplace_back(this->get_bottomleft_index(i));
+		neighs.emplace_back(this->get_left_idx(i));
+		neighs.emplace_back(this->get_topleft_idx(i));
+		neighs.emplace_back(this->get_top_idx(i));
+		neighs.emplace_back(this->get_topright_idx(i));
+		neighs.emplace_back(this->get_right_idx(i));
+		neighs.emplace_back(this->get_bottomright_idx(i));
+		neighs.emplace_back(this->get_bottom_idx(i));
+		neighs.emplace_back(this->get_bottomleft_idx(i));
 		return neighs;
 	}
 
@@ -1657,25 +1675,25 @@ public:
 	std::vector<int> get_ilinknodes_from_node(int i)
 	{
 		std::vector<int> out;out.reserve(8);
-		int tn = this->get_id_right_SMG(i);
+		int tn = this->get_right_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_bottomright_SMG(i);
+		tn = this->get_bottomright_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_bottom_SMG(i);
+		tn = this->get_bottom_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_bottomleft_SMG(i);
+		tn = this->get_bottomleft_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_left_SMG(i);
+		tn = this->get_left_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_topleft_SMG(i);
+		tn = this->get_topleft_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
-		tn = this->get_id_top_SMG(i);
+		tn = this->get_top_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
 		return out;
