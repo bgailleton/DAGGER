@@ -68,7 +68,7 @@ public:
 	
 	// integer vector of 2*isrec size with the node indices of each link
 	// for example, the nodes of link #42 would be indices 84 and 85
-	std::vector<int> links;
+	std::vector<int> linknodes;
 	
 	// Single graph receivers
 	// -> Sreceivers: steepest recervers (nnodes size), 
@@ -95,13 +95,13 @@ public:
 
 
 	// Initialisation of the graph structure
-	// Uses the nnodes, n_neighbours and connector to alloate the single vectors and the irec/links attribute
+	// Uses the nnodes, n_neighbours and connector to alloate the single vectors and the irec/linknodes attribute
 	template<class Connector_t>
 	void init_graph(Connector_t& connector)
 	{
 		// Allocate vectors
 		this->_allocate_vectors();
-		connector.fill_links_SMG(this->links);
+		connector.fill_linknodes_SMG(this->linknodes);
 	}
 
 	// used to reinitialise the the vectors
@@ -155,7 +155,7 @@ public:
 	
 			LMRerouter depsolver;
 			// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-			need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->links);
+			need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
 			// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
 		}
 
@@ -212,7 +212,7 @@ public:
 		
 		LMRerouter depsolver;
 		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-		bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->links);
+		bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
 		// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
 
 		if(need_recompute)
@@ -287,8 +287,8 @@ public:
 	{
 		for(size_t i = 0; i<this->isrec.size(); ++i)
 		{
-			int from = this->links[i*2];
-			int to = this->links[i*2 + 1];
+			int from = this->linknodes[i*2];
+			int to = this->linknodes[i*2 + 1];
 			
 			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
 				continue;
@@ -305,11 +305,11 @@ public:
 		for(size_t j = 0; j<some.size(); ++j)
 		{
 			int node = some[j];
-			auto ilinks = connector.get_ilinks_from_node(node);
-			for(auto i: ilinks)
+			auto ilinknodes = connector.get_ilinknodes_from_node(node);
+			for(auto i: ilinknodes)
 			{
-				int from = this->links[i*2];
-				int to = this->links[i*2 + 1];
+				int from = this->linknodes[i*2];
+				int to = this->linknodes[i*2 + 1];
 				
 				if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
 					continue;
@@ -327,8 +327,8 @@ public:
 	{
 		for(size_t i = 0; i<this->isrec.size(); ++i)
 		{
-			int from = this->links[i*2];
-			int to = this->links[i*2 + 1];
+			int from = this->linknodes[i*2];
+			int to = this->linknodes[i*2 + 1];
 			
 			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
 			{
@@ -396,7 +396,7 @@ public:
 	void _allocate_vectors()
 	{
 		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
-		this->links = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
+		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
 		this->Sreceivers = std::vector<int>(this->nnodes,-1);
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
 		for(int i=0;i<this->nnodes; ++i)

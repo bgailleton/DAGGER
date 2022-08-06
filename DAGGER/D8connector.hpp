@@ -740,6 +740,8 @@ public:
 	}
 
 
+	// std::vector<int> get_
+
 	int get_id_right_SMG(int i){return i*4;}
 	int get_id_bottomright_SMG(int i){return i*4 + 1;}
 	int get_id_bottom_SMG(int i){return i*4 + 2;}
@@ -756,7 +758,7 @@ public:
 
 		// ------------------------------------------------
 
-	//	                             	            __
+	//	                             	              __
 	//                                             / _)
 	//                                    _.----._/ /
 	//   Conversion METHODS        /         /
