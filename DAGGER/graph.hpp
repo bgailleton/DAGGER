@@ -64,9 +64,9 @@ public:
 	
 	// bool vector for each link: true is receiver direction and false is donor
 	// The meaning of the index depends on the connector
-	std::vector<bool> isrec;
+	std::vector<bool> links;
 	
-	// integer vector of 2*isrec size with the node indices of each link
+	// integer vector of 2*links size with the node indices of each link
 	// for example, the nodes of link #42 would be indices 84 and 85
 	std::vector<int> linknodes;
 	
@@ -137,7 +137,7 @@ public:
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
 
-		// Updates the isrec vector and the Srecs vector by checking each link new elevation
+		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
 		// std::cout << "DEBUGGRAPH6::3" << std::endl;
 		
@@ -285,7 +285,7 @@ public:
 	template<class Connector_t,class topo_t>
 	void update_Mrecs(topo_t& topography, Connector_t& connector)
 	{
-		for(size_t i = 0; i<this->isrec.size(); ++i)
+		for(size_t i = 0; i<this->links.size(); ++i)
 		{
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
@@ -294,9 +294,9 @@ public:
 				continue;
 
 			if(topography[from] > topography[to])
-				this->isrec[i] = true;
+				this->links[i] = true;
 			else
-				this->isrec[i] = false;
+				this->links[i] = false;
 		}
 	}
 	template<class Connector_t,class topo_t>
@@ -315,9 +315,9 @@ public:
 					continue;
 
 				if(topography[from] > topography[to])
-					this->isrec[i] = true;
+					this->links[i] = true;
 				else
-					this->isrec[i] = false;
+					this->links[i] = false;
 			}
 		}
 	}
@@ -325,7 +325,7 @@ public:
 	template<class Connector_t,class topo_t>
 	void update_recs(topo_t& topography, Connector_t& connector)
 	{
-		for(size_t i = 0; i<this->isrec.size(); ++i)
+		for(size_t i = 0; i<this->links.size(); ++i)
 		{
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
@@ -338,13 +338,13 @@ public:
 			// if(connector.is_active(from) == false || connector.is_active(to) == false )
 			// 	continue;
 
-			float_t dx = connector.get_dx_from_isrec_idx(i);
+			float_t dx = connector.get_dx_from_links_idx(i);
 			float_t slope = (topography[from] - topography[to])/dx;
 			// std::cout << from << "|" << to << "|";
 
 			if(slope>0)
 			{
-				this->isrec[i] = true;
+				this->links[i] = true;
 				if(this->SS[from]<slope)
 				{
 					this->Sreceivers[from] = to;
@@ -354,7 +354,7 @@ public:
 			}
 			else
 			{
-				this->isrec[i] = false;
+				this->links[i] = false;
 				slope = std::abs(slope);
 				if(this->SS[to]<slope)
 				{
@@ -395,7 +395,7 @@ public:
 	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
 	void _allocate_vectors()
 	{
-		this->isrec = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		this->links = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
 		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
 		this->Sreceivers = std::vector<int>(this->nnodes,-1);
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
@@ -580,49 +580,49 @@ public:
 		int i_r = connector.get_id_right_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r])
+			if(this->links[i_r])
 				recs.emplace_back(connector.get_right_index(i));
 		}
 		i_r = connector.get_id_bottomright_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r])
+			if(this->links[i_r])
 				recs.emplace_back(connector.get_bottomright_index(i));
 		}
 		i_r = connector.get_id_bottom_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r])
+			if(this->links[i_r])
 				recs.emplace_back(connector.get_bottom_index(i));
 		}
 		i_r = connector.get_id_bottomleft_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r])
+			if(this->links[i_r])
 				recs.emplace_back(connector.get_bottomleft_index(i));
 		}
 		i_r = connector.get_id_left_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r] == false)
+			if(this->links[i_r] == false)
 				recs.emplace_back(connector.get_left_index(i));
 		}
 		i_r = connector.get_id_topleft_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r] == false)
+			if(this->links[i_r] == false)
 				recs.emplace_back(connector.get_topleft_index(i));
 		}
 		i_r = connector.get_id_top_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r] == false)
+			if(this->links[i_r] == false)
 				recs.emplace_back(connector.get_top_index(i));
 		}
 		i_r = connector.get_id_topright_SMG(i);
 		if(i_r >=0 || i_r < connector.nnodes * 4)
 		{
-			if(this->isrec[i_r] == false)
+			if(this->links[i_r] == false)
 				recs.emplace_back(connector.get_topright_index(i));
 		}
 		return recs;
@@ -638,7 +638,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_right_index(i);
-			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -647,7 +647,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_bottomright_index(i);
-			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -656,7 +656,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_bottom_index(i);
-			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -665,7 +665,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_bottomleft_index(i);
-			if(this->isrec[i_r] && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -674,7 +674,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_left_index(i);
-			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -683,7 +683,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_topleft_index(i);
-			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -692,7 +692,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_top_index(i);
-			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -701,7 +701,7 @@ public:
 		if(i_r >=0 && i_r < connector.nnodes * 4)
 		{
 			int ti = connector.get_topright_index(i);
-			if(this->isrec[i_r] == false && ti >=0 && ti<this->nnodes)
+			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
 			{
 				recs.emplace_back(std::pair<int,int>{ti,i_r});
 			}
@@ -821,7 +821,7 @@ public:
 	}
 
 
-	int get_rec_array_size(){return int(this->isrec.size());}
+	int get_rec_array_size(){return int(this->links.size());}
 
 
 	/// Takes an array of nnodes size and sum the values at the outlets
