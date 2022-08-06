@@ -272,7 +272,7 @@ public:
 	int get_top_idx_linknodes(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return 2 * this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
 	int get_topright_idx_linknodes(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return 2 * this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
 
-	std::vector<int> get_neighourer_indices_SMG(int i)
+	std::vector<int> get_neighbour_idx_links(int i)
 	{
 		return std::vector<int>{
 			this->get_right_idx_links(i),
@@ -283,6 +283,20 @@ public:
 			this->get_topleft_idx_links(i),
 			this->get_top_idx_links(i),
 			this->get_topright_idx_links(i)
+		};
+	}
+
+	std::vector<int> get_neighbour_idx_linknodes(int i)
+	{
+		return std::vector<int>{
+			this->get_right_idx_linknodes(i),
+			this->get_bottomright_idx_linknodes(i),
+			this->get_bottom_idx_linknodes(i),
+			this->get_bottomleft_idx_linknodes(i),
+			this->get_left_idx_linknodes(i),
+			this->get_topleft_idx_linknodes(i),
+			this->get_top_idx_linknodes(i),
+			this->get_topright_idx_linknodes(i)
 		};
 	}
 
