@@ -236,22 +236,22 @@ public:
 
 	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
 
-	void fill_links_SMG(std::vector<int>& links)
+	void fill_linknodes_SMG(std::vector<int>& linknodes)
 	{
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			int o = this->get_right_index(i); 
-			links[i*8] = (this->is_in_bound(o) ? i:-1);
-			links[i*8 + 1] = (this->is_in_bound(o) ? o:-1);
+			linknodes[i*8] = (this->is_in_bound(o) ? i:-1);
+			linknodes[i*8 + 1] = (this->is_in_bound(o) ? o:-1);
 			o = this->get_bottomright_index(i); 
-			links[i*8 + 2] = (this->is_in_bound(o) ? i:-1);
-			links[i*8 + 3] = (this->is_in_bound(o) ? o:-1);
+			linknodes[i*8 + 2] = (this->is_in_bound(o) ? i:-1);
+			linknodes[i*8 + 3] = (this->is_in_bound(o) ? o:-1);
 			o = this->get_bottom_index(i); 
-			links[i*8 + 4] = (this->is_in_bound(o) ? i:-1);
-			links[i*8 + 5] = (this->is_in_bound(o) ? o:-1);
+			linknodes[i*8 + 4] = (this->is_in_bound(o) ? i:-1);
+			linknodes[i*8 + 5] = (this->is_in_bound(o) ? o:-1);
 			o = this->get_bottomleft_index(i); 
-			links[i*8 + 6] = (this->is_in_bound(o) ? i:-1);
-			links[i*8 + 7] = (this->is_in_bound(o) ? o:-1);
+			linknodes[i*8 + 6] = (this->is_in_bound(o) ? i:-1);
+			linknodes[i*8 + 7] = (this->is_in_bound(o) ? o:-1);
 		}
 	}
 
@@ -1648,13 +1648,13 @@ public:
 	}
 
 	template<class i_t>
-	T get_dx_from_links_idx( i_t i)
+	T get_dx_from_linknodes_idx( i_t i)
 	{
 		int j = std::floor(i/2);
 		return this->get_dx_from_isrec_idx(j);
 	}
 
-	std::vector<int> get_ilinks_from_node(int i)
+	std::vector<int> get_ilinknodes_from_node(int i)
 	{
 		std::vector<int> out;out.reserve(8);
 		int tn = this->get_id_right_SMG(i);
