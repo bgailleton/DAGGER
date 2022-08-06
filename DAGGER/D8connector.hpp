@@ -1620,10 +1620,12 @@ public:
 
 	  return topography;
 	}
-	
 
 
-
+	// this function makes the connector generic and allow other connector to have varying cellarea
+	template<class i_t>
+	T get_area_at_node(i_t i)
+	{return this->cellarea;}
 
 	// template<>
 	// void fill_neighbour_matrices()

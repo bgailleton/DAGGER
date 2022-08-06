@@ -719,7 +719,7 @@ public:
 		for(int i = connector.nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
-			DA[node] += connector.cellarea;
+			DA[node] += connector.get_area_at_node(node);
 
 			if(connector.is_active(node))
 			{
@@ -761,7 +761,7 @@ public:
 		for(int i = connector.nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			DA[node] += connector.cellarea;
+			DA[node] += connector.get_area_at_node(node);
 
 			if(connector.can_flow_even_go_there(node) && node != this->Sreceivers[node])
 			{
