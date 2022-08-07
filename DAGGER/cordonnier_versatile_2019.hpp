@@ -113,7 +113,7 @@ struct pair_hash {
 };
 
 	
-
+template<class float_t>
 class LMRerouter
 {
 
@@ -134,13 +134,13 @@ public:
 
 
 	//
-	std::unordered_map<std::pair<int,int> , double, pair_hash> edges;
+	std::unordered_map<std::pair<int,int> , float_t, pair_hash> edges;
 	std::unordered_map<std::pair<int,int> , std::pair<int,int>, pair_hash > edges_nodes;
 
-	LMRerouter(){};
+	LMRerouter(){;};
 
 	template<class topo_t, class Connector_t>
-	bool run(std::string method, topo_t& topography, Connector_t& connector, std::vector<int>& Sreceivers, std::vector<double>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
+	bool run(std::string method, topo_t& topography, Connector_t& connector, std::vector<int>& Sreceivers, std::vector<float_t>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
 	{
 		// std::cout << "DEBUGLM_II::1" <<std::endl;
 		// tracking the number of basins
@@ -233,7 +233,7 @@ public:
 				continue;
 
 			// The score is the minimum elevation of the pass
-			double score = std::min(topography[links[j]],topography[links[k]]);
+			float_t score = std::min(topography[links[j]],topography[links[k]]);
 			// is bj < bk (the std::pair storing the pass always starts from the lowes to the highest by convention to keep the std::pair map keys unique)
 			bool bjmin = bj<bk;
 			// if (bj<bk) pair is {bj,bk} else {bk,bj} (I love ternary operators)
@@ -269,10 +269,10 @@ public:
 		// std::cout << "DEBUGLM_II::5" <<std::endl;
 
 		// Gathering all the links in a vector
-		std::vector<PQ_helper<std::pair<int,int>, double > > basinlinks;basinlinks.reserve(nlinks);
+		std::vector<PQ_helper<std::pair<int,int>, float_t > > basinlinks;basinlinks.reserve(nlinks);
 		for(auto it: this->edges)
 		{
-			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, double >(it.first,it.second));
+			basinlinks.emplace_back(PQ_helper<std::pair<int,int>, float_t >(it.first,it.second));
 		}
 
 		// And sorting it
@@ -286,7 +286,7 @@ public:
 
 
 		// This part is applying the kruskal algorithm (I think)
-		UnionFind<int, double, Connector_t,topo_t, LMRerouter> uf(this->nbas, (*this) );
+		UnionFind<int, float_t, Connector_t,topo_t, LMRerouter> uf(this->nbas, (*this) );
 
 		// trackng the receiver of all basins
 		this->receivers = std::vector<int>(this->nbas);
@@ -462,7 +462,7 @@ public:
 					continue;
 				int from = this->receivers_node[bas].first; 
 				int to = this->receivers_node[bas].second;
-				double zref = std::max(topography[from], topography[to]);
+				float_t zref = std::max(topography[from], topography[to]);
 				Sreceivers[from] = to;
 				Sdistance2receivers[from] = connector.dx;
 				isinQ[from] = true;
@@ -472,7 +472,7 @@ public:
 					int next = Q.front();Q.pop();
 					isfilled[next] = true;
 					auto neighs = connector.get_neighbours_idx(next);
-					double lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
+					float_t lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
 					int nznodeext = Sreceivers[next];
 					for(auto n : neighs )
 					{

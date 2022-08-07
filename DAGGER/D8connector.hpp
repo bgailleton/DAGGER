@@ -278,13 +278,13 @@ public:
 		int next = this->get_right_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(next);
-		next = this->get_bottomright_idx(i)
+		next = this->get_bottomright_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(next);
 		next = this->get_bottom_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(next);
-		next = this->get_bottomleft_idx(i)
+		next = this->get_bottomleft_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(next);
 		next = this->get_left_idx(i);
@@ -309,7 +309,7 @@ public:
 		int next = this->get_right_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
 			out.emplace_back(next);
-		next = this->get_bottomright_idx_links(i)
+		next = this->get_bottomright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
 			out.emplace_back(next);
 		next = this->get_bottom_idx_links(i);
@@ -369,13 +369,13 @@ public:
 		int next = this->get_right_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(std::make_pair<int,T>(next,this->dx));
-		next = this->get_bottomright_idx(i)
+		next = this->get_bottomright_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
 		next = this->get_bottom_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(std::make_pair<int,T>(next,this->dy));
-		next = this->get_bottomleft_idx(i)
+		next = this->get_bottomleft_idx(i);
 		if(this->can_flow_even_go_there(next))
 			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
 		next = this->get_left_idx(i);
@@ -400,7 +400,7 @@ public:
 		int next = this->get_right_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
 			out.emplace_back(std::make_pair<int,T>(next,this->dx));
-		next = this->get_bottomright_idx_links(i)
+		next = this->get_bottomright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
 			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
 		next = this->get_bottom_idx_links(i);
@@ -784,7 +784,7 @@ public:
 		return this->neighbourer[id_neighbourer][0] + i;
 	}
 
-	int get_topright_index(int i)
+	int get_topright_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][2] + i;
@@ -1077,7 +1077,7 @@ public:
 	    }
 	    processed_cells++;
 
-	    auto neighbours = this->get_neighbours_idx_id(c.node);
+	    auto neighbours = this->get_neighbours_idx(c.node);
 	    for(auto n:neighbours)
 	    {
 	      if(this->is_active(n) == false) 
@@ -1123,7 +1123,7 @@ public:
 	    if (this->can_flow_even_go_there(i) == false) 
 	    {
 	      flag[i]=true;
-	      auto neighs = this->get_neighbours_idx_id(i);
+	      auto neighs = this->get_neighbours_idx(i);
 	      for (auto n:neighs)
 	      {
 	        if (flag[n])
@@ -1163,7 +1163,7 @@ public:
 
 	    bool Mask[5][5]={{false},{false},{false},{false},{false}};
 	    
-	    auto neighs = this->get_neighbours_idx_id(node.node);
+	    auto neighs = this->get_neighbours_idx(node.node);
 	    for (auto n: neighs)
 	    {
 

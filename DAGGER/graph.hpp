@@ -153,7 +153,7 @@ public:
 		if(depression_solver == "carve" || depression_solver == "fill")
 		{
 	
-			LMRerouter depsolver;
+			LMRerouter<float_t> depsolver;
 			// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
 			need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
 			// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
@@ -210,7 +210,7 @@ public:
 
 		std::vector<float_t> faketopo(to_vec(topography));
 		
-		LMRerouter depsolver;
+		LMRerouter<float_t> depsolver = LMRerouter<float_t>();
 		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
 		bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
 		// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
@@ -685,7 +685,7 @@ public:
 
 			if(connector.is_active(node))
 			{
-				auto recs = this->get_receiver_idx(node, connector);
+				auto recs = this->get_receivers_idx(node, connector);
 
 				std::vector<float_t> slopes(recs.size());
 				float_t sumslopes = 0;
@@ -755,7 +755,7 @@ public:
 	{
 		std::cout << std::setprecision(12);
 		auto topography = format_input(ttopography);
-		auto receivers = this->get_receiver_indices(i, connector);
+		auto receivers = this->get_receivers_idx(i, connector);
 
 		std::cout << "Topography is " << topography[i] << "# receivers: " << receivers.size() << std::endl;
 		for(auto r: receivers)
@@ -776,10 +776,6 @@ public:
 			connector.rowcol_from_node_id(r,row,col);
 			std::cout << "Neighbour " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
 		}
-
-
-
-
 	}
 
 
