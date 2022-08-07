@@ -820,7 +820,7 @@ public:
 		return neighs;
 	}
 
-	std::vector<int> get_neighbours_only_id(int i)
+	std::vector<int> get_neighbours_idx(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(8);
 		int tn = this->get_left_idx(i);
@@ -855,7 +855,7 @@ public:
 
 	// Some of my algorithm are adapted from richdem and require iterating through neighbours the way they do
 	// starting from left and going clockwise around the node
-	std::vector<int> get_neighbours_only_id_richdemlike(int i)
+	std::vector<int> get_neighbours_idx_richdemlike(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(8);
 		neighs.emplace_back(this->get_left_idx(i));
@@ -1077,7 +1077,7 @@ public:
 	    }
 	    processed_cells++;
 
-	    auto neighbours = this->get_neighbours_only_id(c.node);
+	    auto neighbours = this->get_neighbours_idx_id(c.node);
 	    for(auto n:neighbours)
 	    {
 	      if(this->is_active(n) == false) 
@@ -1123,7 +1123,7 @@ public:
 	    if (this->can_flow_even_go_there(i) == false) 
 	    {
 	      flag[i]=true;
-	      auto neighs = this->get_neighbours_only_id(i);
+	      auto neighs = this->get_neighbours_idx_id(i);
 	      for (auto n:neighs)
 	      {
 	        if (flag[n])
@@ -1163,7 +1163,7 @@ public:
 
 	    bool Mask[5][5]={{false},{false},{false},{false},{false}};
 	    
-	    auto neighs = this->get_neighbours_only_id(node.node);
+	    auto neighs = this->get_neighbours_idx_id(node.node);
 	    for (auto n: neighs)
 	    {
 
@@ -1179,7 +1179,7 @@ public:
 	      {
 	        //initialize all masks as false
 	        bool have_spill_path_or_lower_spill_outlet=false; //whether cell n has a spill path or a lower spill outlet than node if n is a depression cell
-	        auto nneighs = this->get_neighbours_only_id_richdemlike(n);
+	        auto nneighs = this->get_neighbours_idx_richdemlike(n);
 	        int row,col; this->rowcol_from_node_id(node.node,row,col);
 	        int nrow,ncol; this->rowcol_from_node_id(n,nrow,ncol);
 	        int incr=0;
@@ -1217,7 +1217,7 @@ public:
 	    potentialQueue.pop();
 
 	    //first case
-	    auto neigh = this->get_neighbours_only_id_richdemlike(node.node);
+	    auto neigh = this->get_neighbours_idx_richdemlike(node.node);
 	    int incr = 0;
 	    for (auto n:neigh)
 	    {
@@ -1246,7 +1246,7 @@ public:
 	  {
 	    auto node = depressionQue.front();
 	    depressionQue.pop();
-	    auto neigh = this->get_neighbours_only_id(node.node);
+	    auto neigh = this->get_neighbours_idx(node.node);
 
 	    for (auto n: neigh)
 	    {
@@ -1290,7 +1290,7 @@ public:
 	    const auto tmpNode = priorityQueue.top();
 	    priorityQueue.pop();
 
-	    auto neigh = this->get_neighbours_only_id(tmpNode.node);
+	    auto neigh = this->get_neighbours_idx(tmpNode.node);
 
 	    for(auto n:neigh)
 	    {

@@ -666,6 +666,12 @@ public:
 		return dons;
 	}
 
+
+
+
+
+
+
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_proposlope(Connector_t& connector, topo_t& ttopography)
 	{
@@ -679,22 +685,22 @@ public:
 
 			if(connector.is_active(node))
 			{
-				auto receivers = this->get_receiver_indices(node, connector);
+				auto recs = this->get_receiver_idx(node, connector);
 
-				std::vector<float_t> slopes(receivers.size());
+				std::vector<float_t> slopes(recs.size());
 				float_t sumslopes = 0;
-				for(size_t j = 0;j < receivers.size(); ++j)
+				for(size_t j = 0;j < recs.size(); ++j)
 				{
-					int rec = receivers[j];
+					int rec = recs[j];
 					slopes[j] = (topography[node] - topography[rec])/connector.dx;
 					if(slopes[j] <= 0)
 						slopes[j] = 1e-5;
 					sumslopes += slopes[j];
 				}
 
-				for(size_t j = 0;j < receivers.size(); ++j)
+				for(size_t j = 0;j < recs.size(); ++j)
 				{
-					int rec = receivers[j];
+					int rec = recs[j];
 					DA[rec] += DA[node] * slopes[j]/sumslopes;
 				}
 
