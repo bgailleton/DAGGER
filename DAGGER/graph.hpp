@@ -572,7 +572,6 @@ public:
 
 
 	
-	// NEXT TARGET TO REFACTOR
 	template<class Connector_t>
 	std::vector<int> get_receiver_indices(int i, Connector_t& connector)
 	{
