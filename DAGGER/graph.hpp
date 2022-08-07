@@ -573,141 +573,50 @@ public:
 
 	
 	template<class Connector_t>
-	std::vector<int> get_receiver_indices(int i, Connector_t& connector)
+	std::vector<int> get_receivers_idx(int i, Connector_t& connector)
 	{
 		std::vector<int> recs; recs.reserve(8);
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		int i_r = connector.get_id_right_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
+		for(auto li:linkidx)
 		{
-			if(this->links[i_r])
-				recs.emplace_back(connector.get_right_index(i));
-		}
-		i_r = connector.get_id_bottomright_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r])
-				recs.emplace_back(connector.get_bottomright_index(i));
-		}
-		i_r = connector.get_id_bottom_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r])
-				recs.emplace_back(connector.get_bottom_index(i));
-		}
-		i_r = connector.get_id_bottomleft_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r])
-				recs.emplace_back(connector.get_bottomleft_index(i));
-		}
-		i_r = connector.get_id_left_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r] == false)
-				recs.emplace_back(connector.get_left_index(i));
-		}
-		i_r = connector.get_id_topleft_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r] == false)
-				recs.emplace_back(connector.get_topleft_index(i));
-		}
-		i_r = connector.get_id_top_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r] == false)
-				recs.emplace_back(connector.get_top_index(i));
-		}
-		i_r = connector.get_id_topright_SMG(i);
-		if(i_r >=0 || i_r < connector.nnodes * 4)
-		{
-			if(this->links[i_r] == false)
-				recs.emplace_back(connector.get_topright_index(i));
+			if(i == this->linknodes[li*2] && this->links[li])
+				recs.emplace_back(this->linknodes[li*2 + 1]);
+			else if(this->links[li] == false)
+				recs.emplace_back(this->linknodes[li*2]);
 		}
 		return recs;
-
 	}
 
 	template<class Connector_t>
-	std::vector<std::pair<int,int> > get_receiver_link_indices(int i, Connector_t& connector)
+	std::vector<int> get_receivers_idx_links(int i, Connector_t& connector)
+	{
+		std::vector<int> recs; recs.reserve(8);
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		for(auto li:linkidx)
+		{
+			if(i == this->linknodes[li*2] && this->links[li])
+				recs.emplace_back(li);
+			else if(this->links[li] == false)
+				recs.emplace_back(li);
+		}
+		return recs;
+	}
+
+	template<class Connector_t>
+	std::vector<std::pair<int,int> > get_node_receivers_idx_pair(int i, Connector_t& connector)
 	{
 		std::vector<std::pair<int,int>> recs; recs.reserve(8);
 
-		int i_r = connector.get_id_right_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		for(auto li:linkidx)
 		{
-			int ti = connector.get_right_index(i);
-			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
+			if(i == this->linknodes[li*2] && this->links[li])
+				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
+			else if(this->links[li] == false)
+				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
 		}
-		i_r = connector.get_id_bottomright_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_bottomright_index(i);
-			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_bottom_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_bottom_index(i);
-			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_bottomleft_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_bottomleft_index(i);
-			if(this->links[i_r] && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_left_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_left_index(i);
-			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_topleft_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_topleft_index(i);
-			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_top_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_top_index(i);
-			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		i_r = connector.get_id_topright_SMG(i);
-		if(i_r >=0 && i_r < connector.nnodes * 4)
-		{
-			int ti = connector.get_topright_index(i);
-			if(this->links[i_r] == false && ti >=0 && ti<this->nnodes)
-			{
-				recs.emplace_back(std::pair<int,int>{ti,i_r});
-			}
-		}
-		return recs;
 
+		return recs;
 	}
 
 	template<class Connector_t, class topo_t, class out_t>
