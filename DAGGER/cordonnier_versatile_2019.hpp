@@ -471,7 +471,7 @@ public:
 				{
 					int next = Q.front();Q.pop();
 					isfilled[next] = true;
-					auto neighs = connector.get_neighbours_only_id(next);
+					auto neighs = connector.get_neighbours_idx(next);
 					double lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
 					int nznodeext = Sreceivers[next];
 					for(auto n : neighs )

@@ -1247,13 +1247,10 @@ public:
 	    auto node = depressionQue.front();
 	    depressionQue.pop();
 	    auto neigh = this->get_neighbours_idx(node.node);
-
 	    for (auto n: neigh)
 	    {
-
 	      if (flag[n])
 	        continue;
-
 	      const auto iSpill = topography[n];
 	      if (iSpill > node.score)
 	      { // Dlope cell
@@ -1261,7 +1258,6 @@ public:
 	        traceQueue.emplace(n,iSpill);
 	        continue;
 	      }
-
 	      // Depression cell
 	      flag[n] = true;
 	      topography[n] = node.score + 1e-3 + 1e-6 * this->randu.get();

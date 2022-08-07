@@ -767,7 +767,7 @@ public:
 		}
 
 
-		auto neighbours = connector.get_neighbours_only_id(i);
+		auto neighbours = connector.get_neighbours_idx(i);
 		std::cout << "Neighbours are :" << std::endl;
 
 		for(auto r: neighbours)
