@@ -619,6 +619,53 @@ public:
 		return recs;
 	}
 
+	template<class Connector_t>
+	std::vector<int> get_donors_idx(int i, Connector_t& connector)
+	{
+		std::vector<int> dons; dons.reserve(8);
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		for(auto li:linkidx)
+		{
+			if(i == this->linknodes[li*2] && this->links[li] == false)
+				dons.emplace_back(this->linknodes[li*2 + 1]);
+			else if(this->links[li])
+				dons.emplace_back(this->linknodes[li*2]);
+		}
+		return dons;
+	}
+
+	template<class Connector_t>
+	std::vector<int> get_donors_idx_links(int i, Connector_t& connector)
+	{
+		std::vector<int> dons; dons.reserve(8);
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		for(auto li:linkidx)
+		{
+			if(i == this->linknodes[li*2] && this->links[li] == false)
+				dons.emplace_back(li);
+			else if(this->links[li])
+				dons.emplace_back(li);
+		}
+		return dons;
+	}
+
+	template<class Connector_t>
+	std::vector<std::pair<int,int> > get_node_donors_idx_pair(int i, Connector_t& connector)
+	{
+		std::vector<std::pair<int,int>> dons; dons.reserve(8);
+
+		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		for(auto li:linkidx)
+		{
+			if(i == this->linknodes[li*2] && this->links[li] == false)
+				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
+			else if(this->links[li])
+				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
+		}
+
+		return dons;
+	}
+
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_proposlope(Connector_t& connector, topo_t& ttopography)
 	{
