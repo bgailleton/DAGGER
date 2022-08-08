@@ -118,15 +118,14 @@ public:
 	}
 
 	// Compute the graph using the cordonnier metod to solve the depressions
-	// depression_solver is a string of "carve", "fill" or "simple" setting the rerouting method
-	// topography is the vetor-like topography
-	// connector is the connector
+	// template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
 	template<class Connector_t,class topo_t, class out_t>
 	out_t compute_graph(
-		std::string depression_solver,
-	  topo_t& ttopography, 
-	  Connector_t& connector, 
-	  bool only_SD
+		std::string depression_solver, // String switching the type of depression solver: "cordonnier_carve", "cordonnier_fill", "cordonnier_simple" or "priority_flood"
+	  topo_t& ttopography, // the input topography
+	  Connector_t& connector, // the input connector to use (e.g. D8connector)
+	  bool only_SD, // only computes the single flow graph if true
+	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
 	  )
 	{
 		// Formatting the input to match all the wrappers
@@ -184,16 +183,25 @@ public:
 				if(only_SD)
 					return format_output(faketopo);
 				
-				// Otherwise, conducting the stable sort topological order
-				this->topological_sorting_quicksort(faketopo);
+				// Otherwise, conducting the topological sorting
+				if(quicksort)
+					this->topological_sorting_quicksort(faketopo);
+				else
+					this->topological_sorting_dag(connector);
+				
 				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
 				this->update_Mrecs(faketopo,connector);
 			}
 		}
+
 		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
+		// for multiple as the toposort for SF is already done
 		else if (only_SD == false)
 		{
-			this->topological_sorting_quicksort(faketopo);
+			if(quicksort)
+					this->topological_sorting_quicksort(faketopo);
+				else
+					this->topological_sorting_dag(connector);
 		}
 
 
