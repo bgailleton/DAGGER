@@ -127,11 +127,12 @@ public:
 		// Formatting the input to match all the wrappers
 		auto topography = format_input(ttopography);
 
+		bool isCordonnier = this->is_method_cordonnier(depression_solver);
+
 		// Formatting hte output topo
 		std::vector<float_t> faketopo(to_vec(topography));
 
-
-		if(depression_solver == "priority_flood")
+		if(isCordonnier == false)
 			faketopo = connector.PriorityFlood_Wei2018(topography);
 
 		// Making sure the graph is not inheriting previous values
@@ -147,137 +148,39 @@ public:
 		this->compute_TO_SF_stack_version();
 		// std::cout << "DEBUGGRAPH6::5" << std::endl;
 
-
-		bool need_recompute = false;
-
-		if(depression_solver == "carve" || depression_solver == "fill")
+		if(isCordonnier)
 		{
 	
 			LMRerouter<float_t> depsolver;
 			// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-			need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
+			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
 			// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
-		}
-
-		if(need_recompute)
-		{
 		
-			this->recompute_SF_donors_from_receivers();
-		
-			this->compute_TO_SF_stack_version();
 
-			if(depression_solver == "carve")
-				this->carve_topo_v2(1e-5, connector, faketopo);
-
-			if(only_SS)
-				return format_output(faketopo);
-					
-			this->compute_MF_topological_order_insort(faketopo);
-			this->update_Mrecs(faketopo,connector);
-
-
-			return format_output(faketopo);
+			if(need_recompute)
+			{
 			
+				this->recompute_SF_donors_from_receivers();
+			
+				this->compute_TO_SF_stack_version();
+
+				if(depression_solver == "carve")
+					this->carve_topo_v2(1e-5, connector, faketopo);
+
+				if(only_SS)
+					return format_output(faketopo);
+						
+				this->compute_MF_topological_order_insort(faketopo);
+				this->update_Mrecs(faketopo,connector);
+			}
+			else if (only_SS == false)
+			{
+				this->compute_MF_topological_order_insort(faketopo);
+			}
 		}
-		else if (only_SS == false)
-		{
-			// std::cout << "nodep" << std::endl;
-			this->compute_MF_topological_order_insort(faketopo);
-			return format_output(faketopo);	
-		}
-		else
-		{
-			return format_output(faketopo);
-		}
 
-	}
-
-	template<class Connector_t,class topo_t, class out_t>
-	out_t compute_graph_SS(std::string depression_solver, topo_t& ttopography, Connector_t& connector)
-	{
-		// std::cout << "DEBUGGRAPH6::1" << std::endl;
-		auto topography = format_input(ttopography);
-		this->reinit_graph(connector);
-		// std::cout << "DEBUGGRAPH6::2" << std::endl;
-		this->update_recs(topography,connector);
-		// std::cout << "DEBUGGRAPH6::3" << std::endl;
-		
-		this->compute_SF_donors_from_receivers();
-		// std::cout << "DEBUGGRAPH6::4" << std::endl;
-		
-		this->compute_TO_SF_stack_version();
-		// std::cout << "DEBUGGRAPH6::5" << std::endl;
-
-		std::vector<float_t> faketopo(to_vec(topography));
-		
-		LMRerouter<float_t> depsolver = LMRerouter<float_t>();
-		// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-		bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
-		// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
-
-		if(need_recompute)
-		{
-		
-			this->recompute_SF_donors_from_receivers();
-		
-			this->compute_TO_SF_stack_version();
-
-			if(depression_solver == "carve")
-				this->carve_topo_v2(1e-5, connector, faketopo);
 
 			return format_output(faketopo);
-		}
-		else
-		{
-			// std::cout << "nodep" << std::endl;
-			// this->compute_MF_topological_order_insort(faketopo);
-			return format_output(faketopo);	
-		}
-
-	}
-
-	template<class Connector_t,class topo_t, class out_t>
-	out_t compute_graph_nodep(topo_t& ttopography, Connector_t& connector)
-	{
-		auto topography = format_input(ttopography);
-		this->reinit_graph(connector);
-		this->update_recs(topography,connector);
-		
-		this->compute_SF_donors_from_receivers();
-		
-		this->compute_TO_SF_stack_version();
-
-		std::vector<float_t> faketopo(to_vec(topography));
-		this->compute_MF_topological_order_insort(faketopo);
-
-	
-		return format_output(faketopo);	
-
-	}
-
-	template<class Connector_t,class topo_t, class out_t>
-	out_t compute_graph_PQ( topo_t& ttopography, Connector_t& connector)
-	{
-		// std::cout << "DEBUGGRAPH6::1" << std::endl;
-		auto topography = format_input(ttopography);
-
-		std::vector<float_t> faketopo = connector.PriorityFlood_Wei2018(topography);
-
-		this->reinit_graph(connector);
-		// std::cout << "DEBUGGRAPH6::2" << std::endl;
-		this->update_recs(faketopo,connector);
-		// std::cout << "DEBUGGRAPH6::3" << std::endl;
-		
-		this->compute_SF_donors_from_receivers();
-		// std::cout << "DEBUGGRAPH6::4" << std::endl;
-		
-		this->compute_TO_SF_stack_version();
-
-		this->compute_MF_topological_order_insort(faketopo);
-		// std::cout << "DEBUGGRAPH6::5" << std::endl;
-
-		return format_output(faketopo);	
-
 
 	}
 
@@ -891,6 +794,13 @@ public:
 	}
 
 
+	bool is_method_cordonnier(std::string method)
+	{
+		if(method == "cordonnier_fill" || method == "cordonnier_carve")
+			return true;
+		else
+			return false;
+	}
 
 
 
