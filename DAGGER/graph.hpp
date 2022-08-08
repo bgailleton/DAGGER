@@ -4,7 +4,8 @@
 
 
 /*
-
+This file contains the graph class.
+The graph manages anything linked to the DAG and is the main interface to the code.
 B.G. 2022
 */
 
@@ -84,10 +85,13 @@ public:
 	std::vector<float_t> SS;
 	
 	// Topological order and Single graph topological order
+	// While the MD stack can be used for single flow topology, 
+	// the SD graph sensu Braun and Willett 2013 is built in a very comprehensive way 
+	// making operations such as watershed labelling or connected component gathering particularly efficient
 	std::vector<size_t> stack, Sstack;
 
 	
-	// default constructor
+	// default empty constructor
 	graph(){};
 
 	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
@@ -99,8 +103,9 @@ public:
 	template<class Connector_t>
 	void init_graph(Connector_t& connector)
 	{
-		// Allocate vectors
+		// Allocate vectors to node size
 		this->_allocate_vectors();
+		// Calling the cionnector to allocate the linknodes to the right size
 		connector.fill_linknodes(this->linknodes);
 	}
 
@@ -108,7 +113,7 @@ public:
 	template<class Connector_t>
 	void reinit_graph(Connector_t& connector)
 	{
-		// Allocate vectors
+		// reinitialise the vector without reallocating the full memory
 		this->_reallocate_vectors();
 	}
 
@@ -121,67 +126,79 @@ public:
 		std::string depression_solver,
 	  topo_t& ttopography, 
 	  Connector_t& connector, 
-	  bool only_SS
+	  bool only_SD
 	  )
 	{
 		// Formatting the input to match all the wrappers
 		auto topography = format_input(ttopography);
 
+		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier(depression_solver);
 
-		// Formatting hte output topo
+		// Formatting the output topo
 		std::vector<float_t> faketopo(to_vec(topography));
 
+		// if the method is not Cordonnier -> apply the other first
 		if(isCordonnier == false)
+		{
+			// filling the topography with a minimal slope using Wei et al., 2018
 			faketopo = connector.PriorityFlood_Wei2018(topography);
+		}
 
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
-		// std::cout << "DEBUGGRAPH6::3" << std::endl;
-		
 
-		// std::cout << "DEBUGGRAPH6::4" << std::endl;
-		
-		this->compute_TO_SF_stack_version();
-		// std::cout << "DEBUGGRAPH6::5" << std::endl;
+		// Compute the topological sorting for single stack
+		// Braun and willett 2014 (modified)
+		this->topological_sorting_SF();
 
+
+		// manages the Cordonnier method if needed
 		if(isCordonnier)
 		{
-	
+			
+			// LMRerouter is the class managing the different cordonnier's mthod
 			LMRerouter<float_t> depsolver;
-			// std::cout << "DEBUGGRAPH6::prerun" << std::endl;
-			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
-			// std::cout << "DEBUGGRAPH6::postrun" << std::endl;
-		
+			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
+			// Note that faketopo are modified in place.
+			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
 
+			// Right, if reomputed needs to be
 			if(need_recompute)
 			{
-			
+				
+				// Re-inverting the Sreceivers into Sdonors
 				this->recompute_SF_donors_from_receivers();
-			
-				this->compute_TO_SF_stack_version();
+				
+				// Recomputing Braun and willett 2014 (modified)
+				this->topological_sorting_SF();
 
+				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
 				if(depression_solver == "carve")
 					this->carve_topo_v2(1e-5, connector, faketopo);
 
-				if(only_SS)
+				// My work here is done if only SD is needed
+				if(only_SD)
 					return format_output(faketopo);
-						
-				this->compute_MF_topological_order_insort(faketopo);
+				
+				// Otherwise, conducting the stable sort topological order
+				this->topological_sorting_quicksort(faketopo);
+				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
 				this->update_Mrecs(faketopo,connector);
 			}
-			else if (only_SS == false)
-			{
-				this->compute_MF_topological_order_insort(faketopo);
-			}
+		}
+		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
+		else if (only_SD == false)
+		{
+			this->topological_sorting_quicksort(faketopo);
 		}
 
 
-			return format_output(faketopo);
-
+		// Finally I format the output topography to the right wrapper
+		return format_output(faketopo);
 	}
 
 
@@ -331,7 +348,7 @@ public:
 
 
 	template<class topo_t>
-	void compute_MF_topological_order_insort(topo_t& ttopography)
+	void topological_sorting_quicksort(topo_t& ttopography)
 	{
 		auto topography = format_input(ttopography);
 
@@ -384,7 +401,7 @@ public:
 	}
 
 
-	void compute_TO_SF_stack_version()
+	void topological_sorting_SF()
 	{
 		// The stack container helper
 		std::stack<size_t, std::vector<size_t> > stackhelper;
