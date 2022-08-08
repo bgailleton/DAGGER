@@ -806,7 +806,249 @@ public:
 
 
 
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions to access sets of nodes draining to/from a single point
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+	template<class Connector_t,class out_t>
+	out_t get_all_nodes_upstream_of(Connector_t& connector, int node, bool use_Sgraph = true, bool only_SD = false)
+	{
+		std::vector<int> out;
+		if(use_Sgraph)
+		{
+			out = this->_get_all_nodes_upstream_of_using_graph(connector ,node, only_SD);
+		}
+		else
+			throw std::runtime_error("graph::get_all_nodes_upstream_of::error not implemented yet without graph");
+
+		return format_output(out);
+	}
+
+	template< class Connector_t>
+	std::vector<int> _get_all_nodes_upstream_of_using_graph(Connector_t& connector,int node, bool only_SD)
+	{
+
+		// Formatting the output vector
+		std::vector<int> out;
+		out.reserve(round(this->nnodes/4));
+		// Creating a visited vector tracking which node has been visited
+		std::vector<bool> vis(this->nnodes,false);
+		// marking the initial node as true
+		vis[node] = true;
+
+		for(auto tnode:this->Sstack)
+		{
+			// ignoring the not ode and outlets
+			if(connector.is_active(tnode))
+			{
+				// Getting the receiver
+				int rec = this->Sreceivers[tnode];
+				// checkng if receiver is visited but not node
+				if(vis[rec] && rec != node)
+				{
+					// current noer is visited
+					vis[tnode] = true;
+					// and is draining to this node
+					out.emplace_back(tnode);
+				}
+			}
+		}
+
+		// if only steepest descent is needed, we stop there
+		if(only_SD)
+			return out;
+
+		// else, we have to use a queue to add all the donors
+		std::queue<int> toproc;
+
+		// first checking if all the steepest descent nodes I already have there have a not-SD donor
+		for(auto v:out)
+		{
+			// gettign the donors
+			auto donors = this->get_donors_idx(v,connector);
+			// for all donors of dat nod
+			for(auto d:donors)
+			{
+				// if not visited
+				if(vis[d] == false)
+				{
+					// becomes visited
+					vis[d] = true;
+					// and I emplace it in the queues
+					toproc.emplace(d);
+				}
+			}
+		}		 
+
+		// once this is done I work until the queue is empty
+		while(toproc.empty() == false)
+		{
+			// getting the next node in line
+			int next = toproc.front();
+			toproc.pop();
+			// recording it as draining to the original node
+			out.emplace_back(next);
+			// getting all its donors
+			auto donors = this->get_donors_idx(next,connector);
+			for(auto d:donors)
+			{
+				// if not visited including it (see above)
+				if(vis[d] == false)
+				{
+					vis[d] = true;
+					toproc.emplace(d);
+				}
+			}
+
+		}
+
+		// LOK queue is empty and I have everything I need
+
+		return out;
+	}
+
+	template<class Connector_t,class out_t>
+	out_t get_all_nodes_downstream_of(Connector_t& connector, int node, bool use_Sgraph = true, bool only_SD = false)
+	{
+		std::vector<int> out;
+		if(use_Sgraph)
+		{
+			out = this->_get_all_nodes_downstream_of_using_graph(connector ,node, only_SD);
+		}
+		else
+			throw std::runtime_error("graph::get_all_nodes_downstream_of::error not implemented yet without graph");
+
+		return format_output(out);
+	}
+
+	template< class Connector_t>
+	std::vector<int> _get_all_nodes_downstream_of_using_graph(Connector_t& connector,int node, bool only_SD)
+	{
+
+		// Formatting the output vector
+		std::vector<int> out;
+		out.reserve(round(this->nnodes/4));
+		// Creating a visited vector tracking which node has been visited
+		std::vector<bool> vis(this->nnodes,false);
+		// marking the initial node as true
+		vis[node] = true;
+
+		for(int i = this->nnodes - 1; i >=0; --i )
+		{
+			int tnode = this->Sstack[i];
+			// ignoring the not ode and outlets
+			if(connector.is_active(tnode))
+			{
+				// Getting the receiver
+				int rec = this->Sreceivers[tnode];
+				// checkng if receiver is visited but not node
+				if(vis[node] && rec != node && tnode != node)
+				{
+					// current noer is visited
+					vis[rec] = true;
+					// and is draining to this node
+					out.emplace_back(tnode);
+				}
+			}
+		}
+
+		// if only steepest descent is needed, we stop there
+		if(only_SD)
+			return out;
+
+		// else, we have to use a queue to add all the receivers
+		std::queue<int> toproc;
+
+		// first checking if all the steepest descent nodes I already have there have a not-SD rec
+		for(auto v:out)
+		{
+			// gettign the receivers
+			auto receivers = this->get_receivers_idx(v,connector);
+			// for all receivers of dat nod
+			for(auto r:receivers)
+			{
+				// if not visited
+				if(vis[r] == false)
+				{
+					// becomes visited
+					vis[r] = true;
+					// and I emplace it in the queues
+					toproc.emplace(r);
+				}
+			}
+		}		 
+
+		// once this is done I work until the queue is empty
+		while(toproc.empty() == false)
+		{
+			// getting the next node in line
+			int next = toproc.front();
+			toproc.pop();
+			// recording it as draining to the original node
+			out.emplace_back(next);
+			// getting all its receivers
+			auto receivers = this->get_receivers_idx(next,connector);
+			for(auto r:receivers)
+			{
+				// if not visited including it (see above)
+				if(vis[r] == false)
+				{
+					vis[r] = true;
+					toproc.emplace(r);
+				}
+			}
+
+		}
+
+		// LOK queue is empty and I have everything I need
+
+		return out;
+	}
+
+
+
+	template< class Connector_t>
+	std::vector<int> _get_flow_acc(Connector_t& connector)
+	{
+		std::vector<int> flowacc(this->nnodes,0);
+		for(int i = this->nnodes-1; i>=0; --i)
+		{
+			int node = this->Sstack[i];
+			if(connector.can_flow_even_go_there(node))
+				continue;
+			int rec = this->Sreceivers[node];
+			if(connector.can_flow_out_there(node) == false)
+			{
+				flowacc[rec] += flowacc[node] + 1;
+			}
+		}
+		return flowacc;
+	}
+
+
+
 };
+
+
+
 
 
 
