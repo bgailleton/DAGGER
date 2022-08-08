@@ -1044,7 +1044,59 @@ public:
 	}
 
 
+	template< class Connector_t>
+	std::vector<int> topological_sorting_dag(Connector_t& connector)
+	{
+		std::vector<int> nrecs(this->nnodes,0);
+		std::queue<int> toproc;
+		this->stack.clear();
+		this->stack.reserve(this->nnodes);
+		for(int i = 0; i < int( this->links.size() ) ; ++i)
+		{
+			
+			if(connector.can_flow_even_go_there(i) == false)
+			{
+				this->stack.emplace_back(i);
+				continue;
+			}
 
+			if(this->links[i])
+				++nrecs[this->linknodes[i*2]];
+			else
+				++nrecs[this->linknodes[i*2+1]];
+		}
+
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if(nrecs[i] == 0 && connector.can_flow_even_go_there(i))
+				toproc.emplace(i);
+		}
+
+		while(toproc.empty() == false)
+		{
+			int next = toproc.front();
+			toproc.pop();
+			this->stack.emplace_back(next);
+			auto dons = this->get_donors_idx(next, connector);
+			for(auto d : dons)
+			{
+				--nrecs[d];
+				if(nrecs[d] == 0)
+					toproc.emplace(d);
+			}
+		}
+
+	}
+
+
+
+
+
+	bool is_link_valid(int i){return (this->linknodes[i*2]>=0)?true:false; }
+
+
+
+// end of the graph class
 };
 
 
