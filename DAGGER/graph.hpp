@@ -188,7 +188,7 @@ public:
 					this->topological_sorting_quicksort(faketopo);
 				else
 					this->topological_sorting_dag(connector);
-				
+
 				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
 				this->update_Mrecs(faketopo,connector);
 			}
@@ -210,71 +210,66 @@ public:
 	}
 
 
+
+	// Function updating ONLY the MFD receivers
+	// This is useful in the cases where SFD recs are conditionned by an other mean
+	// and cannot be touched (e.g. Cordonnier)
 	template<class Connector_t,class topo_t>
 	void update_Mrecs(topo_t& topography, Connector_t& connector)
 	{
+		// iterating though every links
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
+			// Getting hte 2 nodes of the current link
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
 			
+			// Checking the validity of the link
 			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
 				continue;
 
+			// by convention true -> topo1 > topo2
 			if(topography[from] > topography[to])
 				this->links[i] = true;
 			else
 				this->links[i] = false;
 		}
-	}
-	template<class Connector_t,class topo_t>
-	void update_some_Mrecs(topo_t& topography, Connector_t& connector, std::vector<int>& some)
-	{
-		for(size_t j = 0; j<some.size(); ++j)
-		{
-			int node = some[j];
-			auto ilinknodes = connector.get_ilinknodes_from_node(node);
-			for(auto i: ilinknodes)
-			{
-				int from = this->linknodes[i*2];
-				int to = this->linknodes[i*2 + 1];
-				
-				if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
-					continue;
-
-				if(topography[from] > topography[to])
-					this->links[i] = true;
-				else
-					this->links[i] = false;
-			}
-		}
+		// done
 	}
 
+	// Updates all the link and the SFD info
 	template<class Connector_t,class topo_t>
 	void update_recs(topo_t& topography, Connector_t& connector)
 	{
+		// iterating through all the nodes
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
+
+			// Getting ht etwo nodes of the links
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
 			
+			// Checking the validity of the link
 			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
 			{
 				continue;
 			}
 
-			// if(connector.is_active(from) == false || connector.is_active(to) == false )
-			// 	continue;
-
+			// getting the link infos
+			// -> dx
 			float_t dx = connector.get_dx_from_links_idx(i);
+			// -> slope
 			float_t slope = (topography[from] - topography[to])/dx;
-			// std::cout << from << "|" << to << "|";
 
+			// if slope is positive, to is the receiver by convention
 			if(slope>0)
 			{
+				// Conventional direction
 				this->links[i] = true;
+				// if Steepest Slope is higher than the current recorded one
 				if(this->SS[from]<slope)
 				{
+					// saving the Sreceivers info as temporary best choice
 					this->Sreceivers[from] = to;
 					this->Sdistance2receivers[from] = dx;
 					this->SS[from] = slope;
@@ -282,7 +277,10 @@ public:
 			}
 			else
 			{
+				// Otherwise the convention is inverted:
+				// isrec is falese and to is giving to from
 				this->links[i] = false;
+				// NOte that slope is absolute values
 				slope = std::abs(slope);
 				if(this->SS[to]<slope)
 				{
@@ -294,12 +292,15 @@ public:
 
 		}
 
+		// Finally inverting the Sreceivers into the Sdonors info
+		// Required for several routines
 		this->compute_SF_donors_from_receivers();
-
-
-
 	}
 
+
+
+	// This is a debugging function checking the stack
+	// You an ignore
 	template<class out_t>
 	out_t test_Srecs()
 	{
@@ -343,29 +344,21 @@ public:
 	}
 
 
-
-
-
-
-#ifdef DAGGER_FT_PYTHON
-	py::array_t<int,1> get_Sreceivers(){return py::array_t<int,1>(this->Sreceivers.size(),this->Sreceivers.data() ) ;} 
-	py::array_t<float_t,1> get_dx_array(){return py::array_t<float_t,1>(this->Sdistance2receivers.size(),this->Sdistance2receivers.data() ) ;} 
-#endif
-
-
-
-
+	// Multiple flow topological sorting using quicksort algorithm
+	// Topography is simply sorted by absolute elevation keeping track of the indices
 	template<class topo_t>
 	void topological_sorting_quicksort(topo_t& ttopography)
 	{
+		// Formatting hte topographic input from the wrapper
 		auto topography = format_input(ttopography);
-
-
+		// Dortng by index
 		auto yolo = sort_indexes(topography);
+		// the sorted index is now the stack
 		this->stack = std::move(yolo);
-
 	}
 
+
+	// Fucntion inverting the SFD receivers into donors
 	void compute_SF_donors_from_receivers()
 	{
 		// Initialising the graph dimesions for the donors
@@ -373,6 +366,7 @@ public:
 		this->Sdonors = std::vector<int>(this->nnodes * 8,-1);
 		this->nSdonors = std::vector<int>(this->nnodes,0);
 
+		// iterating through all the nodes
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			// SF so rid == i cause there is only 1 rec
@@ -380,12 +374,16 @@ public:
 			if(trec == i)
 				continue;
 
+			// feeding the Sdonors array at rec position with current node and...
 			this->Sdonors[trec * 8  + this->nSdonors[trec]] = i;
+			// ... incrementing hte number of Sdonors
 			this->nSdonors[trec] += 1;
 		}
-
+		// done
 	}
 
+
+	// Sma function than above but without reallocating hte memory (can save a bit of time depending on the context)
 	void recompute_SF_donors_from_receivers()
 	{
 
