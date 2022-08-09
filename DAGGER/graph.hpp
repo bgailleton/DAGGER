@@ -344,20 +344,6 @@ public:
 	}
 
 
-	// Multiple flow topological sorting using quicksort algorithm
-	// Topography is simply sorted by absolute elevation keeping track of the indices
-	template<class topo_t>
-	void topological_sorting_quicksort(topo_t& ttopography)
-	{
-		// Formatting hte topographic input from the wrapper
-		auto topography = format_input(ttopography);
-		// Dortng by index
-		auto yolo = sort_indexes(topography);
-		// the sorted index is now the stack
-		this->stack = std::move(yolo);
-	}
-
-
 	// Fucntion inverting the SFD receivers into donors
 	void compute_SF_donors_from_receivers()
 	{
@@ -407,6 +393,12 @@ public:
 	}
 
 
+
+	// This is my implementation of Braun and willett 2014
+	// Slightly modified:
+	// - First it is based on the fastscapelib version, which bypass the need of the delta vectors and all by simply applying the recursion directly feeding the stack
+	// - Secondly, recursion is not the best practice for most languages so I am using a stack data structure instead
+	// Results are identical and performances similar (marginally better, but that is linked to c++ not being a heavy recursion friendly language)
 	void topological_sorting_SF()
 	{
 		// The stack container helper
@@ -441,6 +433,64 @@ public:
 
 		}
 	}
+
+	template< class Connector_t>
+	std::vector<int> topological_sorting_dag(Connector_t& connector)
+	{
+		std::vector<int> nrecs(this->nnodes,0);
+		std::queue<int> toproc;
+		this->stack.clear();
+		this->stack.reserve(this->nnodes);
+		for(int i = 0; i < int( this->links.size() ) ; ++i)
+		{
+			
+			if(connector.can_flow_even_go_there(i) == false)
+			{
+				this->stack.emplace_back(i);
+				continue;
+			}
+
+			if(this->links[i])
+				++nrecs[this->linknodes[i*2]];
+			else
+				++nrecs[this->linknodes[i*2+1]];
+		}
+
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if(nrecs[i] == 0 && connector.can_flow_even_go_there(i))
+				toproc.emplace(i);
+		}
+
+		while(toproc.empty() == false)
+		{
+			int next = toproc.front();
+			toproc.pop();
+			this->stack.emplace_back(next);
+			auto dons = this->get_donors_idx(next, connector);
+			for(auto d : dons)
+			{
+				--nrecs[d];
+				if(nrecs[d] == 0)
+					toproc.emplace(d);
+			}
+		}
+
+	}
+
+	// Multiple flow topological sorting using quicksort algorithm
+	// Topography is simply sorted by absolute elevation keeping track of the indices
+	template<class topo_t>
+	void topological_sorting_quicksort(topo_t& ttopography)
+	{
+		// Formatting hte topographic input from the wrapper
+		auto topography = format_input(ttopography);
+		// Dortng by index
+		auto yolo = sort_indexes(topography);
+		// the sorted index is now the stack
+		this->stack = std::move(yolo);
+	}
+
 	
 
 	/// this function enforces minimal slope 
@@ -1067,49 +1117,31 @@ public:
 	}
 
 
-	template< class Connector_t>
-	std::vector<int> topological_sorting_dag(Connector_t& connector)
-	{
-		std::vector<int> nrecs(this->nnodes,0);
-		std::queue<int> toproc;
-		this->stack.clear();
-		this->stack.reserve(this->nnodes);
-		for(int i = 0; i < int( this->links.size() ) ; ++i)
-		{
-			
-			if(connector.can_flow_even_go_there(i) == false)
-			{
-				this->stack.emplace_back(i);
-				continue;
-			}
 
-			if(this->links[i])
-				++nrecs[this->linknodes[i*2]];
-			else
-				++nrecs[this->linknodes[i*2+1]];
-		}
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
 
-		for(int i=0; i<this->nnodes; ++i)
-		{
-			if(nrecs[i] == 0 && connector.can_flow_even_go_there(i))
-				toproc.emplace(i);
-		}
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions to access to bulk receivers/links/donors/...
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
 
-		while(toproc.empty() == false)
-		{
-			int next = toproc.front();
-			toproc.pop();
-			this->stack.emplace_back(next);
-			auto dons = this->get_donors_idx(next, connector);
-			for(auto d : dons)
-			{
-				--nrecs[d];
-				if(nrecs[d] == 0)
-					toproc.emplace(d);
-			}
-		}
 
-	}
+	
 
 
 
