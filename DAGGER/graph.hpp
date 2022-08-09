@@ -74,8 +74,8 @@ public:
 	// Single graph receivers
 	// -> Sreceivers: steepest recervers (nnodes size), 
 	// -> number of donors (nnodes size),
-	// -> Steepest donors (nnodes * 8 size)
-	// --> Sdonors of node i are located from index i*8 to index i*8 + nSdonors[i] not included
+	// -> Steepest donors (nnodes * n_neighbours size)
+	// --> Sdonors of node i are located from index i*n_neighbours to index i*n_neighbours + nSdonors[i] not included
 	std::vector<int> Sreceivers,nSdonors,Sdonors;
 
 	// Single graph distance to receivers
@@ -349,7 +349,7 @@ public:
 	{
 		// Initialising the graph dimesions for the donors
 		// All of thenm have the graph dimension
-		this->Sdonors = std::vector<int>(this->nnodes * 8,-1);
+		this->Sdonors = std::vector<int>(this->nnodes * this->n_neighbours,-1);
 		this->nSdonors = std::vector<int>(this->nnodes,0);
 
 		// iterating through all the nodes
@@ -361,7 +361,7 @@ public:
 				continue;
 
 			// feeding the Sdonors array at rec position with current node and...
-			this->Sdonors[trec * 8  + this->nSdonors[trec]] = i;
+			this->Sdonors[trec * this->n_neighbours  + this->nSdonors[trec]] = i;
 			// ... incrementing hte number of Sdonors
 			this->nSdonors[trec] += 1;
 		}
@@ -375,8 +375,8 @@ public:
 
 		for(int i=0; i < this->nnodes; ++i)
 		{
-			for(int j=0; j<8; ++j)
-				this->Sdonors[i * 8 + j] = -1;
+			for(int j=0; j < this->n_neighbours; ++j)
+				this->Sdonors[i * this->n_neighbours + j] = -1;
 			this->nSdonors[i] = 0;
 		}
 
@@ -386,7 +386,7 @@ public:
 			int trec = this->Sreceivers[i];
 			if(trec == i)
 				continue;
-			this->Sdonors[trec * 8  + this->nSdonors[trec]] = i;
+			this->Sdonors[trec * this->n_neighbours  + this->nSdonors[trec]] = i;
 			this->nSdonors[trec] += 1;
 		}
 
@@ -426,7 +426,7 @@ public:
 				// as well as all its donors which will be processed next
 				for( int j = 0; j < this->nSdonors[nextnode]; ++j)
 				{
-					stackhelper.emplace(this->Sdonors[nextnode*8 + j]);
+					stackhelper.emplace(this->Sdonors[nextnode*this->n_neighbours + j]);
 				}
 
 			}
@@ -435,7 +435,7 @@ public:
 	}
 
 	template< class Connector_t>
-	std::vector<int> topological_sorting_dag(Connector_t& connector)
+	void topological_sorting_dag(Connector_t& connector)
 	{
 		std::vector<int> nrecs(this->nnodes,0);
 		std::queue<int> toproc;
@@ -504,14 +504,8 @@ public:
 		for(int i=this->nnodes-1; i >= 0; --i)
 		{
 			int node  = this->Sstack[i];
-			
-			// if(node == 148880)
-				// std::cout << "ASSESSED" << std::endl;
-
 			if(connector.can_flow_out_there(node) || connector.can_flow_even_go_there(node) == false)
 				continue;
-			// if(node == 148880)
-				// std::cout << "PASSED" << std::endl;
 			int rec = this->Sreceivers[node];
 			float_t dz = topography[node] - topography[rec];
 			if(dz <= 0)
@@ -551,7 +545,7 @@ public:
 	template<class Connector_t>
 	std::vector<int> get_receivers_idx(int i, Connector_t& connector)
 	{
-		std::vector<int> recs; recs.reserve(8);
+		std::vector<int> recs; recs.reserve(this->n_neighbours);
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
 		{
@@ -566,7 +560,7 @@ public:
 	template<class Connector_t>
 	std::vector<int> get_receivers_idx_links(int i, Connector_t& connector)
 	{
-		std::vector<int> recs; recs.reserve(8);
+		std::vector<int> recs; recs.reserve(this->n_neighbours);
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
 		{
@@ -581,7 +575,7 @@ public:
 	template<class Connector_t>
 	std::vector<std::pair<int,int> > get_node_receivers_idx_pair(int i, Connector_t& connector)
 	{
-		std::vector<std::pair<int,int>> recs; recs.reserve(8);
+		std::vector<std::pair<int,int>> recs; recs.reserve(this->n_neighbours);
 
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
@@ -598,7 +592,7 @@ public:
 	template<class Connector_t>
 	std::vector<int> get_donors_idx(int i, Connector_t& connector)
 	{
-		std::vector<int> dons; dons.reserve(8);
+		std::vector<int> dons; dons.reserve(this->n_neighbours);
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
 		{
@@ -613,7 +607,7 @@ public:
 	template<class Connector_t>
 	std::vector<int> get_donors_idx_links(int i, Connector_t& connector)
 	{
-		std::vector<int> dons; dons.reserve(8);
+		std::vector<int> dons; dons.reserve(this->n_neighbours);
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
 		{
@@ -628,7 +622,7 @@ public:
 	template<class Connector_t>
 	std::vector<std::pair<int,int> > get_node_donors_idx_pair(int i, Connector_t& connector)
 	{
-		std::vector<std::pair<int,int>> dons; dons.reserve(8);
+		std::vector<std::pair<int,int>> dons; dons.reserve(this->n_neighbours);
 
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
 		for(auto li:linkidx)
@@ -1141,7 +1135,78 @@ public:
 */
 
 
-	
+	template<class out_t>
+	out_t get_SFD_receivers()
+	{return format_output(this->Sreceivers);}
+
+	template<class out_t>
+	out_t get_SFD_dx()
+	{return format_output(this->Sdistance2receivers);}
+
+	template<class out_t>
+	out_t get_SFD_ndonors()
+	{return format_output(this->nSdonors);}
+
+	template<class out_t>
+	out_t get_SFD_donors_flat()
+	{return format_output(this->Sdonors);}
+
+	template<class out_t>
+	out_t get_SFD_donors_list()
+	{
+		std::vector<std::vector<int> > out(this->nnodes);
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			std::vector<int> tvec;
+			for (int j=0; j<this->nSdonors[i]; ++j)
+				tvec.emplace_back(this->Sdonors[i * this->n_neighbours +j]);
+			out[i] = tvec;
+		}
+
+		return out;
+	}
+
+	template<class out_t>
+	out_t get_SFD_stack()
+	{return format_output(this->Sstack);}
+
+
+
+	template<class out_t>
+	out_t get_MFD_stack()
+	{return format_output(this->stack);}
+
+	template<class out_t>
+	out_t get_links()
+	{return this->links;}
+
+	template<class out_t>
+	out_t get_linknodes_flat()
+	{return format_output(this->linknodes);}
+
+	template<class out_t>
+	out_t get_linknodes_list()
+	{
+		std::vector<std::vector<int> > out(this->links.size());
+		for(size_t i=0; i<this->links.size();++i)
+		{
+			out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
+		}
+		return out;
+	}
+
+	template<class out_t>
+	out_t get_linknodes_list_oriented()
+	{
+		std::vector<std::vector<int> > out(this->links.size());
+		for(size_t i=0; i<this->links.size();++i)
+		{
+			out[i] = (this->links[i])? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} : std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
+		}
+		return out;
+	}
+
+
 
 
 
