@@ -1211,6 +1211,27 @@ public:
 
 
 
+	int get_SFD_receivers_at_node(int i)
+	{return this->Sreceivers[i];}
+
+	int get_SFD_dx_at_node(int i)
+	{return this->Sdistance2receivers[i];}
+
+	int get_SFD_ndonors_at_node(int i)
+	{return this->nSdonors[i];}
+
+	template<class out_t>
+	out_t get_SFD_donors_at_node(int i)
+	{
+		std::vector<int> out(this->n_neighbours);
+		for (int j=0; j<this->nSdonors[i]; ++j)
+			out.emplace_back(this->Sdonors[i * this->n_neighbours +j]);
+		return out;
+	}
+
+
+
+
 
 	bool is_link_valid(int i){return (this->linknodes[i*2]>=0)?true:false; }
 
