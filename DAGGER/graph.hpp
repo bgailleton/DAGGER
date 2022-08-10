@@ -1410,7 +1410,7 @@ public:
 			this->_get_link_weights_proposlope(weights, gradient);
 		}
 
-		return weights;
+		return format_output(weights);
 	}
 
 	void _get_link_weights_f_nrecs(std::vector<float_t>& weights)
