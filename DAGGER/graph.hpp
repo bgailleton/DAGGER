@@ -1470,6 +1470,57 @@ public:
 	}
 
 
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions to propagate signal upstream and downstream
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/
+
+	template<class Connector_t,class out_t>
+	out_t accumulate_constant_downstream_SFD(Connector_t& connector,float_t var)
+	{
+		std::vector<float_t> out = this->_accumulate_constant_downstream_SFD(connector,var);
+		return format_output(out);
+	}
+
+	template<class Connector_t>
+	std::vector<float_t> _accumulate_constant_downstream_SFD(Connector_t& connector, float_t var)
+	{
+		std::vector<float_t> out(this->nnodes, 0);
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			int node = this->stack[i];
+			if(connector.can_flow_even_go_there(node) == false)
+				continue;
+
+			out[node] += var;
+
+			if(connector.can_flow_out_there(node))
+				continue;
+
+			out[this->Sreceivers[node]] += out[node];
+			
+		}
+
+		return out;
+	}
+
 
 	/*
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
