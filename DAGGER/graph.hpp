@@ -1334,6 +1334,66 @@ public:
 	}
 
 
+	template<class Connector_t,class out_t, class topo_t>
+	out_t get_MFD_weighted_gradient(Connector_t& connector,topo_t& ttopography, topo_t& tweights)
+	{
+		auto topography = format_input(ttopography);
+		auto weights = format_input(tweights);
+		auto gradient = this->_get_MFD_weighted_gradient(connector,topography, weights);
+		return format_output(gradient);
+	}
+
+	template<class Connector_t, class topo_t>
+	std::vector<float_t> _get_MFD_weighted_gradient(Connector_t& connector, topo_t& topography, topo_t& weights)
+	{
+
+		std::vector<float_t> gradient = std::vector<float_t>(this->nnodes,0);
+		std::vector<float_t> wgradient = std::vector<float_t>(this->nnodes,0.);
+
+		for(size_t i = 0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				float_t this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
+				auto frto = this->get_from_to_links(i);
+				gradient[frto.first] += this_gradient * weights[i];
+				wgradient[frto.first] += weights[i];
+			}
+		}
+
+		for(int i=0; i< this->nnodes; ++i)
+		{
+			if(wgradient[i] > 0)
+				gradient[i] = gradient[i]/wgradient[i];
+		}
+
+		return gradient;
+	}
+
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Links utility functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
 
 
 	template<class ti_t>
