@@ -393,6 +393,29 @@ public:
 	}
 
 
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions performing topological sorting
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+
 
 	// This is my implementation of Braun and willett 2014
 	// Slightly modified:
@@ -434,43 +457,68 @@ public:
 		}
 	}
 
+
+
+	// performs the topological sorting using a BFS algorithm
+	// It starts from the receivers-less nodes, then uses a queue to add all the donors of these nodes.
+	// Each time a donor pops our of the queue, it increment a visited array recording the number of time a node is visited.
+	// if the number of visits equals the number of receiver of the node, it is saved in the stack/
+	// The result is a stack of node from the most downstream to the most upstream one
 	template< class Connector_t>
 	void topological_sorting_dag(Connector_t& connector)
 	{
+		// nrecs tracks the number of receivers for each nodes
 		std::vector<int> nrecs(this->nnodes,0);
+		// The queueß
 		std::queue<int> toproc;
+
+		// preparing the stack
 		this->stack.clear();
 		this->stack.reserve(this->nnodes);
+
+		// Iterating through the links
 		for(int i = 0; i < int( this->links.size() ) ; ++i)
 		{
-			
-			if(connector.can_flow_even_go_there(i) == false)
+			// checking the validity of the links
+			if(connector.can_flow_even_go_there(this->linknodes[i*2]) == false)
 			{
-				this->stack.emplace_back(i);
+				// if the flow cannot go there, we emplace it in the stack (ultimately it does not matter where they are in the stack)
+				this->stack.emplace_back(this->linknodes[i*2]);
 				continue;
 			}
 
+			// Otherwise incrementing the number of receivers for the right link
 			if(this->links[i])
 				++nrecs[this->linknodes[i*2]];
 			else
 				++nrecs[this->linknodes[i*2+1]];
 		}
 
+
+		// Now checking the receiverless nodes and emplacing them in the queueß
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			if(nrecs[i] == 0 && connector.can_flow_even_go_there(i))
 				toproc.emplace(i);
 		}
 
+		// then as lon g as there are nodes in the queue:
 		while(toproc.empty() == false)
 		{
+			// getting the next node
 			int next = toproc.front();
+			// (and popping the node from the queue)
 			toproc.pop();
+			// if the node is poped out of the queue -> then it is ready to be in the stack
+			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
+			// getting the idx of the donors
 			auto dons = this->get_donors_idx(next, connector);
 			for(auto d : dons)
 			{
+				// Decrementing the number of receivers (I use it as a visited vector)
 				--nrecs[d];
+				// if it has reached 0, the rec is ready to be put in the FIFO
 				if(nrecs[d] == 0)
 					toproc.emplace(d);
 			}
@@ -493,23 +541,54 @@ public:
 
 	
 
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions affecting topography from corrected receivers
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
 	/// this function enforces minimal slope 
+	/// It starts from the most upstream part of the landscapes and goes down following the Sreceiver route
+	/// it carve on the go, making sure the topography of a receiver is lower
 	template<class Connector_t, class topo_t>
 	std::vector<int> carve_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
 	{
 
-		std::cout << std::setprecision(8);
+		// storing the nodes to recompute
 		std::vector<int> to_recompute;
 		to_recompute.reserve(1000);
+		// Traversing the (SFD) stack on the reverse direction
 		for(int i=this->nnodes-1; i >= 0; --i)
 		{
+			// Getting the node
 			int node  = this->Sstack[i];
+			// Checking its validiyt AND if it is not a base level
 			if(connector.can_flow_out_there(node) || connector.can_flow_even_go_there(node) == false)
 				continue;
+			// Getting the single receiver info
 			int rec = this->Sreceivers[node];
+			// Checking the difference in elevation
 			float_t dz = topography[node] - topography[rec];
+			// if the difference in elevation is bellow 0 I need to carve
 			if(dz <= 0)
 			{
+				// And I do ! Note that I add some very low-grade randomness to avoid flat links
 				topography[rec] = topography[node] - slope + connector.randu.get() * 1e-7;// * d2rec;
 				to_recompute.emplace_back(rec);
 			}
@@ -517,7 +596,10 @@ public:
 		}
 		return to_recompute;
 	}
-	/// this function enforces minimal slope 
+
+	/// Opposite of the above function
+	/// It starts from the most dowstream nodes and climb its way up.
+	/// when a node is bellow its receiver, we correct the slope
 	template<class Connector_t, class topo_t>
 	std::vector<int> fill_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
 	{
@@ -540,96 +622,151 @@ public:
 		return to_recompute;
 	}
 
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
 
-	
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Accessing receivers/donors/... for a single node
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+
+	// get receivers of node i
 	template<class Connector_t>
 	std::vector<int> get_receivers_idx(int i, Connector_t& connector)
 	{
+		// Preformatting receiver
 		std::vector<int> recs; recs.reserve(this->n_neighbours);
+		// getting the related links
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// going through the linksß
 		for(auto li:linkidx)
 		{
+			// checking the orientation
 			if(i == this->linknodes[li*2] && this->links[li])
 				recs.emplace_back(this->linknodes[li*2 + 1]);
-			else if(this->links[li] == false)
+			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
 				recs.emplace_back(this->linknodes[li*2]);
 		}
 		return recs;
 	}
 
+
+	// Getting the id of the receivers in the links array
 	template<class Connector_t>
 	std::vector<int> get_receivers_idx_links(int i, Connector_t& connector)
 	{
+		// preformatting the receivers
 		std::vector<int> recs; recs.reserve(this->n_neighbours);
+		// getting the related links
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// for each link linked to this node
 		for(auto li:linkidx)
 		{
+			//only keeping the link ID of the rightly oriented link
 			if(i == this->linknodes[li*2] && this->links[li])
 				recs.emplace_back(li);
-			else if(this->links[li] == false)
+			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
 				recs.emplace_back(li);
 		}
 		return recs;
 	}
 
+
+	// returns array of pair {node, receivers} ofr a single node i
+	// It can be useful if you wanna calculate  gradient or something similar
 	template<class Connector_t>
 	std::vector<std::pair<int,int> > get_node_receivers_idx_pair(int i, Connector_t& connector)
 	{
+		// preformatting the receiver arrau
 		std::vector<std::pair<int,int>> recs; recs.reserve(this->n_neighbours);
-
+		// getting the related links
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// for each link
 		for(auto li:linkidx)
 		{
+			// linking i to the relevant node
 			if(i == this->linknodes[li*2] && this->links[li])
 				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
-			else if(this->links[li] == false)
+			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
 				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
 		}
 
 		return recs;
 	}
 
+	// Getting donor indicies
 	template<class Connector_t>
 	std::vector<int> get_donors_idx(int i, Connector_t& connector)
 	{
+		// preformatting the donor vector
 		std::vector<int> dons; dons.reserve(this->n_neighbours);
+		// getting the related links
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// for each link
 		for(auto li:linkidx)
 		{
+			// Check if its orientation is good one way or another and if yes emplaces it
 			if(i == this->linknodes[li*2] && this->links[li] == false)
 				dons.emplace_back(this->linknodes[li*2 + 1]);
-			else if(this->links[li])
+			else if(this->links[li] && i == this->linknodes[li*2 + 1])
 				dons.emplace_back(this->linknodes[li*2]);
 		}
 		return dons;
 	}
 
+	// getting links indices of hte donors (in the links array)
 	template<class Connector_t>
 	std::vector<int> get_donors_idx_links(int i, Connector_t& connector)
 	{
+		// preformatting the donors vector
 		std::vector<int> dons; dons.reserve(this->n_neighbours);
+		// getting the links linked to this node
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// and for each of them
 		for(auto li:linkidx)
 		{
+			// and checking the orientation of the link and if the current node is indeed receiver of the other
+			// if this is the case, I emplace it in the dons.
 			if(i == this->linknodes[li*2] && this->links[li] == false)
 				dons.emplace_back(li);
-			else if(this->links[li])
+			else if(this->links[li] && i == this->linknodes[li*2 + 1])
 				dons.emplace_back(li);
 		}
 		return dons;
 	}
 
+
+	// Finally getting pairs of node {node, donor}
 	template<class Connector_t>
 	std::vector<std::pair<int,int> > get_node_donors_idx_pair(int i, Connector_t& connector)
 	{
+		// preformatting the vector
 		std::vector<std::pair<int,int>> dons; dons.reserve(this->n_neighbours);
-
+		// getting the links linked to this node
 		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		// and for each link
 		for(auto li:linkidx)
 		{
+			// checking if the orientation is right a way or another
+			// and if it is -> I save it
 			if(i == this->linknodes[li*2] && this->links[li] == false)
 				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
-			else if(this->links[li])
+			else if(this->links[li] && i == this->linknodes[li*2 + 1])
 				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
 		}
 
@@ -641,7 +778,7 @@ public:
 
 
 
-
+	// Deprecated???
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_proposlope(Connector_t& connector, topo_t& ttopography)
 	{
@@ -684,6 +821,7 @@ public:
 	}
 
 
+	// Deprecated???
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_SS(Connector_t& connector, topo_t& ttopography)
 	{
@@ -705,7 +843,8 @@ public:
 		return format_output(DA);
 	}
 
-
+	// Debug function printing to the promt the single receiver of a node
+	// WIll probably get deprecated
 	template<class Connector_t>
 	std::vector<int> get_rowcol_Sreceivers(int row, int col,  Connector_t& connector)
 	{
@@ -1510,6 +1649,37 @@ public:
 				continue;
 
 			out[node] += var;
+
+			if(connector.can_flow_out_there(node))
+				continue;
+
+			out[this->Sreceivers[node]] += out[node];
+			
+		}
+
+		return out;
+	}
+
+
+	template<class Connector_t,class out_t, class topo_t>
+	out_t accumulate_variable_downstream_SFD(Connector_t& connector,topo_t& tvar)
+	{
+		auto var = format_input(tvar);
+		std::vector<float_t> out = this->_accumulate_variable_downstream_SFD(connector,var);
+		return format_output(out);
+	}
+
+	template<class Connector_t, class topo_t>
+	std::vector<float_t> _accumulate_variable_downstream_SFD(Connector_t& connector, topo_t& var)
+	{
+		std::vector<float_t> out(this->nnodes, 0);
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			int node = this->stack[i];
+			if(connector.can_flow_even_go_there(node) == false)
+				continue;
+
+			out[node] += var[node];
 
 			if(connector.can_flow_out_there(node))
 				continue;
