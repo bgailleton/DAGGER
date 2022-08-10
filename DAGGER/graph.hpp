@@ -1372,6 +1372,105 @@ public:
 
 
 
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions to calculate weights
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/	
+
+	template<class out_t, class topo_t>
+	out_t get_link_weights(topo_t& tgradient, float_t exp)
+	{
+		std::vector<float_t> weights(this->links.size(),0);
+		auto gradient = format_input(tgradient);
+
+		if(exp <= 0)
+		{
+			this->_get_link_weights_f_nrecs(weights);
+		}
+		else if(exp == 1)
+		{
+			this->_get_link_weights_proposlope(weights, gradient);
+		}
+
+		return weights;
+	}
+
+	void _get_link_weights_f_nrecs(std::vector<float_t>& weights)
+	{
+		auto nrecs = this->get_n_receivers();
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				int nr = nrecs[this->get_from_to_links(i).first];
+				if(nr>0)
+					weights[i] = 1/nr;
+			}
+		}
+	}
+
+	template<class topo_t>
+	void _get_link_weights_proposlope(std::vector<float_t>& weights, topo_t& gradient)
+	{
+		auto nrecs = this->get_n_receivers();
+		std::vector<float_t> sumgrad(this->nnodes,0.);
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				sumgrad[this->get_from_to_links(i).first] += gradient[i];
+			}
+		}
+
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+				weights[i] = gradient[i]/sumgrad[i];
+		}
+
+
+	}
+
+	template<class topo_t>
+	void _get_link_weights_exp(std::vector<float_t>& weights, topo_t& gradient, float_t exp)
+	{
+		auto nrecs = this->get_n_receivers();
+		std::vector<float_t> sumgrad(this->nnodes,0.);
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				sumgrad[this->get_from_to_links(i).first] += std::pow(gradient[i],exp);
+			}
+		}
+
+		for(size_t i=0; i< this->links; ++i)
+		{
+			if(this->is_link_valid(i))
+				weights[i] = gradient[i]/sumgrad[i];
+		}
+	}
+
+
+
 	/*
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -1407,6 +1506,20 @@ public:
 		else
 			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
 
+	}
+
+	std::vector<int> get_n_receivers()
+	{
+		std::vector<int> nrecs(this->nnodes,0);
+		for(size_t i = 0; i<this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				auto frto = this->get_from_to_links(i);
+				++nrecs[frto.first];
+			}
+		}
+		return nrecs;
 	}
 
 
