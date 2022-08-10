@@ -1256,13 +1256,46 @@ public:
 	out_t get_SFD_gradient(topo_t& ttopography)
 	{
 		auto topography = format_input(ttopography);
+		auto gradient = this->_get_SFD_gradient(topography);
+		return format_output(gradient);
+	}
+
+	template<class topo_t>
+	std::vector<float_t> _get_SFD_gradient(topo_t& topography)
+	{
 		std::vector<float_t> gradient(this->nnodes,0.);
 		for(int i=0; i<this->nnodes;++i)
 		{
 			if(this->Sreceivers[i] != i)
 				gradient[i] = (topography[i] - topography[this->Sreceivers[i]])/this->Sdistance2receivers[i];
 		}
+		return gradient;
+	}
+
+	template<class Connector_t,class out_t, class topo_t>
+	out_t get_links_gradient(Connector_t& connector, topo_t& ttopography)
+	{
+		auto topography = format_input(ttopography);
+		std::vector<float_t> gradient = this->_get_links_gradient(connector, topography);
 		return format_output(gradient);
+	}
+
+
+	template<class Connector_t, class topo_t>
+	std::vector<float_t> _get_links_gradient(Connector_t& connector, topo_t& topography)
+	{
+
+		std::vector<float_t> gradient = std::vector<float_t>(this->links.size());
+
+		for(size_t i = 0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				gradient[i] = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
+			}
+		}
+
+		return gradient;
 	}
 
 
@@ -1270,9 +1303,8 @@ public:
 
 
 
-
-
-	bool is_link_valid(int i){return (this->linknodes[i*2]>=0)?true:false; }
+	template<class ti_t>
+	bool is_link_valid(ti_t i){return (this->linknodes[i*2]>=0)?true:false; }
 
 
 
