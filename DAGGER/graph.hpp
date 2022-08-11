@@ -163,6 +163,7 @@ public:
 			LMRerouter<float_t> depsolver;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
+			// std::cout << "wulf" << std::endl;
 			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
 
 			// Right, if reomputed needs to be
@@ -176,7 +177,7 @@ public:
 				this->topological_sorting_SF();
 
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
-				if(depression_solver == "carve")
+				if(depression_solver == "cordonnier_carve")
 					this->carve_topo_v2(1e-5, connector, faketopo);
 
 				// My work here is done if only SD is needed
