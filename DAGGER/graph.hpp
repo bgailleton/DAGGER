@@ -1549,6 +1549,10 @@ public:
 		{
 			this->_get_link_weights_proposlope(weights, gradient);
 		}
+		else
+		{
+			this->_get_link_weights_exp(weights, gradient, exp);
+		}
 
 		return format_output(weights);
 	}
@@ -1602,7 +1606,7 @@ public:
 			}
 		}
 
-		for(size_t i=0; i< this->links; ++i)
+		for(size_t i=0; i< this->links.size(); ++i)
 		{
 			if(this->is_link_valid(i))
 				weights[i] = gradient[i]/sumgrad[i];

@@ -78,7 +78,7 @@ public:
 	int nlinks = 0;
 	bool optimize_memory = false;
 	std::vector<bool> isin;
-	std::map<std::string,basinLink<float_t> > blinks;
+	std::unordered_map<std::string,basinLink<float_t> > blinks;
 	SparseStorer(){;}
 	SparseStorer(int nel)
 	{
