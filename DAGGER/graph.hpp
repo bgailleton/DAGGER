@@ -1587,7 +1587,7 @@ public:
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
 			if(this->is_link_valid(i))
-				weights[i] = gradient[i]/sumgrad[i];
+				weights[i] = gradient[i]/sumgrad[this->get_from_to_links(i).first];
 		}
 
 
@@ -1609,7 +1609,7 @@ public:
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
 			if(this->is_link_valid(i))
-				weights[i] = gradient[i]/sumgrad[i];
+				weights[i] = gradient[i]/sumgrad[this->get_from_to_links(i).first];
 		}
 	}
 
@@ -1690,6 +1690,72 @@ public:
 				continue;
 
 			out[this->Sreceivers[node]] += out[node];
+			
+		}
+
+		return out;
+	}
+
+
+	template<class Connector_t, class topo_t, class out_t>
+	out_t accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& tweights,float_t var)
+	{
+		auto weights = format_input(tweights);
+		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(connector, weights ,var);
+		return format_output(out);
+	}
+
+	template<class Connector_t, class topo_t>
+	std::vector<float_t> _accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& weights, float_t var)
+	{
+		std::vector<float_t> out(this->nnodes, 0);
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			int node = this->stack[i];
+			if(connector.can_flow_even_go_there(node) == false)
+				continue;
+
+			out[node] += var;
+
+			if(connector.can_flow_out_there(node))
+				continue;
+
+			auto reclinks = this->get_receivers_idx_links(node,connector);
+			for (auto ti:reclinks)
+				out[this->Sreceivers[node]] += out[node] * weights[ti];
+			
+		}
+
+		return out;
+	}
+
+	template<class Connector_t, class topo_t, class out_t>
+	out_t accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& tweights, topo_t& tvar)
+	{
+		auto weights = format_input(tweights);
+		auto var = format_input(tvar);
+		std::vector<float_t> out = this->_accumulate_variable_downstream_MFD(connector, weights ,var);
+		return format_output(out);
+	}
+
+	template<class Connector_t, class topo_t>
+	std::vector<float_t> _accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& weights, topo_t& var)
+	{
+		std::vector<float_t> out(this->nnodes, 0);
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			int node = this->stack[i];
+			if(connector.can_flow_even_go_there(node) == false)
+				continue;
+
+			out[node] += var[node];
+
+			if(connector.can_flow_out_there(node))
+				continue;
+
+			auto reclinks = this->get_receivers_idx_links(node,connector);
+			for (auto ti:reclinks)
+				out[this->Sreceivers[node]] += out[node] * weights[ti];
 			
 		}
 
