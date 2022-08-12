@@ -1538,7 +1538,7 @@ public:
 	template<class out_t, class topo_t>
 	out_t get_link_weights(topo_t& tgradient, float_t exp)
 	{
-		std::vector<float_t> weights(this->links.size(),0);
+		std::vector<float_t> weights(this->links.size(),0.);
 		auto gradient = format_input(tgradient);
 
 		if(exp <= 0)
@@ -1564,11 +1564,16 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				int nr = nrecs[this->get_from_to_links(i).first];
-				if(nr>0)
-					weights[i] = 1/nr;
+				int nr = nrecs[this->get_from_links(i)];
+				if(nr > 0)
+				{
+					weights[i] = 1./nr;
+				}
+				else
+					weights[i] = 1.;
 			}
 		}
+
 	}
 
 	template<class topo_t>
@@ -1580,14 +1585,14 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				sumgrad[this->get_from_to_links(i).first] += gradient[i];
+				sumgrad[this->get_from_links(i)] += gradient[i];
 			}
 		}
 
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
 			if(this->is_link_valid(i))
-				weights[i] = gradient[i]/sumgrad[this->get_from_to_links(i).first];
+				weights[i] = gradient[i]/sumgrad[this->get_from_links(i)];
 		}
 
 
@@ -1602,14 +1607,14 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				sumgrad[this->get_from_to_links(i).first] += std::pow(gradient[i],exp);
+				sumgrad[this->get_from_links(i)] += std::pow(gradient[i],exp);
 			}
 		}
 
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
 			if(this->is_link_valid(i))
-				weights[i] = gradient[i]/sumgrad[this->get_from_to_links(i).first];
+				weights[i] = std::pow(gradient[i],exp)/sumgrad[this->get_from_links(i)];
 		}
 	}
 
@@ -1649,7 +1654,7 @@ public:
 		std::vector<float_t> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
-			int node = this->stack[i];
+			int node = this->Sstack[i];
 			if(connector.can_flow_even_go_there(node) == false)
 				continue;
 
@@ -1680,7 +1685,7 @@ public:
 		std::vector<float_t> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
-			int node = this->stack[i];
+			int node = this->Sstack[i];
 			if(connector.can_flow_even_go_there(node) == false)
 				continue;
 
@@ -1709,7 +1714,7 @@ public:
 	std::vector<float_t> _accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& weights, float_t var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
-		for(int i = this->nnodes - 1; i>=0; --i)
+ 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
 			if(connector.can_flow_even_go_there(node) == false)
@@ -1722,7 +1727,9 @@ public:
 
 			auto reclinks = this->get_receivers_idx_links(node,connector);
 			for (auto ti:reclinks)
-				out[this->Sreceivers[node]] += out[node] * weights[ti];
+			{
+				out[this->get_to_links(ti)] += out[node] * weights[ti];
+			}
 			
 		}
 
@@ -1797,6 +1804,25 @@ public:
 			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
 		else
 			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
+
+	}
+
+	template<class ti_t>
+	ti_t get_from_links(ti_t i)
+	{
+		if(this->links[i])
+			return this->linknodes[i*2];
+		else
+			return this->linknodes[i*2 + 1];
+	}
+
+	template<class ti_t>
+	ti_t get_to_links(ti_t i)
+	{
+		if(this->links[i] == false)
+			return this->linknodes[i*2];
+		else
+			return this->linknodes[i*2 + 1];
 
 	}
 
