@@ -1431,7 +1431,7 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				gradient[i] = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
+				gradient[i] = std::abs(topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
 			}
 		}
 
