@@ -1,0 +1,8 @@
+main.cpp
+setup.py
+DAGGER.egg-info/PKG-INFO
+DAGGER.egg-info/SOURCES.txt
+DAGGER.egg-info/dependency_links.txt
+DAGGER.egg-info/not-zip-safe
+DAGGER.egg-info/requires.txt
+DAGGER.egg-info/top_level.txt
