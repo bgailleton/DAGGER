@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: DAGGER
-Version: 0.0.1
-Summary: Directed Acyclic Graph for digital topoGrahic manipulations Eventually cRoss-platform
-Home-page: https://github.com/bgailleton/DAGGER
-Author: Boris Gailleton
-Author-email: boris.gailleton@univ-rennes.fr
-Requires-Python: >=3.6
-Provides-Extra: test
