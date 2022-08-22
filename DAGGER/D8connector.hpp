@@ -1387,6 +1387,19 @@ public:
 	}
 
 
+
+	template<class topo_t>
+	void set_values_at_boundaries(topo_t& tarray, float_t val)
+	{
+		auto array = format_input(tarray);
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if(this->can_flow_out_there(i))
+				array[i] = val;
+		}
+	}
+
+
 };
 
 

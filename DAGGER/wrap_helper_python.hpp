@@ -2,6 +2,10 @@
 #ifndef wrap_helper_python_HPP
 #define wrap_helper_python_HPP
 
+#ifndef DAGGER_FT_PYTHON
+#define DAGGER_FT_PYTHON
+#endif
+
 // STL imports
 #include <iostream>
 #include <string>
@@ -88,6 +92,9 @@ template<class T>
 py::array format_output(std::vector<T>& yolo){return py::array(yolo.size(), yolo.data());}
 template<class T>
 py::array format_output(pvector<T>& yolo){return py::array(yolo.data->size(), yolo.data->data());}
+template<class T>
+std::vector<T> format_output(pvector<T>& yolo){return yolo.to_vec();}
+
 template<class T>
 py::array format_output(numvec<T>& yolo){auto vec = yolo.to_vec();  return py::array(vec.size(), vec.data());}
 py::array format_output(py::array& yolo){return yolo;}

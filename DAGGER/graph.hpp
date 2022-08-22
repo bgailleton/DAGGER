@@ -130,18 +130,35 @@ public:
 	{
 		// Formatting the input to match all the wrappers
 		auto topography = format_input(ttopography);
-
-		// Checking if the depression method is cordonnier or node
-		bool isCordonnier = this->is_method_cordonnier(depression_solver);
-
 		// Formatting the output topo
 		std::vector<float_t> faketopo(to_vec(topography));
 
+		this->_compute_graph(faketopo, depression_solver,connector,only_SD,quicksort);
+
+
+		// Finally I format the output topography to the right wrapper
+		return format_output(faketopo);
+	}
+
+
+	template<class Connector_t>
+	void _compute_graph(
+		std::vector<float_t>& faketopo,
+		std::string depression_solver, // String switching the type of depression solver: "cordonnier_carve", "cordonnier_fill", "cordonnier_simple" or "priority_flood"
+	  Connector_t& connector, // the input connector to use (e.g. D8connector)
+	  bool only_SD, // only computes the single flow graph if true
+	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
+
+		)
+	{
+		// Checking if the depression method is cordonnier or node
+		bool isCordonnier = this->is_method_cordonnier(depression_solver);
+
 		// if the method is not Cordonnier -> apply the other first
-		if(isCordonnier == false)
+		if(isCordonnier == false && depression_solver != "none")
 		{
 			// filling the topography with a minimal slope using Wei et al., 2018
-			faketopo = connector.PriorityFlood_Wei2018(topography);
+			faketopo = connector.PriorityFlood_Wei2018(faketopo);
 		}
 
 		// Making sure the graph is not inheriting previous values
@@ -182,7 +199,7 @@ public:
 
 				// My work here is done if only SD is needed
 				if(only_SD)
-					return format_output(faketopo);
+					return;
 				
 				// Otherwise, conducting the topological sorting
 				if(quicksort)
@@ -205,11 +222,7 @@ public:
 					this->topological_sorting_dag(connector);
 		}
 
-
-		// Finally I format the output topography to the right wrapper
-		return format_output(faketopo);
 	}
-
 
 
 	// Function updating ONLY the MFD receivers
@@ -1508,6 +1521,19 @@ public:
 		}
 
 		return gradient;
+	}
+
+
+	template<class topo_t>
+	std::vector<float_t> _get_max_val_link_array(topo_t& array)
+	{
+		std::vector<float_t> tmax(this->nnodes,0);
+		for(size_t i=0; i < this->links.size(); ++i)
+		{
+			int go = this->get_from_links(i);
+			if(tmax[go]<array[i]) tmax[go] = array[i];
+		}
+		return tmax;
 	}
 
 

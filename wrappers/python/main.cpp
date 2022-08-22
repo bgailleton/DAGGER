@@ -26,6 +26,7 @@ PYBIND11_MODULE(dagger, m) {
 		.def("get_HS", &D8connector<double>::get_HS<std::vector<double>, py::array >)
 		.def("fill_barne_2014", &D8connector<double>::fill_barne_2014<std::vector<double> >)
 		.def("get_mask_array",&D8connector<double>::get_mask_array)
+		.def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 	;
 
 	py::class_<graph<double> >(m, "graph")
@@ -49,8 +50,8 @@ PYBIND11_MODULE(dagger, m) {
 		.def("get_SFD_ndonors",&graph<double>::get_SFD_ndonors<py::array_t<int,1>>)
 		.def("get_SFD_donors_flat",&graph<double>::get_SFD_donors_flat<py::array_t<int,1>>)
 		.def("get_SFD_donors_list",&graph<double>::get_SFD_donors_list<std::vector<std::vector<int> > >)
-		.def("get_SFD_stack",&graph<double>::get_SFD_stack<py::array_t<int,1>>)
-		.def("get_MFD_stack",&graph<double>::get_MFD_stack<py::array_t<int,1>>)
+		.def("get_SFD_stack",&graph<double>::get_SFD_stack<py::array_t<size_t,1>>)
+		.def("get_MFD_stack",&graph<double>::get_MFD_stack<py::array_t<size_t,1>>)
 		.def("get_links",&graph<double>::get_links<std::vector<bool> >)
 		.def("get_linknodes_flat",&graph<double>::get_linknodes_flat<py::array_t<int,1>>)
 		.def("get_linknodes_list",&graph<double>::get_linknodes_list<std::vector<std::vector<int> > >)
