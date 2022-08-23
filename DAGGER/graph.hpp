@@ -131,7 +131,7 @@ public:
 		// Formatting the input to match all the wrappers
 		auto topography = format_input(ttopography);
 		// Formatting the output topo
-		std::vector<float_t> faketopo(to_vec(topography));
+		std::vector<float_t> faketopo= to_vec(topography);
 
 		this->_compute_graph(faketopo, depression_solver,connector,only_SD,quicksort);
 

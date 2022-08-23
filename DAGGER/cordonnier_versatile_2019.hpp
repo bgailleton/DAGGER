@@ -502,6 +502,8 @@ public:
 					// std::cout << B << std::endl;
 					C = Sreceivers[B];
 					Sreceivers[B] = A;
+					// Sdistance2receivers[B] = Sdistance2receivers[A];
+					Sdistance2receivers[B] = connector.dx;
 
 					A = B;
 					B = C;
@@ -509,6 +511,7 @@ public:
 				// std::cout << "D" << std::endl;
 
 				Sreceivers[from] = to;
+				Sdistance2receivers[from] = connector.dx;
 
 				// std::cout << Sreceivers[this->pitnode[bas]] << std::endl;
 			}
