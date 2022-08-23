@@ -61,3 +61,12 @@ def load_raster(fname):
 	# (left=358485.0, bottom=4028985.0, right=590415.0, top=4265115.0)
 
 	return out
+
+
+def get_DA_MFD(gf, con,dem, p=0.5, cellarea = 900):
+	gradient = gf.get_links_gradient(con, dem)
+
+	weights = gf.get_link_weights(gradient,p)
+	
+	MFA_0 = gf.accumulate_constant_downstream_MFD(con, weights, cellarea)
+	return MFA_0

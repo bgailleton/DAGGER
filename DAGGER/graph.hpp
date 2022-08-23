@@ -152,7 +152,6 @@ public:
 		)
 	{
 
-		// std::cout << "DEBUG1" << std::endl;
 
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier(depression_solver);
@@ -163,21 +162,17 @@ public:
 			// filling the topography with a minimal slope using Wei et al., 2018
 			faketopo = connector.PriorityFlood_Wei2018(faketopo);
 		}
-		// std::cout << "DEBUG2" << std::endl;
 
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
 
-		// std::cout << "DEBUG3" << std::endl;
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
 
-		// std::cout << "DEBUG4" << std::endl;
 		// Compute the topological sorting for single stack
 		// Braun and willett 2014 (modified)
 		this->topological_sorting_SF();
 
-		// std::cout << "DEBUG5" << std::endl;
 
 		// manages the Cordonnier method if needed
 		if(isCordonnier)
@@ -187,9 +182,8 @@ public:
 			LMRerouter<float_t> depsolver;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
-			// std::cout << "wulf" << std::endl;
+			std::cout << "wulf" << std::endl;
 			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
-		// std::cout << "DEBUG6::" << need_recompute << std::endl;
 
 			// Right, if reomputed needs to be
 			if(need_recompute)
@@ -202,7 +196,6 @@ public:
 				this->topological_sorting_SF();
 
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
-		// std::cout << "DEBUG7" << std::endl;
 				if(depression_solver == "cordonnier_carve")
 					this->carve_topo_v2(1e-5, connector, faketopo);
 
@@ -218,7 +211,6 @@ public:
 
 				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
 				this->update_Mrecs(faketopo,connector);
-		// std::cout << "DEBUG8" << std::endl;
 			}
 		}
 
@@ -323,7 +315,6 @@ public:
 
 
 
-	// This is a debugging function checking the stack
 	// You an ignore
 	template<class out_t>
 	out_t test_Srecs()
@@ -1713,7 +1704,6 @@ public:
 	template<class topo_t>
 	void _get_link_weights_proposlope(std::vector<float_t>& weights, topo_t& gradient)
 	{
-		auto nrecs = this->get_n_receivers();
 		std::vector<float_t> sumgrad(this->nnodes,0.);
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
@@ -1735,7 +1725,6 @@ public:
 	template<class topo_t>
 	void _get_link_weights_exp(std::vector<float_t>& weights, topo_t& gradient, float_t exp)
 	{
-		auto nrecs = this->get_n_receivers();
 		std::vector<float_t> sumgrad(this->nnodes,0.);
 		for(size_t i=0; i< this->links.size(); ++i)
 		{
@@ -1840,9 +1829,7 @@ public:
 	out_t accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& tweights,float_t var)
 	{
 		auto weights = format_input<topo_t>(tweights);
-		std::cout << "YOLO" << std::endl;
 		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(connector, weights ,var);
-		std::cout << "YOLO2" << std::endl;
 		return format_output<decltype(out), out_t>(out);
 	}
 
@@ -1855,7 +1842,6 @@ public:
 		{
 
 			int node = this->stack[i];
-			std::cout << node << std::endl;;
 			if(connector.can_flow_even_go_there(node) == false)
 				continue;
 
@@ -1868,7 +1854,9 @@ public:
 			for (int ttl = 0; ttl< nn; ++ttl)
 			{
 				int ti = reclinks[ttl];
-				out[this->get_to_links(ti)] += out[node] * weights[ti];
+				int rec = this->get_to_links(ti);
+				if(connector.is_in_bound(rec))
+					out[rec] += out[node] * weights[ti];
 			}
 			
 		}
@@ -1905,7 +1893,9 @@ public:
 			for (int tr=0; tr<nn;++tr)
 			{
 				int ti = reclinks[tr];
-				out[this->Sreceivers[node]] += out[node] * weights[ti];
+				int rec = this->get_to_links(ti);
+				if(connector.is_in_bound(rec))
+					out[rec] += out[node] * weights[ti];
 			}
 			
 		}
@@ -1967,7 +1957,6 @@ public:
 			return this->linknodes[i*2];
 		else
 			return this->linknodes[i*2 + 1];
-
 	}
 
 	std::vector<int> get_n_receivers()

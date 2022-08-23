@@ -49,14 +49,22 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 		float_t dzdy = 0;
 
 		float_t ij = topography[i];
-		float_t ijp1 = topography[connector.get_right_neighbour(i).node];
-		float_t ip1j = topography[connector.get_bottom_neighbour(i).node];
-		float_t ip1jp1 = topography[connector.get_bottomright_neighbour(i).node];
-		float_t im1jm1 = topography[connector.get_topleft_neighbour(i).node];
-		float_t im1j = topography[connector.get_top_neighbour(i).node];
-		float_t im1jp1 = topography[connector.get_topright_neighbour(i).node];
-		float_t ijm1 = topography[connector.get_left_neighbour(i).node];
-		float_t ip1jm1 = topography[connector.get_bottomleft_neighbour(i).node];
+		int j = connector.get_right_neighbour(i).node;
+		float_t ijp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_bottom_neighbour(i).node;
+		float_t ip1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_bottomright_neighbour(i).node;
+		float_t ip1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_topleft_neighbour(i).node;
+		float_t im1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_top_neighbour(i).node;
+		float_t im1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_topright_neighbour(i).node;
+		float_t im1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_left_neighbour(i).node;
+		float_t ijm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		j = connector.get_bottomleft_neighbour(i).node;
+		float_t ip1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 
 
 		if (ij > 0 )

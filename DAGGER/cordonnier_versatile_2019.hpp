@@ -541,6 +541,8 @@ public:
 				int bas = this->stack[i];
 				if(connector.can_flow_out_there(this->pitnode[bas]))
 					continue;
+
+
 				int from = this->receivers_node[bas].first; 
 				int to = this->receivers_node[bas].second;
 				float_t zref = std::max(topography[from], topography[to]);
@@ -559,7 +561,12 @@ public:
 
 					for(int tnn = 0 ; tnn<nn; ++tnn )
 					{
+
 						int n = neighbours[tnn];
+
+						if (n<0 || n >= connector.nnodes)
+							std::cout << "JDFKHJLDSFHJKDSFHJKLDFSHJKLDFS" << std::endl;
+
 						int basn = this->basins[n];
 
 						if(isfilled[n] || basinDone[basn] || basfam[basn] != basfam[bas])
@@ -586,13 +593,17 @@ public:
 						}
 					}
 
+
 					topography[next] = std::max(lowest_z + 1e-4 + connector.randu.get() * 1e-6, topography[next]);
 					zref = std::max(topography[next],zref);
 					Sreceivers[next] = nznodeext;
 					Sdistance2receivers[next] = connector.dx;
 				}
+
 				basinDone[bas] = true;
 			}
+
+
 		}
 
 		// std::cout << "DEBUGLM_II::11" <<std::endl;

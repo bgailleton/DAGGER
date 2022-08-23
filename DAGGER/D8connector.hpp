@@ -277,52 +277,76 @@ public:
 		int n=0;
 
 		int next = this->get_right_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_bottomright_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_bottom_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_bottomleft_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_left_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_topleft_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_top_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		next = this->get_topright_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->is_in_bound(next))
 		{
-			out[n] = next;
-			++n;
+			if(this->can_flow_even_go_there(next))
+			{
+				out[n] = next;
+				++n;
+			}
 		}
 		
 		return n;
@@ -441,49 +465,49 @@ public:
 		int n=0;
 		int next = this->get_right_idx(i);
 
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		next = this->get_bottomright_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dxy);
 			++n;
 		}
 		next = this->get_bottom_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
 		}
 		next = this->get_bottomleft_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dxy);
 			++n;
 		}
 		next = this->get_left_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		next = this->get_topleft_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dxy);
 			++n;
 		}
 		next = this->get_top_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
 		}
 		next = this->get_topright_idx(i);
-		if(this->can_flow_even_go_there(next))
+		if(this->can_flow_even_go_there(next)&& this->is_in_bound(next))
 		{	
 			out[n] = std::make_pair<int,T>(next,this->dxy);
 			++n;
