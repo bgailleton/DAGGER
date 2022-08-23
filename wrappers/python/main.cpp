@@ -70,7 +70,7 @@ PYBIND11_MODULE(dagger, m) {
 		.def("accumulate_variable_downstream_SFD", &graph<double>::accumulate_variable_downstream_SFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
 		.def("accumulate_constant_downstream_MFD", &graph<double>::accumulate_constant_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
 		.def("accumulate_variable_downstream_MFD", &graph<double>::accumulate_variable_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
-
+		.def("speed_test_links",&graph<double>::speed_test_links<D8connector<double> >)
 	;
 
 	py::class_<numvec<double> >(m,"numvecf64")

@@ -527,6 +527,7 @@ public:
 		}
 
 		// then as lon g as there are nodes in the queue:
+		auto donors = connector.get_empty_neighbour();
 		while(toproc.empty() == false)
 		{
 			// getting the next node
@@ -537,9 +538,10 @@ public:
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
 			// getting the idx of the donors
-			auto dons = this->get_donors_idx(next, connector);
-			for(auto d : dons)
+			int nn = this->get_donors_idx(next, connector, donors);
+			for(int td=0;td<nn;++td)
 			{
+				int d = donors[td];
 				// Decrementing the number of receivers (I use it as a visited vector)
 				--nrecs[d];
 				// if it has reached 0, the rec is ready to be put in the FIFO
@@ -671,131 +673,209 @@ public:
 
 	// get receivers of node i
 	template<class Connector_t>
-	std::vector<int> get_receivers_idx(int i, Connector_t& connector)
+	int get_receivers_idx(int i, Connector_t& connector, std::vector<int>& recs)
 	{
-		// Preformatting receiver
-		std::vector<int> recs; recs.reserve(this->n_neighbours);
 		// getting the related links
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
+		int nli = connector.get_neighbour_idx_links(i,recs);
+
 		// going through the linksß
-		for(auto li:linkidx)
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
 		{
 			// checking the orientation
+			int li = recs[ti];
 			if(i == this->linknodes[li*2] && this->links[li])
-				recs.emplace_back(this->linknodes[li*2 + 1]);
+			{
+				recs[idx] = this->linknodes[li*2 + 1];
+				++idx;
+			}
 			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
-				recs.emplace_back(this->linknodes[li*2]);
+			{
+				recs[idx] = this->linknodes[li*2];
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
 		}
-		return recs;
+		return newli;
 	}
 
 
 	// Getting the id of the receivers in the links array
 	template<class Connector_t>
-	std::vector<int> get_receivers_idx_links(int i, Connector_t& connector)
+	int get_receivers_idx_links(int i, Connector_t& connector, std::vector<int>& recs)
 	{
-		// preformatting the receivers
-		std::vector<int> recs; recs.reserve(this->n_neighbours);
 		// getting the related links
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		// for each link linked to this node
-		for(auto li:linkidx)
+		int nli = connector.get_neighbour_idx_links(i,recs);
+
+		// going through the linksß
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
 		{
-			//only keeping the link ID of the rightly oriented link
+			// checking the orientation
+			int li = recs[ti];
 			if(i == this->linknodes[li*2] && this->links[li])
-				recs.emplace_back(li);
+			{
+				recs[idx] = li;
+				++idx;
+			}
 			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
-				recs.emplace_back(li);
+			{
+				recs[idx] = li;
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
 		}
-		return recs;
+		return newli;
 	}
 
 
-	// returns array of pair {node, receivers} ofr a single node i
-	// It can be useful if you wanna calculate  gradient or something similar
-	template<class Connector_t>
-	std::vector<std::pair<int,int> > get_node_receivers_idx_pair(int i, Connector_t& connector)
-	{
-		// preformatting the receiver arrau
-		std::vector<std::pair<int,int>> recs; recs.reserve(this->n_neighbours);
-		// getting the related links
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		// for each link
-		for(auto li:linkidx)
-		{
-			// linking i to the relevant node
-			if(i == this->linknodes[li*2] && this->links[li])
-				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
-			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
-				recs.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
-		}
+	// // returns array of pair {node, receivers} ofr a single node i
+	// // It can be useful if you wanna calculate  gradient or something similar
+	// template<class Connector_t>
+	// int get_node_receivers_idx_pair(int i, Connector_t& connector, std::vector<std::pair<int,int> >& recs)
+	// {
+	// 	// getting the related links
+	// 	int nli = connector.get_neighbour_idx_links(i,recs);
 
-		return recs;
-	}
+	// 	// going through the linksß
+	// 	int idx = 0;
+	// 	int newli = nli;
+
+	// 	for(int ti=0;ti<nli;++ti)
+	// 	{
+	// 		// checking the orientation
+	// 		int li = recs[ti];
+
+	// 		if(i == this->linknodes[li*2] && this->links[li])
+	// 		{
+	// 			recs[idx] = std::make_pair(i, this->linknodes[li*2 + 1]);
+	// 			++idx;
+	// 		}
+	// 		else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
+	// 		{
+	// 			recs[idx] = std::make_pair(i, this->linknodes[li*2]);
+	// 			++idx;
+	// 		}
+	// 		else
+	// 		{
+	// 			--newli;
+	// 		}
+	// 	}
+
+	// 	return newli;
+	// }
 
 	// Getting donor indicies
 	template<class Connector_t>
-	std::vector<int> get_donors_idx(int i, Connector_t& connector)
+	int get_donors_idx(int i, Connector_t& connector, std::vector<int>& dons)
 	{
-		// preformatting the donor vector
-		std::vector<int> dons; dons.reserve(this->n_neighbours);
 		// getting the related links
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		// for each link
-		for(auto li:linkidx)
+		int nli = connector.get_neighbour_idx_links(i,dons);
+
+		// going through the linksß
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
 		{
-			// Check if its orientation is good one way or another and if yes emplaces it
+			// checking the orientation
+			int li = dons[ti];
 			if(i == this->linknodes[li*2] && this->links[li] == false)
-				dons.emplace_back(this->linknodes[li*2 + 1]);
-			else if(this->links[li] && i == this->linknodes[li*2 + 1])
-				dons.emplace_back(this->linknodes[li*2]);
+			{
+				dons[idx] = this->linknodes[li*2 + 1];
+				++idx;
+			}
+			else if(this->links[li] == true && i == this->linknodes[li*2 + 1])
+			{
+				dons[idx] = this->linknodes[li*2];
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
 		}
-		return dons;
+		return newli;
 	}
 
 	// getting links indices of hte donors (in the links array)
 	template<class Connector_t>
-	std::vector<int> get_donors_idx_links(int i, Connector_t& connector)
+	int get_donors_idx_links(int i, Connector_t& connector, std::vector<int> & dons)
 	{
-		// preformatting the donors vector
-		std::vector<int> dons; dons.reserve(this->n_neighbours);
-		// getting the links linked to this node
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		// and for each of them
-		for(auto li:linkidx)
+		// getting the related links
+		int nli = connector.get_neighbour_idx_links(i,dons);
+
+		// going through the linksß
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
 		{
-			// and checking the orientation of the link and if the current node is indeed receiver of the other
-			// if this is the case, I emplace it in the dons.
+			// checking the orientation
+			int li = dons[ti];
 			if(i == this->linknodes[li*2] && this->links[li] == false)
-				dons.emplace_back(li);
-			else if(this->links[li] && i == this->linknodes[li*2 + 1])
-				dons.emplace_back(li);
+			{
+				dons[idx] = li;
+				++idx;
+			}
+			else if(this->links[li] == true && i == this->linknodes[li*2 + 1])
+			{
+				dons[idx] = li;
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
 		}
-		return dons;
+		return newli;
 	}
 
 
 	// Finally getting pairs of node {node, donor}
-	template<class Connector_t>
-	std::vector<std::pair<int,int> > get_node_donors_idx_pair(int i, Connector_t& connector)
-	{
-		// preformatting the vector
-		std::vector<std::pair<int,int>> dons; dons.reserve(this->n_neighbours);
-		// getting the links linked to this node
-		std::vector<int> linkidx = connector.get_neighbour_idx_links(i); 
-		// and for each link
-		for(auto li:linkidx)
-		{
-			// checking if the orientation is right a way or another
-			// and if it is -> I save it
-			if(i == this->linknodes[li*2] && this->links[li] == false)
-				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2 + 1]));
-			else if(this->links[li] && i == this->linknodes[li*2 + 1])
-				dons.emplace_back(std::make_pair<int,int>(i, this->linknodes[li*2]));
-		}
+	// template<class Connector_t>
+	// int get_node_donors_idx_pair(int i, Connector_t& connector, std::vector<std::pair<int,int> >& dons)
+	// {
+	// 	// getting the related links
+	// 	int nli = connector.get_neighbour_idx_links(i,dons);
 
-		return dons;
-	}
+	// 	// going through the linksß
+	// 	int idx = 0;
+	// 	int newli = nli;
+
+	// 	for(int ti=0;ti<nli;++ti)
+	// 	{
+	// 		// checking the orientation
+	// 		int li = dons[ti];
+	// 		if(i == this->linknodes[li*2] && this->links[li]==false)
+	// 		{
+	// 			dons[idx] = std::make_pair(i, this->linknodes[li*2 + 1]);
+	// 			++idx;
+	// 		}
+	// 		else if(this->links[li] && i == this->linknodes[li*2 + 1])
+	// 		{
+	// 			dons[idx] = std::make_pair(i, this->linknodes[li*2]);
+	// 			++idx;
+	// 		}
+	// 		else
+	// 		{
+	// 			--newli;
+	// 		}
+	// 	}
+
+	// 	return newli;
+
+	// }
 
 
 
@@ -809,6 +889,9 @@ public:
 		auto topography = format_input<topo_t>(ttopography);
 
 		std::vector<float_t> DA(connector.nnodes,0.);
+		auto reclinks = connector.get_empty_neighbour();
+		std::vector<float_t> slopes(reclinks.size(),0);
+
 		for(int i = connector.nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
@@ -816,28 +899,28 @@ public:
 
 			if(connector.is_active(node))
 			{
-				auto recs = this->get_receivers_idx(node, connector);
+				int nn = this->get_receivers_idx_links(node, connector,reclinks);
 
-				std::vector<float_t> slopes(recs.size());
 				float_t sumslopes = 0;
-				for(size_t j = 0;j < recs.size(); ++j)
+
+				for(int j = 0; j < nn; ++j)
 				{
-					int rec = recs[j];
-					slopes[j] = (topography[node] - topography[rec])/connector.dx;
+					int li = reclinks[j];
+					int rec = this->get_to_links(li);
+					slopes[j] = (topography[node] - topography[rec])/connector.get_dx_from_links_idx(li);
 					if(slopes[j] <= 0)
 						slopes[j] = 1e-5;
 					sumslopes += slopes[j];
 				}
 
-				for(size_t j = 0;j < recs.size(); ++j)
+				for(int j = 0;j < nn; ++j)
 				{
-					int rec = recs[j];
+					int li = reclinks[j];
+					int rec = this->get_to_links(li);
 					DA[rec] += DA[node] * slopes[j]/sumslopes;
 				}
 
 			}
-
-			// std::cout << std::endl;;
 
 		}
 
@@ -888,11 +971,14 @@ public:
 	{
 		std::cout << std::setprecision(12);
 		auto topography = format_input<topo_t>(ttopography);
-		auto receivers = this->get_receivers_idx(i, connector);
+		
+		auto receivers = connector.get_empty_neighbour();
+		int nn = this->get_receivers_idx(i, connector, receivers);
 
-		std::cout << "Topography is " << topography[i] << "# receivers: " << receivers.size() << std::endl;
-		for(auto r: receivers)
+		std::cout << "Topography is " << topography[i] << "# receivers: " << nn << std::endl;
+		for(int tr = 0; tr<nn; ++tr)
 		{
+			int r = receivers[tr];
 			int row,col;
 			connector.rowcol_from_node_id(r,row,col);
 			std::cout << "Rec " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
@@ -900,11 +986,13 @@ public:
 		}
 
 
-		auto neighbours = connector.get_neighbours_idx(i);
+		auto neighbours = connector.get_empty_neighbour();
+		nn = connector.get_neighbour_idx(i, neighbours);
 		std::cout << "Neighbours are :" << std::endl;
 
-		for(auto r: neighbours)
+		for(int tr = 0; tr<nn; ++tr)
 		{
+			int r = neighbours[tr];
 			int row,col;
 			connector.rowcol_from_node_id(r,row,col);
 			std::cout << "Neighbour " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
@@ -1110,13 +1198,15 @@ public:
 		std::queue<int> toproc;
 
 		// first checking if all the steepest descent nodes I already have there have a not-SD donor
+		auto donors = connector.get_empty_neighbour();
 		for(auto v:out)
 		{
 			// gettign the donors
-			auto donors = this->get_donors_idx(v,connector);
+			int nn = this->get_donors_idx(v,connector, donors);
 			// for all donors of dat nod
-			for(auto d:donors)
+			for(int td=0; td<nn;++td)
 			{
+				int d = donors[td];
 				// if not visited
 				if(vis[d] == false)
 				{
@@ -1137,9 +1227,11 @@ public:
 			// recording it as draining to the original node
 			out.emplace_back(next);
 			// getting all its donors
-			auto donors = this->get_donors_idx(next,connector);
-			for(auto d:donors)
+			int nn = this->get_donors_idx(next,connector, donors);
+			// for all donors of dat nod
+			for(int td=0; td<nn;++td)
 			{
+				int d = donors[td];
 				// if not visited including it (see above)
 				if(vis[d] == false)
 				{
@@ -1207,14 +1299,17 @@ public:
 		// else, we have to use a queue to add all the receivers
 		std::queue<int> toproc;
 
+		auto receivers = connector.get_empty_neighbour();
+
 		// first checking if all the steepest descent nodes I already have there have a not-SD rec
 		for(auto v:out)
 		{
 			// gettign the receivers
-			auto receivers = this->get_receivers_idx(v,connector);
+			int nn = this->get_receivers_idx(v,connector, receivers);
 			// for all receivers of dat nod
-			for(auto r:receivers)
+			for(int tr = 0; tr < nn; ++tr)
 			{
+				int r = receivers[tr];
 				// if not visited
 				if(vis[r] == false)
 				{
@@ -1235,9 +1330,10 @@ public:
 			// recording it as draining to the original node
 			out.emplace_back(next);
 			// getting all its receivers
-			auto receivers = this->get_receivers_idx(next,connector);
-			for(auto r:receivers)
+			int nn = this->get_receivers_idx(next,connector, receivers);
+			for(int tr = 0; tr < nn; ++tr)
 			{
+				int r = receivers[tr];
 				// if not visited including it (see above)
 				if(vis[r] == false)
 				{
@@ -1540,6 +1636,8 @@ public:
 		std::vector<float_t> tmax(this->nnodes,0);
 		for(size_t i=0; i < this->links.size(); ++i)
 		{
+			if(this->is_link_valid(i) ==false)
+				continue;
 			int go = this->get_from_links(i);
 			if(tmax[go]<array[i]) tmax[go] = array[i];
 		}
@@ -1752,6 +1850,7 @@ public:
 	std::vector<float_t> _accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& weights, float_t var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
+		auto reclinks = connector.get_empty_neighbour();
  		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 
@@ -1765,9 +1864,10 @@ public:
 			if(connector.can_flow_out_there(node))
 				continue;
 
-			auto reclinks = this->get_receivers_idx_links(node,connector);
-			for (auto ti:reclinks)
+			int nn = this->get_receivers_idx_links(node,connector, reclinks);
+			for (int ttl = 0; ttl< nn; ++ttl)
 			{
+				int ti = reclinks[ttl];
 				out[this->get_to_links(ti)] += out[node] * weights[ti];
 			}
 			
@@ -1789,6 +1889,7 @@ public:
 	std::vector<float_t> _accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& weights, topo_t& var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
+		auto reclinks = connector.get_empty_neighbour();
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
@@ -1800,9 +1901,12 @@ public:
 			if(connector.can_flow_out_there(node))
 				continue;
 
-			auto reclinks = this->get_receivers_idx_links(node,connector);
-			for (auto ti:reclinks)
+			int nn = this->get_receivers_idx_links(node,connector,reclinks);
+			for (int tr=0; tr<nn;++tr)
+			{
+				int ti = reclinks[tr];
 				out[this->Sreceivers[node]] += out[node] * weights[ti];
+			}
 			
 		}
 
@@ -1880,6 +1984,65 @@ public:
 		return nrecs;
 	}
 
+	template<class Connector_t>
+	void speed_test_links(Connector_t& connector)
+	{
+		ocarina epona;
+		epona.tik();
+		int nrecs = 0;
+		// for(int i =0; i < this->nnodes; ++i)
+		// {
+		// 	auto alllinks = this->get_receivers_idx_links(i, connector);
+		// 	nrecs += alllinks.size();
+		// }
+		// epona.tok("Getting recs");
+		// std::cout << "I have " << nrecs << std::endl;
+		
+		// nrecs = 0;
+
+		// epona.tik();
+		// for(int i =0; i < this->nnodes; ++i)
+		// {
+		// 	auto alllinks = connector.get_ilinknodes_from_node(i);
+		// 	nrecs += alllinks.size();
+		// }
+		// epona.tok("Getting links");
+		// std::cout << "I have " << nrecs << std::endl;
+
+		nrecs = 0;
+
+		epona.tik();
+		for(int i =0; i < this->nnodes; ++i)
+		{
+			auto alllinks = connector.get_ilinknodes_from_nodev2(i);
+			nrecs += alllinks.size();
+		}
+		epona.tok("Getting linksv2");
+		std::cout << "I have " << nrecs << std::endl;
+
+		nrecs = 0;
+
+		epona.tik();
+		std::vector<std::pair<int,bool> > these = {std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false)};
+		for(int i =0; i < this->nnodes; ++i)
+		{
+			connector.get_ilinknodes_from_nodev3(i,these);
+			nrecs += these.size();
+		}
+		epona.tok("Getting linksv3");
+		std::cout << "I have " << nrecs << std::endl;
+
+		// epona.tik();
+		// std::vector<int> these2 = {0,0,0,0,0,0,0,0};
+		// for(int i =0; i < this->nnodes; ++i)
+		// {
+		// 	auto nn = connector.get_ilinknodes_from_nodev3_light(i,these2);
+		// 	nrecs += nn;
+		// }
+		// epona.tok("Getting linksv3.2");
+		// std::cout << "I have " << nrecs << std::endl;
+		
+	}
 
 
 // end of the graph class

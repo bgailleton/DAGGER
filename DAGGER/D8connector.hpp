@@ -269,186 +269,335 @@ public:
 	int get_top_idx_linknodes(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return 2 * this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
 	int get_topright_idx_linknodes(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return 2 * this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
 
-	std::vector<int> get_neighbour_idx(int i)
+	std::vector<int> get_empty_neighbour(){return std::vector<int>(8,0);}
+
+	int get_neighbour_idx(int i, std::vector<int>& out)
 	{
-		std::vector<int> out; out.reserve(8);
+		
+		int n=0;
+
 		int next = this->get_right_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomright_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottom_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomleft_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_left_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topleft_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_top_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topright_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(next);
+		{
+			out[n] = next;
+			++n;
+		}
 		
-		return out;
+		return n;
 	}
 
-	std::vector<int> get_neighbour_idx_links(int i)
+	int get_neighbour_idx_links(int i, std::vector<int>& out)
 	{
-		std::vector<int> out; out.reserve(8);
+		int n=0;
 		int next = this->get_right_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottom_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomleft_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_left_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topleft_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_top_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(next);
-		return out;
+		{	
+			out[n] = next;
+			++n;
+		}
+		return n;
 	}
 
-	std::vector<int> get_neighbour_idx_linknodes(int i)
+	int get_neighbour_idx_linknodes(int i, std::vector<int>& out)
 	{
-		std::vector<int> out; out.reserve(8);
+		int n=0;
 		int next = this->get_right_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomright_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottom_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_bottomleft_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_left_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topleft_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_top_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
+		{	
+			out[n] = next;
+			++n;
+		}
 		next = this->get_topright_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(next);
-		return out;
+		{	
+			out[n] = next;
+			++n;
+		}
+		return n;
 	}
 
-	std::vector<std::pair<int,T> > get_neighbour_idx_distance(int i)
+	int get_neighbour_idx_distance(int i, std::vector<std::pair<int,T> >& out)
 	{
-		std::vector<std::pair<int,T> > out; out.reserve(8);
+		int n=0;
 		int next = this->get_right_idx(i);
+
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_bottomright_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_bottom_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_bottomleft_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_left_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_topleft_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_top_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_topright_idx(i);
 		if(this->can_flow_even_go_there(next))
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{	
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		
-		return out;
+		return n;
 	}
 
-	std::vector<std::pair<int,T> > get_neighbour_idx_distance_links(int i)
+	int get_neighbour_idx_distance_links(int i, std::vector<std::pair<int,T> >& out)
 	{
-		std::vector<std::pair<int,T> > out; out.reserve(8);
+		int n=0;
 		int next = this->get_right_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_bottomright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_bottom_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_bottomleft_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_left_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_topleft_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_top_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_topright_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 4)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
-		return out;
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
+		return n;
 	}
 
-	std::vector<std::pair<int,T> > get_neighbour_idx_distance_linknodes(int i)
+	int get_neighbour_idx_distance_linknodes(int i, std::vector<std::pair<int,T> >& out)
 	{
-		std::vector<std::pair<int,T> > out; out.reserve(8);
+		int n = 0;
 		int next = this->get_right_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_bottomright_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_bottom_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_bottomleft_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_left_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dx));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dx);
+			++n;
+		}
 		next = this->get_topleft_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
 		next = this->get_top_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dy));
+		{
+			out[n] = std::make_pair<int,T>(next,this->dy);
+			++n;
+		}
 		next = this->get_topright_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 8)
-			out.emplace_back(std::make_pair<int,T>(next,this->dxy));
-		return out;
+		{
+			out[n] = std::make_pair<int,T>(next,this->dxy);
+			++n;
+		}
+		return n;
 	}
 
 		// ------------------------------------------------
@@ -817,37 +966,37 @@ public:
 		return neighs;
 	}
 
-	std::vector<int> get_neighbours_idx(int i)
-	{
-		std::vector<int> neighs;neighs.reserve(8);
-		int tn = this->get_left_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_top_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_right_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_bottom_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_topleft_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_topright_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_bottomright_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
-		tn = this->get_bottomleft_idx(i);
-		if(tn >= 0 )
-			neighs.emplace_back(tn);
+	// std::vector<int> get_neighbour_idx(int i)
+	// {
+	// 	std::vector<int> neighs;neighs.reserve(8);
+	// 	int tn = this->get_left_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_top_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_right_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_bottom_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_topleft_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_topright_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_bottomright_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
+	// 	tn = this->get_bottomleft_idx(i);
+	// 	if(tn >= 0 )
+	// 		neighs.emplace_back(tn);
 
 
-		return neighs;
-	}
+	// 	return neighs;
+	// }
 
 
 	// Some of my algorithm are adapted from richdem and require iterating through neighbours the way they do
@@ -1051,6 +1200,7 @@ public:
 	  }
 
 	  // RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
+	  auto neighbours = this->get_empty_neighbour();
 
 	  while(open.size()>0 || pit.size()>0)
 	  {
@@ -1074,9 +1224,10 @@ public:
 	    }
 	    processed_cells++;
 
-	    auto neighbours = this->get_neighbours_idx(c.node);
-	    for(auto n:neighbours)
+	    int nn = this->get_neighbour_idx(c.node, neighbours);
+	    for(int tnn = 0; tnn<nn; ++nn)
 	    {
+	    	int n = neighbours[tnn];
 	      if(this->is_active(n) == false) 
 	      	continue;
 
@@ -1113,16 +1264,21 @@ public:
 	  std::queue<PQ_helper<int,double> > depressionQue;
 
 	  // push border cells into the PQ
+	  auto neighbours = this->get_empty_neighbour();
 	  for(int i=0; i < this->nnodes; ++i)
 	  {
 	    if (flag[i]) continue;
 
 	    if (this->can_flow_even_go_there(i) == false) 
 	    {
-	      flag[i]=true;
-	      auto neighs = this->get_neighbours_idx(i);
-	      for (auto n:neighs)
+	      flag[i] = true;
+	      int nn = this->get_neighbour_idx(i,neighbours);
+
+	      for (int tnn =0; tnn < nn; ++tnn)
 	      {
+
+	      	int n = neighbours[tnn];
+
 	        if (flag[n])
 	          continue;
 	        if (this->can_flow_even_go_there(n))
@@ -1153,6 +1309,7 @@ public:
 	{
 	  std::queue<PQ_helper<int,double>  > potentialQueue;
 	  int indexThreshold=2;  //index threshold, default to 2
+	  auto neighbours = this->get_empty_neighbour();
 	  while (!traceQueue.empty())
 	  {
 	    const auto node = traceQueue.front();
@@ -1160,9 +1317,11 @@ public:
 
 	    bool Mask[5][5]={{false},{false},{false},{false},{false}};
 	    
-	    auto neighs = this->get_neighbours_idx(node.node);
-	    for (auto n: neighs)
+	    int nn = this->get_neighbour_idx(node.node, neighbours);
+
+	    for (int tnn=0; tnn<nn; ++tnn)
 	    {
+	    	int n = neighbours[tnn];
 
 	      if(flag[n])
 	        continue;
@@ -1239,15 +1398,18 @@ public:
 	  std::queue<PQ_helper<int,double> >& traceQueue
 	)
 	{
+		auto neighbours = this->get_empty_neighbour();
 	  while (!depressionQue.empty())
 	  {
 	    auto node = depressionQue.front();
 	    depressionQue.pop();
-	    auto neigh = this->get_neighbours_idx(node.node);
-	    for (auto n: neigh)
+	    int nn = this->get_neighbour_idx(node.node, neighbours);
+	    for (int tnn = 0; tnn<nn;++tnn)
 	    {
+	    	int n = neighbours[tnn];
 	      if (flag[n])
 	        continue;
+
 	      const auto iSpill = topography[n];
 	      if (iSpill > node.score)
 	      { // Dlope cell
@@ -1278,16 +1440,18 @@ public:
 
 	  this->InitPriorityQue(topography,flag,priorityQueue);
 
+	  auto neighbours = this->get_empty_neighbour();
+
 	  while (!priorityQueue.empty())
 	  {
 	    const auto tmpNode = priorityQueue.top();
 	    priorityQueue.pop();
 
-	    auto neigh = this->get_neighbours_idx(tmpNode.node);
+	    int nn = this->get_neighbour_idx(tmpNode.node, neighbours);
 
-	    for(auto n:neigh)
+	    for(int tnn=0; tnn< nn; ++tnn)
 	    {
-
+	    	int n = neighbours[tnn];
 	      if(flag[n])
 	        continue;
 
@@ -1345,7 +1509,7 @@ public:
 		return this->get_dx_from_links_idx(j);
 	}
 
-	std::vector<int> get_ilinknodes_from_node(int i)
+	std::vector<int> get_ilinknodes_from_node_v1(int i)
 	{
 		std::vector<int> out;out.reserve(8);
 		int tn = this->get_right_idx_links(i);
@@ -1369,7 +1533,176 @@ public:
 		tn = this->get_top_idx_links(i);
 		if(tn >0 && tn < this->nnodes * 4)
 			out.emplace_back(tn);
+		tn = this->get_topright_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+			out.emplace_back(tn);
 		return out;
+	}
+
+
+	std::vector<std::pair<int,bool>> get_ilinknodes_from_nodev2(int i)
+	{
+		std::vector<std::pair<int,bool> > out;out.reserve(8);
+
+		if(this->boundary[i] != 1)
+		{
+			int tn = this->get_right_idx_links(i);
+			bool val = false;
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_bottomright_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_bottom_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_bottomleft_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_left_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_topleft_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_top_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+			tn = this->get_topright_idx_links(i);
+			if(tn >0 && tn < this->nnodes * 4)
+				val = true;
+			out.emplace_back(std::make_pair(tn,val));
+		}
+		else
+			out = {std::make_pair(this->get_right_idx_links(i),true),
+				std::make_pair(this->get_bottomright_idx_links(i),true),
+			std::make_pair(this->get_bottom_idx_links(i),true),
+			std::make_pair(this->get_bottomleft_idx_links(i),true),
+			std::make_pair(this->get_left_idx_links(i),true),
+			std::make_pair(this->get_topleft_idx_links(i),true),
+			std::make_pair(this->get_top_idx_links(i),true),
+			std::make_pair(this->get_topright_idx_links(i),true)
+		};
+
+
+
+		return out;
+	}
+
+
+
+	void get_ilinknodes_from_nodev3(int i, std::vector<std::pair<int,bool>>& out)
+	{
+
+		int tn = this->get_right_idx_links(i);
+		bool val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[0].first = tn;
+		out[0].second = val;
+		tn = this->get_bottomright_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[1].first = tn;
+		out[1].second = val;
+		tn = this->get_bottom_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[2].first = tn;
+		out[2].second = val;
+		tn = this->get_bottomleft_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[3].first = tn;
+		out[3].second = val;
+		tn = this->get_left_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[4].first = tn;
+		out[4].second = val;
+		tn = this->get_topleft_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[5].first = tn;
+		out[5].second = val;
+		tn = this->get_top_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[6].first = tn;
+		out[6].second = val;
+		tn = this->get_topright_idx_links(i);
+		val = false;
+		if(tn >0 && tn < this->nnodes * 4)
+			val = true;
+		out[7].first = tn;
+		out[7].second = val;
+	}
+
+	int get_ilinknodes_from_node(int i, std::vector<int>& out)
+	{
+		int nn = 0;
+		int tn = this->get_right_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_bottomright_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_bottom_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_bottomleft_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_left_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_topleft_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_top_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		tn = this->get_topright_idx_links(i);
+		if(tn >0 && tn < this->nnodes * 4)
+		{	
+			out[nn] = tn;
+			++nn;
+		}
+		return nn;
 	}
 
 	std::vector<bool> get_mask_array()
@@ -1382,6 +1715,8 @@ public:
 		}
 		return mask;
 	}
+
+
 
 
 

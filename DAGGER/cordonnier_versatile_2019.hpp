@@ -535,7 +535,7 @@ public:
 					basfam[node] = node;
 			}
 
-
+			auto neighbours = connector.get_empty_neighbour();
 			for(int i = 0; i < this->nbas; ++i)
 			{
 				int bas = this->stack[i];
@@ -552,11 +552,14 @@ public:
 				{
 					int next = Q.front();Q.pop();
 					isfilled[next] = true;
-					auto neighs = connector.get_neighbours_idx(next);
+					int nn = connector.get_neighbour_idx(next, neighbours);
+
 					float_t lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
 					int nznodeext = Sreceivers[next];
-					for(auto n : neighs )
+
+					for(int tnn = 0 ; tnn<nn; ++tnn )
 					{
+						int n = neighbours[tnn];
 						int basn = this->basins[n];
 
 						if(isfilled[n] || basinDone[basn] || basfam[basn] != basfam[bas])
