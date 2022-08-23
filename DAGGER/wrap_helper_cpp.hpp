@@ -6,7 +6,7 @@ namespace DAGGER
 {
 
 template<class T>
-std::vector<T> format_output(std::vector<T>& in){return in;}
+std::vector<T> _format_output(std::vector<T>& in){return in;}
 
 
 

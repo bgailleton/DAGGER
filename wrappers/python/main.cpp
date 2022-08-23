@@ -1,7 +1,8 @@
 #include <pybind11/pybind11.h>
 #include "D8connector.hpp"
 #include "graph.hpp"
-#include "wrap_helper_python.hpp"
+#include "wrap_helper.hpp"
+
 #include "hillshading.hpp"
 
 

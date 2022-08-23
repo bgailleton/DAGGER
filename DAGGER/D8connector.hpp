@@ -29,15 +29,8 @@
 
 
 // defines all the format_input depnding on the eventual wrapper
-#ifdef DAGGER_FT_PYTHON
-#include "wrap_helper_python.hpp"
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
-namespace py = pybind11;
-#else
-#include "wrap_helper_cpp.hpp"
-#endif
+#include "wrap_helper.hpp"
+
 
 
 
@@ -226,7 +219,11 @@ public:
 	void set_custom_boundaries(bou_t& tbound)
 	{
 		auto bound = format_input(tbound);
-		this->boundary = to_vec(bound);
+		this->boundary = std::vector<int>(this->nnodes,0);
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			this->boundary[i] = bound[i];
+		}
 	}
 
 	int get_boundary_at_node(int i){return this->boundary[i];}
@@ -1018,7 +1015,7 @@ public:
 
 		}
 
-		return format_output(hillshade);
+		return format_output< decltype(hillshade),out_t >(hillshade);
 
 	}
 

@@ -11,12 +11,8 @@ this file contain the algorithm(s) related to hillshading a dem from a connector
 #include "D8connector.hpp"
 #include "graph.hpp"
 
-// defines all the format_input depnding on the eventual wrapper
-#ifdef DAGGER_FT_PYTHON
-#include "wrap_helper_python.hpp"
-#else
-#include "wrap_helper_cpp.hpp"
-#endif
+#include "wrap_helper.hpp"
+
 
 
 namespace DAGGER
@@ -86,7 +82,7 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 
 	}
 
-	return format_output(hillshade);
+	return format_output<decltype(hillshade), out_t>(hillshade);
 
 }
 

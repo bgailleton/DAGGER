@@ -268,7 +268,7 @@ public:
 		++this->nbas;
 
 
-		// std::cout << "DEBUGLM_II::2" <<std::endl;
+		// std::cout << "DEBUGLM_II::nbas2solve" << nbas2solve <<std::endl;
 
 		// Relabelling 0 all the open basins to gain time
 		for(int i=0; i<connector.nnodes; ++i)

@@ -38,12 +38,7 @@ B.G. 2022
 // -> The connector classes
 #include "D8connector.hpp"
 
-// defines all the format_input depnding on the eventual wrapper
-#ifdef DAGGER_FT_PYTHON
-#include "wrap_helper_python.hpp"
-#else
-#include "wrap_helper_cpp.hpp"
-#endif
+#include "wrap_helper.hpp"
 
 
 namespace DAGGER
@@ -129,15 +124,20 @@ public:
 	  )
 	{
 		// Formatting the input to match all the wrappers
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		// Formatting the output topo
-		std::vector<float_t> faketopo= to_vec(topography);
+		std::vector<float_t> faketopo(this->nnodes,0);
+
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			faketopo[i] = topography[i];
+		}
 
 		this->_compute_graph(faketopo, depression_solver,connector,only_SD,quicksort);
 
 
 		// Finally I format the output topography to the right wrapper
-		return format_output(faketopo);
+		return format_output<decltype(faketopo), out_t >(faketopo);
 	}
 
 
@@ -151,6 +151,9 @@ public:
 
 		)
 	{
+
+		// std::cout << "DEBUG1" << std::endl;
+
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier(depression_solver);
 
@@ -160,17 +163,21 @@ public:
 			// filling the topography with a minimal slope using Wei et al., 2018
 			faketopo = connector.PriorityFlood_Wei2018(faketopo);
 		}
+		// std::cout << "DEBUG2" << std::endl;
 
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
 
+		// std::cout << "DEBUG3" << std::endl;
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
 
+		// std::cout << "DEBUG4" << std::endl;
 		// Compute the topological sorting for single stack
 		// Braun and willett 2014 (modified)
 		this->topological_sorting_SF();
 
+		// std::cout << "DEBUG5" << std::endl;
 
 		// manages the Cordonnier method if needed
 		if(isCordonnier)
@@ -182,6 +189,7 @@ public:
 			// Note that faketopo are modified in place.
 			// std::cout << "wulf" << std::endl;
 			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
+		// std::cout << "DEBUG6::" << need_recompute << std::endl;
 
 			// Right, if reomputed needs to be
 			if(need_recompute)
@@ -194,6 +202,7 @@ public:
 				this->topological_sorting_SF();
 
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
+		// std::cout << "DEBUG7" << std::endl;
 				if(depression_solver == "cordonnier_carve")
 					this->carve_topo_v2(1e-5, connector, faketopo);
 
@@ -209,6 +218,7 @@ public:
 
 				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
 				this->update_Mrecs(faketopo,connector);
+		// std::cout << "DEBUG8" << std::endl;
 			}
 		}
 
@@ -325,7 +335,7 @@ public:
 				++OUT[i];
 		}
 
-		return format_output(OUT);
+		return format_output<decltype(OUT), out_t>(OUT);
 	}
 
 
@@ -546,7 +556,7 @@ public:
 	void topological_sorting_quicksort(topo_t& ttopography)
 	{
 		// Formatting hte topographic input from the wrapper
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		// Dortng by index
 		auto yolo = sort_indexes(topography);
 		// the sorted index is now the stack
@@ -796,7 +806,7 @@ public:
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_proposlope(Connector_t& connector, topo_t& ttopography)
 	{
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 
 		std::vector<float_t> DA(connector.nnodes,0.);
 		for(int i = connector.nnodes - 1; i>=0; --i)
@@ -831,7 +841,7 @@ public:
 
 		}
 
-		return format_output(DA);
+		return format_output<decltype(DA), out_t>(DA);
 	}
 
 
@@ -839,7 +849,7 @@ public:
 	template<class Connector_t, class topo_t, class out_t>
 	out_t get_DA_SS(Connector_t& connector, topo_t& ttopography)
 	{
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 
 		std::vector<float_t> DA(connector.nnodes,0.);
 		for(int i = connector.nnodes - 1; i>=0; --i)
@@ -854,7 +864,7 @@ public:
 			}
 		}
 
-		return format_output(DA);
+		return format_output<decltype(DA), out_t>(DA);
 	}
 
 	// Debug function printing to the promt the single receiver of a node
@@ -877,7 +887,7 @@ public:
 	void print_receivers(int i,Connector_t& connector, topo_t& ttopography)
 	{
 		std::cout << std::setprecision(12);
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		auto receivers = this->get_receivers_idx(i, connector);
 
 		std::cout << "Topography is " << topography[i] << "# receivers: " << receivers.size() << std::endl;
@@ -911,7 +921,7 @@ public:
 	template<class Connector_t,class array_t, class T>
 	T sum_at_outlets(Connector_t& connector, array_t& tarray, bool include_internal_pits = true)
 	{
-		auto array = format_input(tarray);
+		auto array = format_input<array_t>(tarray);
 		T out = 0;
 		for(int i=0; i<this->nnodes; ++i)
 		{
@@ -937,7 +947,7 @@ public:
 	template<class Connector_t,class array_t, class out_t>
 	out_t keep_only_at_outlets(Connector_t& connector, array_t& tarray, bool include_internal_pits = true)
 	{
-		auto array = format_input(tarray);
+		auto array = format_input<array_t>(tarray);
 		std::vector<float_t> out = std::vector<float_t> (this->nnodes,0);
 		for(int i=0; i<this->nnodes; ++i)
 		{
@@ -949,7 +959,7 @@ public:
 					out[i] = array[i];
 			}
 		}
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 
 	}
 
@@ -1059,7 +1069,7 @@ public:
 		else
 			throw std::runtime_error("graph::get_all_nodes_upstream_of::error not implemented yet without graph");
 
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template< class Connector_t>
@@ -1156,7 +1166,7 @@ public:
 		else
 			throw std::runtime_error("graph::get_all_nodes_downstream_of::error not implemented yet without graph");
 
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template< class Connector_t>
@@ -1290,19 +1300,19 @@ public:
 
 	template<class out_t>
 	out_t get_SFD_receivers()
-	{return format_output(this->Sreceivers);}
+	{return format_output<std::vector<int>, out_t>(this->Sreceivers);}
 
 	template<class out_t>
 	out_t get_SFD_dx()
-	{return format_output(this->Sdistance2receivers);}
+	{return format_output<std::vector<float_t>, out_t>(this->Sdistance2receivers);}
 
 	template<class out_t>
 	out_t get_SFD_ndonors()
-	{return format_output(this->nSdonors);}
+	{return format_output<std::vector<int>, out_t>(this->nSdonors);}
 
 	template<class out_t>
 	out_t get_SFD_donors_flat()
-	{return format_output(this->Sdonors);}
+	{return format_output<std::vector<int>, out_t>(this->Sdonors);}
 
 	template<class out_t>
 	out_t get_SFD_donors_list()
@@ -1321,13 +1331,13 @@ public:
 
 	template<class out_t>
 	out_t get_SFD_stack()
-	{return format_output(this->Sstack);}
+	{return format_output<std::vector<size_t>, out_t>(this->Sstack);}
 
 
 
 	template<class out_t>
 	out_t get_MFD_stack()
-	{return format_output(this->stack);}
+	{return format_output<std::vector<size_t>, out_t>(this->stack);}
 
 	template<class out_t>
 	out_t get_links()
@@ -1335,7 +1345,7 @@ public:
 
 	template<class out_t>
 	out_t get_linknodes_flat()
-	{return format_output(this->linknodes);}
+	{return format_output<std::vector<int>, out_t>(this->linknodes);}
 
 	template<class out_t>
 	out_t get_linknodes_list()
@@ -1408,9 +1418,9 @@ public:
 	template<class out_t, class topo_t>
 	out_t get_SFD_gradient(topo_t& ttopography)
 	{
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		auto gradient = this->_get_SFD_gradient(topography);
-		return format_output(gradient);
+		return format_output<decltype(gradient), out_t>(gradient);
 	}
 
 	template<class topo_t>
@@ -1428,9 +1438,9 @@ public:
 	template<class Connector_t,class out_t, class topo_t>
 	out_t get_links_gradient(Connector_t& connector, topo_t& ttopography)
 	{
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		std::vector<float_t> gradient = this->_get_links_gradient(connector, topography);
-		return format_output(gradient);
+		return format_output<decltype(gradient), out_t>(gradient);
 	}
 
 
@@ -1454,9 +1464,9 @@ public:
 	template<class Connector_t,class out_t, class topo_t>
 	out_t get_MFD_mean_gradient(Connector_t& connector,topo_t& ttopography)
 	{
-		auto topography = format_input(ttopography);
+		auto topography = format_input<topo_t>(ttopography);
 		auto gradient = this->_get_MFD_mean_gradient(connector,topography);
-		return format_output(gradient);
+		return format_output<decltype(gradient), out_t>(gradient);
 	}
 
 	template<class Connector_t, class topo_t>
@@ -1490,10 +1500,10 @@ public:
 	template<class Connector_t,class out_t, class topo_t>
 	out_t get_MFD_weighted_gradient(Connector_t& connector,topo_t& ttopography, topo_t& tweights)
 	{
-		auto topography = format_input(ttopography);
-		auto weights = format_input(tweights);
+		auto topography = format_input<topo_t>(ttopography);
+		auto weights = format_input<topo_t>(tweights);
 		auto gradient = this->_get_MFD_weighted_gradient(connector,topography, weights);
-		return format_output(gradient);
+		return format_output<decltype(gradient), out_t>(gradient);
 	}
 
 	template<class Connector_t, class topo_t>
@@ -1565,7 +1575,7 @@ public:
 	out_t get_link_weights(topo_t& tgradient, float_t exp)
 	{
 		std::vector<float_t> weights(this->links.size(),0.);
-		auto gradient = format_input(tgradient);
+		auto gradient = format_input<topo_t>(tgradient);
 
 		if(exp <= 0)
 		{
@@ -1580,7 +1590,7 @@ public:
 			this->_get_link_weights_exp(weights, gradient, exp);
 		}
 
-		return format_output(weights);
+		return format_output<decltype(weights), out_t>(weights);
 	}
 
 	void _get_link_weights_f_nrecs(std::vector<float_t>& weights)
@@ -1671,7 +1681,7 @@ public:
 	out_t accumulate_constant_downstream_SFD(Connector_t& connector,float_t var)
 	{
 		std::vector<float_t> out = this->_accumulate_constant_downstream_SFD(connector,var);
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template<class Connector_t>
@@ -1700,9 +1710,9 @@ public:
 	template<class Connector_t,class out_t, class topo_t>
 	out_t accumulate_variable_downstream_SFD(Connector_t& connector,topo_t& tvar)
 	{
-		auto var = format_input(tvar);
+		auto var = format_input<topo_t>(tvar);
 		std::vector<float_t> out = this->_accumulate_variable_downstream_SFD(connector,var);
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template<class Connector_t, class topo_t>
@@ -1731,9 +1741,11 @@ public:
 	template<class Connector_t, class topo_t, class out_t>
 	out_t accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& tweights,float_t var)
 	{
-		auto weights = format_input(tweights);
+		auto weights = format_input<topo_t>(tweights);
+		std::cout << "YOLO" << std::endl;
 		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(connector, weights ,var);
-		return format_output(out);
+		std::cout << "YOLO2" << std::endl;
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template<class Connector_t, class topo_t>
@@ -1742,7 +1754,9 @@ public:
 		std::vector<float_t> out(this->nnodes, 0);
  		for(int i = this->nnodes - 1; i>=0; --i)
 		{
+
 			int node = this->stack[i];
+			std::cout << node << std::endl;;
 			if(connector.can_flow_even_go_there(node) == false)
 				continue;
 
@@ -1765,10 +1779,10 @@ public:
 	template<class Connector_t, class topo_t, class out_t>
 	out_t accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& tweights, topo_t& tvar)
 	{
-		auto weights = format_input(tweights);
-		auto var = format_input(tvar);
+		auto weights = format_input<topo_t>(tweights);
+		auto var = format_input<topo_t>(tvar);
 		std::vector<float_t> out = this->_accumulate_variable_downstream_MFD(connector, weights ,var);
-		return format_output(out);
+		return format_output<decltype(out), out_t>(out);
 	}
 
 	template<class Connector_t, class topo_t>

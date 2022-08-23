@@ -316,10 +316,10 @@ Note that I could use c++20 standard with constraints for that but it is a bit e
 */
 
 template<class T>
-pvector<T> format_input(std::vector<T>& in){return pvector<T>(in);}
+pvector<T> _format_input(std::vector<T>& in){return pvector<T>(in);}
 
 template<class T>
-pvector<T> format_input(pvector<T>& in){return in;}
+pvector<T> _format_input(pvector<T>& in){return in;}
 
 
 /*
