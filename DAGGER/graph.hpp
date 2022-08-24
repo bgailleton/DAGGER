@@ -182,7 +182,7 @@ public:
 			LMRerouter<float_t> depsolver;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
-			std::cout << "wulf" << std::endl;
+			// std::cout << "wulf" << std::endl;
 			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
 
 			// Right, if reomputed needs to be
