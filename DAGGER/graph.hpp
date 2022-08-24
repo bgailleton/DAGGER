@@ -86,6 +86,8 @@ public:
 	std::vector<size_t> stack, Sstack;
 
 	
+
+	
 	// default empty constructor
 	graph(){};
 
@@ -160,7 +162,10 @@ public:
 		if(isCordonnier == false && depression_solver != "none")
 		{
 			// filling the topography with a minimal slope using Wei et al., 2018
-			faketopo = connector.PriorityFlood_Wei2018(faketopo);
+			if(depression_solver == "wei2018")
+				faketopo = connector.PriorityFlood_Wei2018(faketopo);
+			else
+				faketopo = connector.PriorityFlood(faketopo);
 		}
 
 		// Making sure the graph is not inheriting previous values
@@ -216,7 +221,7 @@ public:
 
 		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
 		// for multiple as the toposort for SF is already done
-		else if (only_SD == false)
+		if (only_SD == false)
 		{
 			if(quicksort)
 					this->topological_sorting_quicksort(faketopo);

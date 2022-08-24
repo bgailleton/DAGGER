@@ -24,6 +24,23 @@
 namespace DAGGER
 {
 
+// Enumeration of the possible depression solvers
+enum class DEPRES
+{
+	// No depression resolution
+	none,
+	// Using Cordonnier et al., 2019 with the filling method (algorithm 4)
+	cordonnier_fill,
+	// Using Cordonnier et al., 2019 with the carving method (algorithm 3)
+	cordonnier_carve,
+	// Using the Wei et al 2018 variation of Barnes 2014 priority flood algorithm
+	priority_flood,
+	// Using the Barnes et al., 2014 priority flood algorithm
+	priority_flood_2014,
+	// TO ADD:: Cordonnier simple, Lindsay carving and why not others??
+
+}
+
 // Quick function checking if an element is in a set or not
 template<class T>
 inline bool izinset(std::set<T>& tset, T& element )

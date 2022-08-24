@@ -1194,7 +1194,7 @@ public:
 
 	// Largely adapted from RichDEM
 	template <class topo_t>
-	std::vector<double> fill_barne_2014(topo_t& ttopography)
+	std::vector<double> PriorityFlood(topo_t& ttopography)
 	{
 		std::random_device rd; // obtain a random number from hardware
 	  std::mt19937 gen(rd()); // seed the generator
@@ -1266,7 +1266,7 @@ public:
 	      
 	        ++pitc;
 	        // topography[n]=std::nextafter(c.score,std::numeric_limits<double>::infinity());
-	        topography[n] = c.score +1e-3 + distr(gen);
+	        topography[n] = c.score + distr(gen);
 	        pit.emplace(n,topography[n]);
 	      } else
 	        open.emplace(n,topography[n]);
@@ -1443,7 +1443,7 @@ public:
 	      }
 	      // Depression cell
 	      flag[n] = true;
-	      topography[n] = node.score + 1e-3 + 1e-6 * this->randu.get();
+	      topography[n] = node.score + 1e-6 * this->randu.get();
 	      depressionQue.emplace(n,topography[n]);
 	    }
 	  }

@@ -25,7 +25,7 @@ PYBIND11_MODULE(dagger, m) {
 		.def("set_custom_boundaries", &D8connector<double>::set_custom_boundaries<py::array_t<int,1> >)
 		.def("print_dim", &D8connector<double>::print_dim)
 		.def("get_HS", &D8connector<double>::get_HS<std::vector<double>, py::array >)
-		.def("fill_barne_2014", &D8connector<double>::fill_barne_2014<std::vector<double> >)
+		// .def("fill_barne_2014", &D8connector<double>::fill_barne_2014<std::vector<double> >)
 		.def("get_mask_array",&D8connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 	;
