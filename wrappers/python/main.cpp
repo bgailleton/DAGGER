@@ -19,6 +19,14 @@ PYBIND11_MODULE(dagger, m) {
 
   )pbdoc";
 
+
+  py::enum_<DEPRES>(m, "LMR")
+    .value("cordonnier_fill", DEPRES::cordonnier_fill)
+    .value("cordonnier_carve", DEPRES::cordonnier_carve)
+    .value("priority_flood", DEPRES::priority_flood)
+    .value("none", DEPRES::none)
+  ;
+
 	py::class_<D8connector<double> >(m, "D8N")
 		.def(py::init<int,int,double,double,double,double>())
 		.def("set_default_boundaries", &D8connector<double>::set_default_boundaries)
@@ -71,6 +79,9 @@ PYBIND11_MODULE(dagger, m) {
 		.def("accumulate_constant_downstream_MFD", &graph<double>::accumulate_constant_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
 		.def("accumulate_variable_downstream_MFD", &graph<double>::accumulate_variable_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
 		.def("speed_test_links",&graph<double>::speed_test_links<D8connector<double> >)
+		.def("set_LMR_method", &graph<double>::set_LMR_method)
+		.def("set_minimum_slope_for_LMR", &graph<double>::set_minimum_slope_for_LMR)
+		.def("set_slope_randomness_for_LMR", &graph<double>::set_slope_randomness_for_LMR)
 	;
 
 	py::class_<numvec<double> >(m,"numvecf64")
