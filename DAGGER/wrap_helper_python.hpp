@@ -103,14 +103,14 @@ std::vector<T> to_vec(numvec<T>& in)
 	return out;
 }
 
-template<class T>
-std::vector<T> to_vec(numvec<T> in)
-{
-	std::vector<T> out(in.size());
-	for(size_t i=0;i<in.size(); ++i)
-		out[i] = in[i];
-	return out;
-}
+// template<class T>
+// std::vector<T> to_vec(numvec<T> in)
+// {
+// 	std::vector<T> out(in.size());
+// 	for(size_t i=0;i<in.size(); ++i)
+// 		out[i] = in[i];
+// 	return out;
+// }
 
 template<class T>
 std::vector<T> to_vec(py::array_t<T,1>& tin)

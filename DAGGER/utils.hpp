@@ -39,7 +39,7 @@ enum class DEPRES
 	priority_flood_2014,
 	// TO ADD:: Cordonnier simple, Lindsay carving and why not others??
 
-}
+};
 
 // Quick function checking if an element is in a set or not
 template<class T>

@@ -85,7 +85,13 @@ public:
 	// making operations such as watershed labelling or connected component gathering particularly efficient
 	std::vector<size_t> stack, Sstack;
 
-	
+
+	// What depression resolver to use when computing the graph
+	DEPRES depression_resolver = DEPRES::cordonnier_carve;
+
+	// hte minimum slope to impose on the fake topography
+	float_t minimum_slope = 1e-4;
+	float_t slope_randomness = 1e-6;
 
 	
 	// default empty constructor
@@ -93,6 +99,30 @@ public:
 
 	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
 	graph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Graph functions	- everything about computing, updating and managing the graph, links, nodes and local minima
+	The core of the code in other words.
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/
 
 
 	// Initialisation of the graph structure
@@ -118,7 +148,6 @@ public:
 	// template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
 	template<class Connector_t,class topo_t, class out_t>
 	out_t compute_graph(
-		std::string depression_solver, // String switching the type of depression solver: "cordonnier_carve", "cordonnier_fill", "cordonnier_simple" or "priority_flood"
 	  topo_t& ttopography, // the input topography
 	  Connector_t& connector, // the input connector to use (e.g. D8connector)
 	  bool only_SD, // only computes the single flow graph if true
@@ -135,7 +164,7 @@ public:
 			faketopo[i] = topography[i];
 		}
 
-		this->_compute_graph(faketopo, depression_solver,connector,only_SD,quicksort);
+		this->_compute_graph(faketopo,connector,only_SD,quicksort);
 
 
 		// Finally I format the output topography to the right wrapper
@@ -146,7 +175,6 @@ public:
 	template<class Connector_t>
 	void _compute_graph(
 		std::vector<float_t>& faketopo,
-		std::string depression_solver, // String switching the type of depression solver: "cordonnier_carve", "cordonnier_fill", "cordonnier_simple" or "priority_flood"
 	  Connector_t& connector, // the input connector to use (e.g. D8connector)
 	  bool only_SD, // only computes the single flow graph if true
 	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
@@ -156,13 +184,13 @@ public:
 
 
 		// Checking if the depression method is cordonnier or node
-		bool isCordonnier = this->is_method_cordonnier(depression_solver);
+		bool isCordonnier = this->is_method_cordonnier();
 
 		// if the method is not Cordonnier -> apply the other first
-		if(isCordonnier == false && depression_solver != "none")
+		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
 		{
 			// filling the topography with a minimal slope using Wei et al., 2018
-			if(depression_solver == "wei2018")
+			if(this->depression_resolver == DEPRES::priority_flood)
 				faketopo = connector.PriorityFlood_Wei2018(faketopo);
 			else
 				faketopo = connector.PriorityFlood(faketopo);
@@ -185,10 +213,12 @@ public:
 			
 			// LMRerouter is the class managing the different cordonnier's mthod
 			LMRerouter<float_t> depsolver;
+			depsolver.minimum_slope = this->minimum_slope;
+			depsolver.slope_randomness = this->slope_randomness;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
 			// std::cout << "wulf" << std::endl;
-			bool need_recompute = depsolver.run(depression_solver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
+			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
 
 			// Right, if reomputed needs to be
 			if(need_recompute)
@@ -201,8 +231,8 @@ public:
 				this->topological_sorting_SF();
 
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
-				if(depression_solver == "cordonnier_carve")
-					this->carve_topo_v2(1e-5, connector, faketopo);
+				if(this->depression_resolver == DEPRES::cordonnier_carve)
+					this->carve_topo_v2(connector, faketopo);
 
 				// My work here is done if only SD is needed
 				if(only_SD)
@@ -318,52 +348,6 @@ public:
 		this->compute_SF_donors_from_receivers();
 	}
 
-
-
-	// You an ignore
-	template<class out_t>
-	out_t test_Srecs()
-	{
-		std::vector<int> OUT(this->nnodes,0);
-		for(int i=0; i< this->nnodes;++i)
-		{
-			if(i !=  this->Sreceivers[i])
-				++OUT[i];
-		}
-
-		return format_output<decltype(OUT), out_t>(OUT);
-	}
-
-
-
-
-
-
-
-
-	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
-	void _allocate_vectors()
-	{
-		this->links = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
-		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
-		this->Sreceivers = std::vector<int>(this->nnodes,-1);
-		this->Sstack = std::vector<size_t>(this->nnodes,0);
-		for(int i=0;i<this->nnodes; ++i)
-			this->Sreceivers[i] = i;
-		this->Sdistance2receivers = std::vector<float_t >(this->nnodes,-1);
-		this->SS = std::vector<float_t>(this->nnodes,0.);
-	}
-	void _reallocate_vectors()
-	{
-		for(int i=0;i<this->nnodes; ++i)
-		{
-			this->Sreceivers[i] = i;
-			this->Sdistance2receivers[i] = 0;
-			this->SS[i] = 0;
-		}
-	}
-
-
 	// Fucntion inverting the SFD receivers into donors
 	void compute_SF_donors_from_receivers()
 	{
@@ -411,6 +395,84 @@ public:
 		}
 
 	}
+
+
+
+	// You an ignore
+	template<class out_t>
+	out_t test_Srecs()
+	{
+		std::vector<int> OUT(this->nnodes,0);
+		for(int i=0; i< this->nnodes;++i)
+		{
+			if(i !=  this->Sreceivers[i])
+				++OUT[i];
+		}
+
+		return format_output<decltype(OUT), out_t>(OUT);
+	}
+
+
+
+
+
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Admin functions	managing attribute and variable initialisations
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/
+
+
+	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
+	void _allocate_vectors()
+	{
+		this->links = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
+		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<float_t >(this->nnodes,-1);
+		this->SS = std::vector<float_t>(this->nnodes,0.);
+	}
+	void _reallocate_vectors()
+	{
+		for(int i=0;i<this->nnodes; ++i)
+		{
+			this->Sreceivers[i] = i;
+			this->Sdistance2receivers[i] = 0;
+			this->SS[i] = 0;
+		}
+	}
+
+
+
+	void set_LMR_method(DEPRES method){this->depression_resolver = method;}
+	void set_minimum_slope_for_LMR(float_t slope){this->minimum_slope = slope;}
+	void set_slope_randomness_for_LMR(float_t slope)
+	{
+		if(slope >= this->minimum_slope)
+			throw std::runtime_error("slope randomness cannot be >= to the minimum slope and is even reccomended to be at least one or two order of magnitude lower");
+		this->slope_randomness = slope;
+	}
+
+	
 
 
 	/*
@@ -589,12 +651,9 @@ public:
 	/// It starts from the most upstream part of the landscapes and goes down following the Sreceiver route
 	/// it carve on the go, making sure the topography of a receiver is lower
 	template<class Connector_t, class topo_t>
-	std::vector<int> carve_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
+	void carve_topo_v2(Connector_t& connector, topo_t& topography)
 	{
 
-		// storing the nodes to recompute
-		std::vector<int> to_recompute;
-		to_recompute.reserve(1000);
 		// Traversing the (SFD) stack on the reverse direction
 		for(int i=this->nnodes-1; i >= 0; --i)
 		{
@@ -611,12 +670,9 @@ public:
 			if(dz <= 0)
 			{
 				// And I do ! Note that I add some very low-grade randomness to avoid flat links
-				topography[rec] = topography[node] - slope + connector.randu.get() * 1e-7;// * d2rec;
-				to_recompute.emplace_back(rec);
+				topography[rec] = topography[node] - this->minimum_slope + connector.randu.get() * this->slope_randomness;// * d2rec;
 			}
-
 		}
-		return to_recompute;
 	}
 
 	/// Opposite of the above function
@@ -1108,9 +1164,9 @@ public:
 	}
 
 
-	bool is_method_cordonnier(std::string method)
+	bool is_method_cordonnier()
 	{
-		if(method == "cordonnier_fill" || method == "cordonnier_carve")
+		if(this->depression_resolver == DEPRES::cordonnier_carve || this->depression_resolver == DEPRES::cordonnier_fill)
 			return true;
 		else
 			return false;

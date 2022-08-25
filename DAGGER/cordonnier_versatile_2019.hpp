@@ -211,6 +211,9 @@ public:
 	std::vector<std::vector<int> > donors;
 
 
+	float_t minimum_slope = 1e-4;
+	float_t slope_randomness = 1e-6;
+
 	//
 	// std::unordered_map<int , float_t> edges;
 	// std::unordered_map<int , std::pair<int,int> > edges_nodes;
@@ -220,7 +223,7 @@ public:
 	LMRerouter(){;};
 
 	template<class topo_t, class Connector_t>
-	bool run(std::string method, topo_t& topography, Connector_t& connector, std::vector<int>& Sreceivers, std::vector<float_t>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
+	bool run(DEPRES method, topo_t& topography, Connector_t& connector, std::vector<int>& Sreceivers, std::vector<float_t>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
 	{
 		// std::cout << "DEBUGLM_II::1" <<std::endl;
 		// tracking the number of basins
@@ -478,7 +481,7 @@ public:
 
 		// std::cout << "DEBUGLM_II::10::" << this->stack.size() <<std::endl;
 
-		if(method == "cordonnier_carve")
+		if(method == DEPRES::cordonnier_carve)
 		{
 			for(int i =	this->nbas-1; i>=0; --i)
 			{
@@ -517,7 +520,7 @@ public:
 			}
 
 		}
-		else if (method == "cordonnier_fill")
+		else if (method == DEPRES::cordonnier_fill)
 		{
 			std::vector<char> isinQ(connector.nnodes,false);
 			std::vector<char> isfilled(connector.nnodes,false);
@@ -594,7 +597,7 @@ public:
 					}
 
 
-					topography[next] = std::max(lowest_z + 1e-4 + connector.randu.get() * 1e-6, topography[next]);
+					topography[next] = std::max(lowest_z + minimum_slope + connector.randu.get() * slope_randomness, topography[next]);
 					zref = std::max(topography[next],zref);
 					Sreceivers[next] = nznodeext;
 					Sdistance2receivers[next] = connector.dx;
