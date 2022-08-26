@@ -5,6 +5,25 @@
 ## Quickstart 
 
 
+- I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python)
+- I want to use the [c++ version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/c++)
+- To do: the other bindings
+
+## Documentation
+
+Detailed documentation will be on a readthedoc website (WIP)
+
+## How to cite
+
+A paper describing the scope and overview of the library will be submitted in [`JOSS`](https://joss.theoj.org/), and can be currently found in the file `paper.md`.
+
+## Road map
+
+The past and future development plan can be found in [this issue](https://github.com/bgailleton/DAGGER/issues/1) before being moved in the documentation.
+
+## Authors
+
+Boris Gailleton - boris.gailleton@univ-rennes1.fr
 
 
 
