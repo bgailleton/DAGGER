@@ -29,6 +29,7 @@ B.G. 2022
 #include <stdlib.h>
 #include <ctime>
 #include <omp.h>
+#include <iomanip>
 
 // local includes 
 // -> General routines and data structures
@@ -1494,6 +1495,56 @@ public:
 	template<class out_t>
 	out_t get_linknodes_flat()
 	{return format_output<std::vector<int>, out_t>(this->linknodes);}
+
+	template<class out_t>
+	out_t get_linknodes_flat_D4()
+	{
+		std::vector<int> temp(int(this->linknodes.size()/2),-1);
+		int j = 0;
+		int counter = -1;
+		for(int i=0; i< int(this->linknodes.size()); i += 2)
+		{
+			++counter;
+			if(counter == 0 || counter == 2)
+			{
+				temp[j] = this->linknodes[i];
+				++j;
+				temp[j] = this->linknodes[i];
+				++j;
+			}
+
+			if(counter == 3)
+				counter = -1;
+		}
+
+		return format_output<std::vector<int>, out_t>(temp);
+
+	}
+
+	template<class out_t, class Connector_t>
+	out_t get_linkdx_flat_D4(Connector_t& connector)
+	{
+		std::vector<float_t> temp(int(this->links.size()/2),-1);
+		int j = 0;
+		int counter = -1;
+		for(int i=0; i< int(this->links.size()); ++i)
+		{
+			++counter;
+
+			if(counter == 0 || counter == 2)
+			{
+				float_t dx = connector.get_dx_from_links_idx(i);
+				temp[j] = dx;
+				++j;
+			}
+
+			if(counter == 3)
+				counter = -1;
+		}
+
+		return format_output<std::vector<float_t>, out_t>(temp);
+
+	}
 
 	template<class out_t>
 	out_t get_linknodes_list()

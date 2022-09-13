@@ -63,6 +63,9 @@ PYBIND11_MODULE(dagger, m) {
 		.def("get_MFD_stack",&graph<double>::get_MFD_stack<py::array_t<size_t,1>>)
 		.def("get_links",&graph<double>::get_links<std::vector<bool> >)
 		.def("get_linknodes_flat",&graph<double>::get_linknodes_flat<py::array_t<int,1>>)
+		.def("get_linknodes_flat_D4",&graph<double>::get_linknodes_flat_D4<py::array_t<int,1>>)
+		.def("get_linkdx_flat_D4",&graph<double>::get_linkdx_flat_D4<py::array_t<double,1>, D8connector<double> >)
+
 		.def("get_linknodes_list",&graph<double>::get_linknodes_list<std::vector<std::vector<int> > >)
 		.def("get_linknodes_list_oriented",&graph<double>::get_linknodes_list_oriented<std::vector<std::vector<int> > >)
 		.def("get_SFD_receivers_at_node", &graph<double>::get_SFD_receivers_at_node)
