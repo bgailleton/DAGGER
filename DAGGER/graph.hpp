@@ -724,41 +724,55 @@ public:
 */
 
 
-	// get receivers of node i
+	// get receivers of node i and put them in the recs vector fed in
+	// It returns the number of receivers in the recs vector
+	// THis whole process optimises repeated receiver fetching, by never reallocating/initialising the vector recs
 	template<class Connector_t>
 	int get_receivers_idx(int i, Connector_t& connector, std::vector<int>& recs)
 	{
-		// getting the related links
+		// getting the related links stroing them temporarily in the rec vec
 		int nli = connector.get_neighbour_idx_links(i,recs);
 
 		// going through the linksß
+		// The idx is the idx of insertion in the recs vectors
+		// the idx of insertion is always <= of the index of reading (both receivers and links-to-assess are stored in the recs vector)	
 		int idx = 0;
+		// counter used to keep track of the number of receivers: starts at the number of links related to the given node and get decremented at each donor link 
 		int newli = nli;
 
+		// Iterating through the links
 		for(int ti=0;ti<nli;++ti)
 		{
-			// checking the orientation
+			// current link index
 			int li = recs[ti];
+
+			// this link is a rec if the node is the first of the linknode and links is true
 			if(i == this->linknodes[li*2] && this->links[li])
 			{
+				// in which case the receiver of the current node is the +  1
 				recs[idx] = this->linknodes[li*2 + 1];
 				++idx;
 			}
+			// OR if the current node is the +1 and the links false
 			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
 			{
+				// in which case the receivers is the 0 node
 				recs[idx] = this->linknodes[li*2];
 				++idx;
 			}
 			else
 			{
+				// otherwise, it's not a rec and we decrease the newli
 				--newli;
 			}
 		}
+		// recs is changed in place, and we return the number of recs newli
 		return newli;
 	}
 
 
 	// Getting the id of the receivers in the links array
+	// see get_receivers_idx for full comments about the section
 	template<class Connector_t>
 	int get_receivers_idx_links(int i, Connector_t& connector, std::vector<int>& recs)
 	{
@@ -829,6 +843,7 @@ public:
 	// }
 
 	// Getting donor indicies
+	// see get_receivers_idx for full comments about the section
 	template<class Connector_t>
 	int get_donors_idx(int i, Connector_t& connector, std::vector<int>& dons)
 	{
@@ -862,6 +877,7 @@ public:
 	}
 
 	// getting links indices of hte donors (in the links array)
+	// see get_receivers_idx for full comments about the section
 	template<class Connector_t>
 	int get_donors_idx_links(int i, Connector_t& connector, std::vector<int> & dons)
 	{
@@ -893,46 +909,6 @@ public:
 		}
 		return newli;
 	}
-
-
-	// Finally getting pairs of node {node, donor}
-	// template<class Connector_t>
-	// int get_node_donors_idx_pair(int i, Connector_t& connector, std::vector<std::pair<int,int> >& dons)
-	// {
-	// 	// getting the related links
-	// 	int nli = connector.get_neighbour_idx_links(i,dons);
-
-	// 	// going through the linksß
-	// 	int idx = 0;
-	// 	int newli = nli;
-
-	// 	for(int ti=0;ti<nli;++ti)
-	// 	{
-	// 		// checking the orientation
-	// 		int li = dons[ti];
-	// 		if(i == this->linknodes[li*2] && this->links[li]==false)
-	// 		{
-	// 			dons[idx] = std::make_pair(i, this->linknodes[li*2 + 1]);
-	// 			++idx;
-	// 		}
-	// 		else if(this->links[li] && i == this->linknodes[li*2 + 1])
-	// 		{
-	// 			dons[idx] = std::make_pair(i, this->linknodes[li*2]);
-	// 			++idx;
-	// 		}
-	// 		else
-	// 		{
-	// 			--newli;
-	// 		}
-	// 	}
-
-	// 	return newli;
-
-	// }
-
-
-
-
 
 
 	// Deprecated???
@@ -1509,7 +1485,7 @@ public:
 			{
 				temp[j] = this->linknodes[i];
 				++j;
-				temp[j] = this->linknodes[i];
+				temp[j] = this->linknodes[i+1];
 				++j;
 			}
 
