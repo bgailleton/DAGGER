@@ -14,6 +14,15 @@ __version__ = "0.0.1"
 # Note:
 #	 Sort input source files if you glob sources to ensure bit-for-bit
 #	 reproducible builds (https://github.com/pybind/python_example/pull/53)
+MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None)]
+EXTRA_COMPILE = ['-O3']
+if "--exp" in sys.argv:
+	MACROS.append(('OPENMP_YOLO', None))
+	EXTRA_COMPILE.append('-fopenmp')
+	EXTRA_COMPILE.append('-foffload=nvptx-none')
+	sys.argv.remove("--exp")
+	import os
+	os.environ["CC"] = "g++-12"
 
 ext_modules = [
 		Pybind11Extension(
@@ -21,9 +30,10 @@ ext_modules = [
 					["main.cpp"],
 					include_dirs = ["../../DAGGER"],
 					# Example: passing in the version to the compiled code
-					define_macros = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None)],
+					libraries = ['gomp'],
+					define_macros = MACROS,
 					cxx_std=17,
-	        extra_compile_args=['-O3'],
+	        extra_compile_args=EXTRA_COMPILE,
 
 				),
 ]

@@ -1,6 +1,6 @@
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#ifndef D8connector_HPP
-#define D8connector_HPP
+#ifndef D4connector_HPP
+#define D4connector_HPP
 
 // STL imports
 #include <iostream>
@@ -60,7 +60,6 @@ public:
 	T dx;
 	// #-> length in the y direction.
 	T dy;
-	T dxy;
 	T dxmax;
 	T dxmin;
 	// #-> cell area
@@ -109,8 +108,7 @@ public:
 	/// @Date: 2021
 	void initialise_neighbourer()
 	{
-		T diag = std::sqrt(std::pow(dx,2) + std::pow(dy,2) );
-		this->dxy = diag;
+
 		this->dxmin = std::min(this->dx,this->dy);
 		this->dxmax = std::max(this->dx,this->dy);
 
@@ -119,23 +117,23 @@ public:
 		this->neighbourer.clear();
 
 		// these vectors are additioned to the node indice to test the neighbors
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 }); // internal node 0
-		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 });// periodic_first_row 1
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,- (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_last_row 2
-		this->neighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, (this->nx - 1),1, 2 * this->nx - 1, this->nx, this->nx + 1 }); // periodic_first_col 3
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - 2 * this->nx + 1, -1,-this->nx + 1, this->nx - 1, this->nx, 1 }); // periodic last_col 4
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, -1, 1, this->nx - 1, this->nx, this->nx + 1 }); // normal_first_row 5
-		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx - 1, - this->nx, - this->nx + 1, -1,1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_last_row 6
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, - this->nx, - this->nx + 1, this->not_a_node, 1, this->not_a_node,  this->nx, this->nx + 1 }); // normal_first_col 7
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node }); // normal_last_col 8
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node, 1, this->not_a_node, this->nx, this->nx + 1 }); // normal_top_left 9
-		this->neighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node, this->not_a_node, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node}); // normal_top_right 10
-		this->neighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node,- this->nx, - this->nx + 1,this->not_a_node, 1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_left 11
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_right 12
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->ny * this->nx -1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, this->nx - 1, 1, 2 * this->nx - 1, this->nx, this->nx+1}); // top_left_periodic 13
-		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 2) * this->nx + 1, -1, - this->nx + 1,this->nx - 1, this->nx, 1 }); // top_right_periodic 14
-		this->neighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, this->nx - 1,1,- (this->ny - 2) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_bottom_left 15
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1, 1 - this->nx + 1, - (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny) * this->nx + 1 });// periodic_bottom_right 16
+		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx, -1,1, this->nx}); // internal node 0
+		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx, -1,1,this->nx});// periodic_first_row 1
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, -1,1, - (this->ny - 1) * this->nx});// periodic_last_row 2
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, (this->nx - 1),1, this->nx}); // periodic_first_col 3
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, -1,-this->nx + 1, this->nx}); // periodic last_col 4
+		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node,-1, 1, this->nx}); // normal_first_row 5
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx,-1,1,this->not_a_node}); // normal_last_row 6
+		this->neighbourer.emplace_back(std::initializer_list<int>{ - this->nx,  this->not_a_node, 1,  this->nx}); // normal_first_col 7
+		this->neighbourer.emplace_back(std::initializer_list<int>{ - this->nx, -1, this->not_a_node,this->nx}); // normal_last_col 8
+		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, 1, this->nx}); // normal_top_left 9
+		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, -1, this->not_a_node, this->nx}); // normal_top_right 10
+		this->neighbourer.emplace_back(std::initializer_list<int>{ - this->nx,this->not_a_node, 1,this->not_a_node}); // normal_bottom_left 11
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, -1, this->not_a_node, this->not_a_node}); // normal_bottom_right 12
+		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx, this->nx - 1, 1, this->nx}); // top_left_periodic 13
+		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx, -1, - this->nx + 1, this->nx}); // top_right_periodic 14
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, this->nx - 1,1, - (this->ny - 1) * this->nx});// periodic_bottom_left 15
+		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx, -1, 1 - this->nx + 1, - (this->ny - 1) * this->nx});// periodic_bottom_right 16
 	
 	}
 
