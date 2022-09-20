@@ -10,6 +10,59 @@
 namespace DAGGER
 {
 
+template<typename CONNECTOR_T>
+void declare_graph(py::module &m, std::string typestr)
+{
+
+	py::class_<graph<double, CONNECTOR_T > >(m, typestr.c_str())
+		.def(py::init<int,int>())
+		.def("get_DA_proposlope", &graph<double, CONNECTOR_T >::template get_DA_proposlope<CONNECTOR_T, std::vector<double>, py::array >)
+		.def("get_DA_SS", &graph<double, CONNECTOR_T >::template get_DA_SS<CONNECTOR_T, std::vector<double>, py::array >)
+		.def("get_rowcol_Sreceivers",&graph<double, CONNECTOR_T >::template get_rowcol_Sreceivers<CONNECTOR_T >)
+		.def("print_receivers", &graph<double, CONNECTOR_T >::template print_receivers<CONNECTOR_T, std::vector<double> >)
+		.def("get_rec_array_size",&graph<double, CONNECTOR_T >::template get_rec_array_size)
+		.def("init_graph", &graph<double, CONNECTOR_T >::template init_graph<CONNECTOR_T >)
+		.def("compute_graph", &graph<double, CONNECTOR_T >::template compute_graph<CONNECTOR_T, py::array_t<double,1>, py::array >)
+		.def("test_Srecs", &graph<double, CONNECTOR_T >::template test_Srecs<py::array >)
+		.def("sum_at_outlets", &graph<double, CONNECTOR_T >::template sum_at_outlets<CONNECTOR_T, py::array_t<double,1>, double >)
+		.def("keep_only_at_outlets", &graph<double, CONNECTOR_T >::template keep_only_at_outlets<CONNECTOR_T, py::array_t<double,1>, py::array >)
+		.def("is_Sstack_full", &graph<double, CONNECTOR_T >::template is_Sstack_full)
+		.def("has_Srecs", &graph<double, CONNECTOR_T >::template has_Srecs)
+		.def("get_all_nodes_upstream_of", &graph<double, CONNECTOR_T >::template get_all_nodes_upstream_of< CONNECTOR_T, py::array_t<int,1> > )
+		.def("get_all_nodes_downstream_of", &graph<double, CONNECTOR_T >::template get_all_nodes_downstream_of< CONNECTOR_T, py::array_t<int,1> > )
+		.def("get_SFD_receivers",&graph<double, CONNECTOR_T >::template get_SFD_receivers<py::array_t<int,1>>)
+		.def("get_SFD_dx",&graph<double, CONNECTOR_T >::template get_SFD_dx<py::array_t<double,1>>)
+		.def("get_SFD_ndonors",&graph<double, CONNECTOR_T >::template get_SFD_ndonors<py::array_t<int,1>>)
+		.def("get_SFD_donors_flat",&graph<double, CONNECTOR_T >::template get_SFD_donors_flat<py::array_t<int,1>>)
+		.def("get_SFD_donors_list",&graph<double, CONNECTOR_T >::template get_SFD_donors_list<std::vector<std::vector<int> > >)
+		.def("get_SFD_stack",&graph<double, CONNECTOR_T >::template get_SFD_stack<py::array_t<size_t,1>>)
+		.def("get_MFD_stack",&graph<double, CONNECTOR_T >::template get_MFD_stack<py::array_t<size_t,1>>)
+		.def("get_links",&graph<double, CONNECTOR_T >::template get_links<std::vector<bool> >)
+		.def("get_linknodes_flat",&graph<double, CONNECTOR_T >::template get_linknodes_flat<py::array_t<int,1>>)
+		.def("get_linknodes_flat_D4",&graph<double, CONNECTOR_T >::template get_linknodes_flat_D4<py::array_t<int,1>>)
+		.def("get_linkdx_flat_D4",&graph<double, CONNECTOR_T >::template get_linkdx_flat_D4<py::array_t<double,1>, CONNECTOR_T >)
+
+		.def("get_linknodes_list",&graph<double, CONNECTOR_T >::template get_linknodes_list<std::vector<std::vector<int> > >)
+		.def("get_linknodes_list_oriented",&graph<double, CONNECTOR_T >::template get_linknodes_list_oriented<std::vector<std::vector<int> > >)
+		.def("get_SFD_receivers_at_node", &graph<double, CONNECTOR_T >::template get_SFD_receivers_at_node)
+		.def("get_SFD_dx_at_node", &graph<double, CONNECTOR_T >::template get_SFD_dx_at_node)
+		.def("get_SFD_ndonors_at_node", &graph<double, CONNECTOR_T >::template get_SFD_ndonors_at_node)
+		.def("get_SFD_donors_at_node", &graph<double, CONNECTOR_T >::template get_SFD_donors_at_node<std::vector<int> >)
+		.def("get_SFD_gradient", &graph<double, CONNECTOR_T >::template get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >)
+		.def("get_links_gradient", &graph<double, CONNECTOR_T >::template get_links_gradient< CONNECTOR_T, py::array_t<double,1>, py::array_t<double,1> >)
+		.def("get_MFD_mean_gradient", &graph<double, CONNECTOR_T >::template get_MFD_mean_gradient< CONNECTOR_T, py::array_t<double,1>, py::array_t<double,1> >)
+		.def("get_MFD_weighted_gradient", &graph<double, CONNECTOR_T >::template get_MFD_weighted_gradient< CONNECTOR_T, py::array_t<double,1>, py::array_t<double,1> >)
+		.def("get_link_weights", &graph<double, CONNECTOR_T >::template get_link_weights< py::array_t<double,1>, py::array_t<double,1> >)
+		.def("accumulate_constant_downstream_SFD", &graph<double, CONNECTOR_T >::template accumulate_constant_downstream_SFD< CONNECTOR_T, py::array_t<double, 1> > )
+		.def("accumulate_variable_downstream_SFD", &graph<double, CONNECTOR_T >::template accumulate_variable_downstream_SFD< CONNECTOR_T, py::array_t<double, 1>, py::array_t<double, 1> > )
+		.def("accumulate_constant_downstream_MFD", &graph<double, CONNECTOR_T >::template accumulate_constant_downstream_MFD< CONNECTOR_T, py::array_t<double, 1>, py::array_t<double, 1> > )
+		.def("accumulate_variable_downstream_MFD", &graph<double, CONNECTOR_T >::template accumulate_variable_downstream_MFD< CONNECTOR_T, py::array_t<double, 1>, py::array_t<double, 1> > )
+		.def("set_LMR_method", &graph<double, CONNECTOR_T >::template set_LMR_method)
+		.def("set_minimum_slope_for_LMR", &graph<double, CONNECTOR_T >::template set_minimum_slope_for_LMR)
+		.def("set_slope_randomness_for_LMR", &graph<double, CONNECTOR_T >::template set_slope_randomness_for_LMR)
+	;
+};
+
 PYBIND11_MODULE(dagger, m) {
   m.doc() = R"pbdoc(
       dagger example plugin
@@ -50,55 +103,6 @@ PYBIND11_MODULE(dagger, m) {
 		.def("set_values_at_boundaries", &D4connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 	;
 
-	py::class_<graph<double> >(m, "graph")
-		.def(py::init<int,int>())
-		.def("get_DA_proposlope", &graph<double>::get_DA_proposlope<D8connector<double>, std::vector<double>, py::array >)
-		.def("get_DA_SS", &graph<double>::get_DA_SS<D8connector<double>, std::vector<double>, py::array >)
-		.def("get_rowcol_Sreceivers",&graph<double>::get_rowcol_Sreceivers<D8connector<double> >)
-		.def("print_receivers", &graph<double>::print_receivers<D8connector<double>, std::vector<double> >)
-		.def("get_rec_array_size",&graph<double>::get_rec_array_size)
-		.def("init_graph", &graph<double>::init_graph<D8connector<double> >)
-		.def("compute_graph", &graph<double>::compute_graph<D8connector<double>, py::array_t<double,1>, py::array >)
-		.def("test_Srecs", &graph<double>::test_Srecs<py::array >)
-		.def("sum_at_outlets", &graph<double>::sum_at_outlets<D8connector<double>, py::array_t<double,1>, double >)
-		.def("keep_only_at_outlets", &graph<double>::keep_only_at_outlets<D8connector<double>, py::array_t<double,1>, py::array >)
-		.def("is_Sstack_full", &graph<double>::is_Sstack_full)
-		.def("has_Srecs", &graph<double>::has_Srecs)
-		.def("get_all_nodes_upstream_of", &graph<double>::get_all_nodes_upstream_of< D8connector<double>, py::array_t<int,1> > )
-		.def("get_all_nodes_downstream_of", &graph<double>::get_all_nodes_downstream_of< D8connector<double>, py::array_t<int,1> > )
-		.def("get_SFD_receivers",&graph<double>::get_SFD_receivers<py::array_t<int,1>>)
-		.def("get_SFD_dx",&graph<double>::get_SFD_dx<py::array_t<double,1>>)
-		.def("get_SFD_ndonors",&graph<double>::get_SFD_ndonors<py::array_t<int,1>>)
-		.def("get_SFD_donors_flat",&graph<double>::get_SFD_donors_flat<py::array_t<int,1>>)
-		.def("get_SFD_donors_list",&graph<double>::get_SFD_donors_list<std::vector<std::vector<int> > >)
-		.def("get_SFD_stack",&graph<double>::get_SFD_stack<py::array_t<size_t,1>>)
-		.def("get_MFD_stack",&graph<double>::get_MFD_stack<py::array_t<size_t,1>>)
-		.def("get_links",&graph<double>::get_links<std::vector<bool> >)
-		.def("get_linknodes_flat",&graph<double>::get_linknodes_flat<py::array_t<int,1>>)
-		.def("get_linknodes_flat_D4",&graph<double>::get_linknodes_flat_D4<py::array_t<int,1>>)
-		.def("get_linkdx_flat_D4",&graph<double>::get_linkdx_flat_D4<py::array_t<double,1>, D8connector<double> >)
-
-		.def("get_linknodes_list",&graph<double>::get_linknodes_list<std::vector<std::vector<int> > >)
-		.def("get_linknodes_list_oriented",&graph<double>::get_linknodes_list_oriented<std::vector<std::vector<int> > >)
-		.def("get_SFD_receivers_at_node", &graph<double>::get_SFD_receivers_at_node)
-		.def("get_SFD_dx_at_node", &graph<double>::get_SFD_dx_at_node)
-		.def("get_SFD_ndonors_at_node", &graph<double>::get_SFD_ndonors_at_node)
-		.def("get_SFD_donors_at_node", &graph<double>::get_SFD_donors_at_node<std::vector<int> >)
-		.def("get_SFD_gradient", &graph<double>::get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >)
-		.def("get_links_gradient", &graph<double>::get_links_gradient< D8connector<double>, py::array_t<double,1>, py::array_t<double,1> >)
-		.def("get_MFD_mean_gradient", &graph<double>::get_MFD_mean_gradient< D8connector<double>, py::array_t<double,1>, py::array_t<double,1> >)
-		.def("get_MFD_weighted_gradient", &graph<double>::get_MFD_weighted_gradient< D8connector<double>, py::array_t<double,1>, py::array_t<double,1> >)
-		.def("get_link_weights", &graph<double>::get_link_weights< py::array_t<double,1>, py::array_t<double,1> >)
-		.def("accumulate_constant_downstream_SFD", &graph<double>::accumulate_constant_downstream_SFD< D8connector<double>, py::array_t<double, 1> > )
-		.def("accumulate_variable_downstream_SFD", &graph<double>::accumulate_variable_downstream_SFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
-		.def("accumulate_constant_downstream_MFD", &graph<double>::accumulate_constant_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
-		.def("accumulate_variable_downstream_MFD", &graph<double>::accumulate_variable_downstream_MFD< D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1> > )
-		.def("speed_test_links",&graph<double>::speed_test_links<D8connector<double> >)
-		.def("set_LMR_method", &graph<double>::set_LMR_method)
-		.def("set_minimum_slope_for_LMR", &graph<double>::set_minimum_slope_for_LMR)
-		.def("set_slope_randomness_for_LMR", &graph<double>::set_slope_randomness_for_LMR)
-	;
-
 	py::class_<numvec<double> >(m,"numvecf64")
 		.def(py::init<py::array_t<double,1>&>())
 		.def("get", &numvec<double>::get)
@@ -106,7 +110,8 @@ PYBIND11_MODULE(dagger, m) {
 	;
 
 	m.def("hillshade",&hillshade<D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double>);
-
+	declare_graph<D8connector<double> >(m,"graph");
+	declare_graph<D4connector<double> >(m,"graphD4");
 };
 ;
 

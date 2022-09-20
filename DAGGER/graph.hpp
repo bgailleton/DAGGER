@@ -46,7 +46,7 @@ namespace DAGGER
 {
 
 
-template<class float_t>
+template<class float_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
 class graph
 {
 
@@ -187,6 +187,7 @@ public:
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
 
+
 		// if the method is not Cordonnier -> apply the other first
 		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
 		{
@@ -197,8 +198,10 @@ public:
 				faketopo = connector.PriorityFlood(faketopo);
 		}
 
+
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
+
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
@@ -300,6 +303,7 @@ public:
 			// Getting ht etwo nodes of the links
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
+			// std::cout << from << "|" << to << "||";
 			
 			// Checking the validity of the link
 			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)

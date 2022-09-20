@@ -235,6 +235,7 @@ public:
 
 	void fill_linknodes(std::vector<int>& linknodes)
 	{
+
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			int o = this->get_right_idx(i); 
@@ -416,28 +417,28 @@ public:
 	{
 		int n=0;
 		int next = this->get_right_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
+		if(next >= 0 && next < this->nnodes * 2)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_bottom_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
+		if(next >= 0 && next < this->nnodes * 2)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
 		}
 		
 		next = this->get_left_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
+		if(next >= 0 && next < this->nnodes * 2)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_top_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
+		if(next >= 0 && next < this->nnodes * 2)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
@@ -450,28 +451,28 @@ public:
 	{
 		int n = 0;
 		int next = this->get_right_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
+		if(next >=0 && next < this->nnodes * 4)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_bottom_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
+		if(next >=0 && next < this->nnodes * 4)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
 		}
 		
 		next = this->get_left_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
+		if(next >=0 && next < this->nnodes * 4)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_top_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
+		if(next >=0 && next < this->nnodes * 4)
 		{
 			out[n] = std::make_pair<int,T>(next,this->dy);
 			++n;
@@ -719,25 +720,25 @@ public:
 	Neighbour<int,T> get_left_neighbour(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][3] + i, this->dx);
+		return Neighbour<int,T>(this->neighbourer[id_neighbourer][1] + i, this->dx);
 	}
 
 	Neighbour<int,T> get_top_neighbour(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][1] + i, this->dy);
+		return Neighbour<int,T>(this->neighbourer[id_neighbourer][0] + i, this->dy);
 	}
 
 	Neighbour<int,T> get_right_neighbour(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][4] + i, this->dx);
+		return Neighbour<int,T>(this->neighbourer[id_neighbourer][2] + i, this->dx);
 	}
 
 	Neighbour<int,T> get_bottom_neighbour(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][6] + i, this->dy);
+		return Neighbour<int,T>(this->neighbourer[id_neighbourer][3] + i, this->dy);
 	}
 
 
@@ -745,25 +746,25 @@ public:
 	int get_left_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][3] + i;
+		return this->neighbourer[id_neighbourer][1] + i;
 	}
 
 	int get_top_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][1] + i;
+		return this->neighbourer[id_neighbourer][0] + i;
 	}
 
 	int get_right_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][4] + i;
+		return this->neighbourer[id_neighbourer][2] + i;
 	}
 
 	int get_bottom_idx(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][6] + i;
+		return this->neighbourer[id_neighbourer][3] + i;
 	}
 
 	
@@ -1376,7 +1377,7 @@ public:
 		
 		tn = this->get_top_idx_links(i);
 		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
+		if(tn >0 && tn < this->nnodes * 2)
 			val = true;
 		out[3].first = tn;
 		out[3].second = val;
@@ -1408,7 +1409,7 @@ public:
 		}
 	
 		tn = this->get_top_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
+		if(tn >0 && tn < this->nnodes * 2)
 		{	
 			out[nn] = tn;
 			++nn;

@@ -160,8 +160,6 @@ public:
 
 		this->initialise_neighbourer();
 
-		std::cout << "INITIALISED MINDX::" << this->dxmin << std::endl;
-
 		// Initialise coordinate stuff
 		this->Xs = std::vector<T>(this->nx);
 		this->Ys = std::vector<T>(this->ny);
