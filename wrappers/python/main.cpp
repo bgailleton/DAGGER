@@ -1,5 +1,6 @@
 #include <pybind11/pybind11.h>
 #include "D8connector.hpp"
+#include "D4connector.hpp"
 #include "graph.hpp"
 #include "wrap_helper.hpp"
 
@@ -36,6 +37,17 @@ PYBIND11_MODULE(dagger, m) {
 		// .def("fill_barne_2014", &D8connector<double>::fill_barne_2014<std::vector<double> >)
 		.def("get_mask_array",&D8connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
+	;
+
+	py::class_<D4connector<double> >(m, "D4N")
+		.def(py::init<int,int,double,double,double,double>())
+		.def("set_default_boundaries", &D4connector<double>::set_default_boundaries)
+		.def("set_custom_boundaries", &D4connector<double>::set_custom_boundaries<py::array_t<int,1> >)
+		.def("print_dim", &D4connector<double>::print_dim)
+		.def("get_HS", &D4connector<double>::get_HS<std::vector<double>, py::array >)
+		// .def("fill_barne_2014", &D4connector<double>::fill_barne_2014<std::vector<double> >)
+		.def("get_mask_array",&D4connector<double>::get_mask_array)
+		.def("set_values_at_boundaries", &D4connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 	;
 
 	py::class_<graph<double> >(m, "graph")
