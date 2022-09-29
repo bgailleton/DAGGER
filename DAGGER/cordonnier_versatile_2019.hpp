@@ -597,7 +597,7 @@ public:
 					}
 
 
-					topography[next] = std::max(lowest_z + minimum_slope + connector.randu.get() * slope_randomness, topography[next]);
+					topography[next] = std::max(lowest_z + minimum_slope + connector.randu->get() * slope_randomness, topography[next]);
 					zref = std::max(topography[next],zref);
 					Sreceivers[next] = nznodeext;
 					Sdistance2receivers[next] = connector.dx;
