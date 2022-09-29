@@ -90,7 +90,7 @@ public:
 	// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
 	std::vector<T> Xs,Ys, extents;
 
-	easyRand randu;
+	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 
 	D4connector(){};
 
@@ -1200,7 +1200,7 @@ public:
 	      }
 	      // Depression cell
 	      flag[n] = true;
-	      topography[n] = node.score + 1e-6 * this->randu.get();
+	      topography[n] = node.score + 1e-6 * this->randu->get();
 	      depressionQue.emplace(n,topography[n]);
 	    }
 	  }
@@ -1241,7 +1241,7 @@ public:
 	      if (iSpill <= tmpNode.score)
 	      {
 	        //depression cell
-	        topography[n] = tmpNode.score + 1e-3 + 1e-6 * this->randu.get();
+	        topography[n] = tmpNode.score + 1e-3 + 1e-6 * this->randu->get();
 	        flag[n] = true;
 	        depressionQue.emplace(n,topography[n]);
 	        this->ProcessPit(topography,flag,depressionQue,traceQueue);
@@ -1443,6 +1443,9 @@ public:
 				array[i] = val;
 		}
 	}
+
+
+	int get_nneighbours(){return 4;}
 
 
 };

@@ -183,10 +183,8 @@ public:
 		)
 	{
 
-
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
-
 
 		// if the method is not Cordonnier -> apply the other first
 		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
@@ -675,7 +673,7 @@ public:
 			if(dz <= 0)
 			{
 				// And I do ! Note that I add some very low-grade randomness to avoid flat links
-				topography[rec] = topography[node] - this->minimum_slope + connector.randu.get() * this->slope_randomness;// * d2rec;
+				topography[rec] = topography[node] - this->minimum_slope + connector.randu->get() * this->slope_randomness;// * d2rec;
 			}
 		}
 	}
@@ -698,7 +696,7 @@ public:
 
 			if(dz <= 0)
 			{
-				topography[node] = topography[rec] + slope + connector.randu.get() * 1e-6;// * d2rec;
+				topography[node] = topography[rec] + slope + connector.randu->get() * 1e-6;// * d2rec;
 				to_recompute.emplace_back(node);
 			}
 		}
@@ -2049,6 +2047,17 @@ public:
 			return this->linknodes[i*2];
 		else
 			return this->linknodes[i*2 + 1];
+	}
+
+	template<class ti_t>
+	ti_t get_other_node_from_links(ti_t li, ti_t ni)
+	{
+		if(this->linknodes[li*2 + 1] == ni)
+			return this->linknodes[li*2];
+		else if (this->linknodes[li*2] == ni)
+			return this->linknodes[li*2 + 1];
+		else
+			throw std::runtime_error("DAGGER::graph::get_other_node_from_links::trying to access other nodes from a link that does not contains the reference node");
 	}
 
 	std::vector<int> get_n_receivers()

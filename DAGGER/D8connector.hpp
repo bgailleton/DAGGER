@@ -52,6 +52,7 @@ public:
 	// #-> number of nodes (integer and unsized int for loops or list innit).
 	int nnodes = 0;
 	size_t nnodes_t = 0;
+
 	// #-> number of nodes in x direction.
 	int nx = 0;
 	// #-> number of nodes in x direction.
@@ -91,7 +92,7 @@ public:
 	// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
 	std::vector<T> Xs,Ys, extents;
 
-	easyRand randu;
+	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 
 	D8connector(){};
 
@@ -914,7 +915,7 @@ public:
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return Neighbour<int,T>(this->neighbourer[id_neighbourer][2] + i, this->dxy);
 	}
-
+	
 	Neighbour<int,T> get_bottomleft_neighbour(int i)
 	{
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
@@ -976,7 +977,7 @@ public:
 		size_t id_neighbourer = this->_get_neighbourer_id(i);	
 		return this->neighbourer[id_neighbourer][7] + i;
 	}
-
+	
 	std::vector<int> get_D4_neighbours_only_id(int i)
 	{
 		std::vector<int> neighs;neighs.reserve(4);
@@ -1448,7 +1449,7 @@ public:
 	      }
 	      // Depression cell
 	      flag[n] = true;
-	      topography[n] = node.score + 1e-6 * this->randu.get();
+	      topography[n] = node.score + 1e-6 * this->randu->get();
 	      depressionQue.emplace(n,topography[n]);
 	    }
 	  }
@@ -1489,7 +1490,7 @@ public:
 	      if (iSpill <= tmpNode.score)
 	      {
 	        //depression cell
-	        topography[n] = tmpNode.score + 1e-3 + 1e-6 * this->randu.get();
+	        topography[n] = tmpNode.score + 1e-3 + 1e-6 * this->randu->get();
 	        flag[n] = true;
 	        depressionQue.emplace(n,topography[n]);
 	        this->ProcessPit(topography,flag,depressionQue,traceQueue);
@@ -1774,6 +1775,9 @@ public:
 				array[i] = val;
 		}
 	}
+
+
+	int get_nneighbours(){return 8;}
 
 
 };
