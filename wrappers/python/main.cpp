@@ -60,6 +60,9 @@ void declare_graph(py::module &m, std::string typestr)
 		.def("set_LMR_method", &graph<double, CONNECTOR_T >::template set_LMR_method)
 		.def("set_minimum_slope_for_LMR", &graph<double, CONNECTOR_T >::template set_minimum_slope_for_LMR)
 		.def("set_slope_randomness_for_LMR", &graph<double, CONNECTOR_T >::template set_slope_randomness_for_LMR)
+
+		// Distance functions
+		.def("get_SFD_distance_from_outlets", &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets<CONNECTOR_T, py::array_t<double,1> >)
 	;
 };
 

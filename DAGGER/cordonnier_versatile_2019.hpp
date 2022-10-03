@@ -420,17 +420,25 @@ public:
 
 		// std::cout << "DEBUGLM_II::7" <<std::endl;
 
+		int p_nlinkignored = -1;
 		while(true)
 		{
 			bool alltrue = true;
+			int nlinkignored = 0;
 			for(size_t i=0; i<thesebasinlinks.size();++i)
 			{
 				if(isactive[i] == false)
+				{
+					nlinkignored++;
 					continue;
+				}
 
 				int b1 = thesebasinlinks[i].b1, b2 = thesebasinlinks[i].b2;
 				if(this->is_open_basin[b1] && this->is_open_basin[b2])
+				{
+					nlinkignored++;
 					continue;
+				}
 
 				auto& next = thesebasinlinks[i];
 
@@ -459,9 +467,12 @@ public:
 				else
 					alltrue = false;
 			}
+			// std::cout << nlinkignored << "/" << thesebasinlinks.size() << std::endl;
 
-			if(alltrue)
+			if(alltrue || p_nlinkignored == nlinkignored)
 				break;
+			p_nlinkignored = nlinkignored;
+
 		}
 
 		// std::cout << "DEBUGLM_II::8" <<std::endl;
@@ -487,7 +498,8 @@ public:
 			{
 				int bas = this->stack[i];
 				// std::cout << bas << "/" << this->nbas << std::endl;;
-				if(connector.can_flow_out_there(this->pitnode[bas]))
+				// HOTFIX TO CHECK!!!!!: || this->is_open_basin[bas] == false, needed when p_nlinkignored is triggered
+				if(connector.can_flow_out_there(this->pitnode[bas]) || this->is_open_basin[bas] == false)
 					continue;
 				// std::cout << "A" << std::endl;
 				int from = this->receivers_node[bas].first; 

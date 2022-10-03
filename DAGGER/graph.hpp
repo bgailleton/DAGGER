@@ -183,9 +183,11 @@ public:
 		)
 	{
 
+		// std::cout << "DEBUG::STOPOP::1" << std::endl;
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
 
+		// std::cout << "DEBUG::STOPOP::2" << std::endl;
 		// if the method is not Cordonnier -> apply the other first
 		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
 		{
@@ -196,18 +198,22 @@ public:
 				faketopo = connector.PriorityFlood(faketopo);
 		}
 
+		// std::cout << "DEBUG::STOPOP::3" << std::endl;
 
 		// Making sure the graph is not inheriting previous values
 		this->reinit_graph(connector);
 
+		// std::cout << "DEBUG::STOPOP::4" << std::endl;
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
 
+		// std::cout << "DEBUG::STOPOP::5" << std::endl;
 		// Compute the topological sorting for single stack
 		// Braun and willett 2014 (modified)
 		this->topological_sorting_SF();
 
+		// std::cout << "DEBUG::STOPOP::6" << std::endl;
 
 		// manages the Cordonnier method if needed
 		if(isCordonnier)
@@ -220,7 +226,9 @@ public:
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
 			// std::cout << "wulf" << std::endl;
+		// std::cout << "DEBUG::STOPOP::7" << std::endl;
 			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
+		// std::cout << "DEBUG::STOPOP::8" << std::endl;
 
 			// Right, if reomputed needs to be
 			if(need_recompute)
@@ -2107,6 +2115,7 @@ public:
 			auto alllinks = connector.get_ilinknodes_from_nodev2(i);
 			nrecs += alllinks.size();
 		}
+
 		epona.tok("Getting linksv2");
 		std::cout << "I have " << nrecs << std::endl;
 
@@ -2132,6 +2141,59 @@ public:
 		// epona.tok("Getting linksv3.2");
 		// std::cout << "I have " << nrecs << std::endl;
 		
+	}
+
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Distance utility functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_SFD_distance_from_outlets(Connector_t& connector)
+	{
+		std::vector<float_t> distfromoutlet(this->nnodes,0.);
+		this->_get_SFD_distance_from_outlets(connector,distfromoutlet);
+		return format_output<decltype(distfromoutlet), out_t >(distfromoutlet);
+	}
+
+	template<class Connector_t>
+	void _get_SFD_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlet)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			// next node in the stack
+			int node = this->Sstack[i];
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			// Getting the receiver
+			int rec = this->Sreceivers[node];
+			// And integrating the distance from outlets
+			distfromoutlet[node] = distfromoutlet[rec] + this->Sdistance2receivers[node];
+		}
+
 	}
 
 
