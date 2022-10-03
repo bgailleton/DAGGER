@@ -2196,6 +2196,61 @@ public:
 
 	}
 
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_SFD_min_distance_from_sources(Connector_t& connector)
+	{
+		std::vector<float_t> distfromsources(this->nnodes,0.);
+		this->_get_SFD_min_distance_from_sources(connector,distfromsources);
+		return format_output<decltype(distfromsources), out_t >(distfromsources);
+	}
+
+	template<class Connector_t>
+	void _get_SFD_min_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		for(int i=this->nnodes - 1; i>=0; --i)
+		{
+			// next node in the stack
+			int node = this->Sstack[i];
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			int rec = this->Sreceivers[node];
+			if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + this->Sdistance2receivers[node])
+				distfromsources[rec] = distfromsources[node] + this->Sdistance2receivers[node];
+		}
+
+	}
+
+
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_SFD_max_distance_from_sources(Connector_t& connector)
+	{
+		std::vector<float_t> distfromsources(this->nnodes,0.);
+		this->_get_SFD_max_distance_from_sources(connector,distfromsources);
+		return format_output<decltype(distfromsources), out_t >(distfromsources);
+	}
+
+	template<class Connector_t>
+	void _get_SFD_max_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		for(int i=this->nnodes - 1; i>=0; --i)
+		{
+			// next node in the stack
+			int node = this->Sstack[i];
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			int rec = this->Sreceivers[node];
+			if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + this->Sdistance2receivers[node])
+				distfromsources[rec] = distfromsources[node] + this->Sdistance2receivers[node];
+		}
+
+	}
+
 
 // end of the graph class
 };

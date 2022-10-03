@@ -63,6 +63,8 @@ void declare_graph(py::module &m, std::string typestr)
 
 		// Distance functions
 		.def("get_SFD_distance_from_outlets", &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets<CONNECTOR_T, py::array_t<double,1> >)
+		.def("get_SFD_min_distance_from_sources", &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources<CONNECTOR_T, py::array_t<double,1> >)
+		.def("get_SFD_max_distance_from_sources", &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources<CONNECTOR_T, py::array_t<double,1> >)
 	;
 };
 
