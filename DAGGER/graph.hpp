@@ -2251,6 +2251,211 @@ public:
 
 	}
 
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_MFD_max_distance_from_sources(Connector_t& connector)
+	{
+		std::vector<float_t> distfromsources(this->nnodes,0.);
+		this->_get_MFD_max_distance_from_sources(connector,distfromsources);
+		return format_output<decltype(distfromsources), out_t >(distfromsources);
+	}
+
+	template<class Connector_t>
+	void _get_MFD_max_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		auto receilink = connector.get_empty_neighbour();
+		for(int i=this->nnodes - 1; i>=0; --i)
+		{
+			// next node in the stack
+			int node = this->stack[i];
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			
+			int nl = this->get_receivers_idx_links(node, connector, receilink);
+
+			for(int tl =0; tl<nl; ++tl)
+			{
+				int rec = this->get_to_links(receilink[tl]);
+				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + dx)
+					distfromsources[rec] = distfromsources[node] + dx;
+			}
+
+				
+		}
+
+	}
+
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_MFD_min_distance_from_sources(Connector_t& connector)
+	{
+		std::vector<float_t> distfromsources(this->nnodes,0.);
+		this->_get_MFD_min_distance_from_sources(connector,distfromsources);
+		return format_output<decltype(distfromsources), out_t >(distfromsources);
+	}
+
+	template<class Connector_t>
+	void _get_MFD_min_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		auto receilink = connector.get_empty_neighbour();
+		for(int i=this->nnodes - 1; i>=0; --i)
+		{
+			// next node in the stack
+			int node = this->stack[i];
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			
+			int nl = this->get_receivers_idx_links(node, connector, receilink);
+
+			for(int tl =0; tl<nl; ++tl)
+			{
+				int rec = this->get_to_links(receilink[tl]);
+				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + dx)
+					distfromsources[rec] = distfromsources[node] + dx;
+			}
+
+				
+		}
+
+	}
+
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_MFD_max_distance_from_outlets(Connector_t& connector)
+	{
+		std::vector<float_t> distfromoutlets(this->nnodes,0.);
+		this->_get_MFD_max_distance_from_outlets(connector,distfromoutlets);
+		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
+	}
+
+	template<class Connector_t>
+	void _get_MFD_max_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlets)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		auto receilink = connector.get_empty_neighbour();
+		for(int i = 0; i < this->nnodes; ++i)
+		{
+
+			// next node in the stack
+			int node = this->stack[i];
+
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			
+			int nl = this->get_receivers_idx_links(node, connector, receilink);
+
+			for(int tl =0; tl<nl; ++tl)
+			{
+				int rec = this->get_to_links(receilink[tl]);
+				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				if(distfromoutlets[node] == 0 || distfromoutlets[node] < distfromoutlets[rec] + dx)
+					distfromoutlets[node] = distfromoutlets[rec] + dx;
+			}
+
+				
+		}
+
+	}
+
+	/// this function computes the flow distance from model outlets using the siungle direction graph
+	template<class Connector_t, class out_t>
+	out_t get_MFD_min_distance_from_outlets(Connector_t& connector)
+	{
+		std::vector<float_t> distfromoutlets(this->nnodes,0.);
+		this->_get_MFD_min_distance_from_outlets(connector,distfromoutlets);
+		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
+	}
+
+	template<class Connector_t>
+	void _get_MFD_min_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlets)
+	{
+		// just iterating through the Sstack in the upstream direction adding dx to the receiver
+		auto receilink = connector.get_empty_neighbour();
+		for(int i = 0; i < this->nnodes; ++i)
+		{
+
+			// next node in the stack
+			int node = this->stack[i];
+
+			// checking if active
+			if(connector.is_active(node) == false)
+				continue;
+			
+			int nl = this->get_receivers_idx_links(node, connector, receilink);
+
+			for(int tl =0; tl<nl; ++tl)
+			{
+				int rec = this->get_to_links(receilink[tl]);
+				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				if(distfromoutlets[node] == 0 || distfromoutlets[node] > distfromoutlets[rec] + dx)
+					distfromoutlets[node] = distfromoutlets[rec] + dx;
+			}
+
+				
+		}
+
+	}
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Watershed labelling functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+
+	template<class out_t, class Connector_t>
+	out_t get_SFD_basin_labels(Connector_t& connector, int nobasin_value = -1)
+	{
+
+		std::vector<int> baslab = this->_get_SFD_basin_labels(connector, nobasin_value);
+		return format_output<decltype(baslab), out_t>(baslab);
+
+	}
+
+	template<class Connector_t>
+	std::vector<int> _get_SFD_basin_labels(Connector_t& connector, int nobasin_value = -1)
+	{
+		std::vector<int> baslab(this->nnodes,nobasin_value);
+		int label = -1;
+		for(int i=0; i< this->nnodes; ++i)
+		{
+			int node = this->Sstack[i];
+			if(connector.can_flow_even_go_there(node) == false)
+				continue;
+			if(connector.can_flow_out_there(node))
+				++label;
+			baslab[node] = label;
+		}
+		return baslab;
+	}
+	
+
+	
+
 
 // end of the graph class
 };
