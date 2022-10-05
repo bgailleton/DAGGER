@@ -377,14 +377,14 @@ public:
 
 			// feeding the Sdonors array at rec position with current node and...
 			this->Sdonors[trec * this->n_neighbours  + this->nSdonors[trec]] = i;
-			// ... incrementing hte number of Sdonors
+			// ... incrementing the number of Sdonors
 			this->nSdonors[trec] += 1;
 		}
 		// done
 	}
 
 
-	// Sma function than above but without reallocating hte memory (can save a bit of time depending on the context)
+	// Same function than above but without reallocating the memory (can save a bit of time depending on the context)
 	void recompute_SF_donors_from_receivers()
 	{
 
@@ -409,7 +409,7 @@ public:
 
 
 
-	// You an ignore
+	// You can ignore
 	template<class out_t>
 	out_t test_Srecs()
 	{
@@ -473,9 +473,13 @@ public:
 	}
 
 
-
+	// Set the local minima resolver method
 	void set_LMR_method(DEPRES method){this->depression_resolver = method;}
+
+	// Sets the minimum slope to be imposed by the local minima solver
 	void set_minimum_slope_for_LMR(float_t slope){this->minimum_slope = slope;}
+	
+	// Sets the magnitude of the random noise within the local minima solver (needs to be order of magnitude lower than the actual minimal slope to make sense)
 	void set_slope_randomness_for_LMR(float_t slope)
 	{
 		if(slope >= this->minimum_slope)
@@ -816,42 +820,6 @@ public:
 	}
 
 
-	// // returns array of pair {node, receivers} ofr a single node i
-	// // It can be useful if you wanna calculate  gradient or something similar
-	// template<class Connector_t>
-	// int get_node_receivers_idx_pair(int i, Connector_t& connector, std::vector<std::pair<int,int> >& recs)
-	// {
-	// 	// getting the related links
-	// 	int nli = connector.get_neighbour_idx_links(i,recs);
-
-	// 	// going through the linksß
-	// 	int idx = 0;
-	// 	int newli = nli;
-
-	// 	for(int ti=0;ti<nli;++ti)
-	// 	{
-	// 		// checking the orientation
-	// 		int li = recs[ti];
-
-	// 		if(i == this->linknodes[li*2] && this->links[li])
-	// 		{
-	// 			recs[idx] = std::make_pair(i, this->linknodes[li*2 + 1]);
-	// 			++idx;
-	// 		}
-	// 		else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
-	// 		{
-	// 			recs[idx] = std::make_pair(i, this->linknodes[li*2]);
-	// 			++idx;
-	// 		}
-	// 		else
-	// 		{
-	// 			--newli;
-	// 		}
-	// 	}
-
-	// 	return newli;
-	// }
-
 	// Getting donor indicies
 	// see get_receivers_idx for full comments about the section
 	template<class Connector_t>
@@ -860,7 +828,7 @@ public:
 		// getting the related links
 		int nli = connector.get_neighbour_idx_links(i,dons);
 
-		// going through the linksß
+		// going through the links
 		int idx = 0;
 		int newli = nli;
 
@@ -989,7 +957,7 @@ public:
 		return format_output<decltype(DA), out_t>(DA);
 	}
 
-	// Debug function printing to the promt the single receiver of a node
+	// Debug function printing to the prompt the single receiver of a node
 	// WIll probably get deprecated
 	template<class Connector_t>
 	std::vector<int> get_rowcol_Sreceivers(int row, int col,  Connector_t& connector)
@@ -1038,7 +1006,8 @@ public:
 		}
 	}
 
-
+	// Returns the number of links stored in the graph 
+	// Note that it comprises some unvalid linked!
 	int get_rec_array_size(){return int(this->links.size());}
 
 
@@ -1090,20 +1059,25 @@ public:
 
 	}
 
+
+	// DEbugging function checking the validity of the single flow stack 
+	// It tests a number of checks like double values or if it has the right number of nodes
 	bool is_Sstack_full()
 	{
+		// IS the stack the right size
 		if(int(this->Sstack.size()) != this->nnodes)
 		{
 			std::cout << "stack size (" << this->Sstack.size() << ") is invalid." << std::endl;
 			return false;
 		}
-		std::vector<int> ntimenodes(this->nnodes,0);
 
+
+		// Are there values appearing multiple times
+		std::vector<int> ntimenodes(this->nnodes,0);
 		for(auto v:this->Sstack)
 		{
 			++ntimenodes[v];
 		}
-
 		int n_0 = 0,n_p1 = 0;
 		for(int i=0; i<this->nnodes; ++i)
 		{
@@ -1119,6 +1093,8 @@ public:
 			return false;
 		}
 
+
+		// IS the stack in the right order in accordance with the SStack array
 		std::vector<bool> isdone(this->nnodes,false);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
