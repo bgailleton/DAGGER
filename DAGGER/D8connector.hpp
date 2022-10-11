@@ -1547,6 +1547,37 @@ public:
 			return this->dy;
 	}
 
+	template<class i_t, class ii_t>
+	std::pair<T,T> get_directed_dxdy_from_links_idx( i_t li, ii_t original_node, ii_t n1, ii_t n2)
+	{
+		int C_C = (original_node == n1) ? 1 : -1;
+		if(li%4 == 0)
+			return std::make_pair(C_C * this->dx,C_C * 0.);
+		else if(li%4 == 1)
+			return std::make_pair(C_C * this->dx,C_C * this->dy);
+		else if(li%4 == 2)
+			return std::make_pair(C_C * 0.,C_C * this->dy);
+		else if(li%4 == 3)
+			return std::make_pair(-1 * C_C * this->dx,C_C * this->dy);
+		else
+			return std::make_pair(C_C * this->dx,C_C * 0.);
+	}
+
+	template<class i_t, class ii_t>
+	std::pair<T,T> get_dxdy_from_links_idx( i_t li)
+	{
+		if(li%4 == 0)
+			return std::make_pair(this->dx,0.);
+		else if(li%4 == 1)
+			return std::make_pair(this->dx,this->dy);
+		else if(li%4 == 2)
+			return std::make_pair(0.,this->dy);
+		else if(li%4 == 3)
+			return std::make_pair(this->dx,this->dy);
+		else
+			return std::make_pair(this->dx,0.);
+	}
+
 	template<class i_t>
 	T get_dx_from_linknodes_idx( i_t i)
 	{
