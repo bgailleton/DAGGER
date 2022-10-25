@@ -630,8 +630,43 @@ public:
 		return n;
 	}
 
-		// ------------------------------------------------
 
+	// Takes a node index as input and a normalised displacement in the X and Y direction (between -1 and 1)
+	// Returns the neighbouring node in the given direction
+	template<class ii_t>
+	ii_t get_neighbour_idx_from_normalised_dxdy(ii_t node, float_t normdx, float_t normdy)
+	{
+		if(normdx >= 0.5)
+		{
+			if(normdy <= -0.5)
+				return this->get_topright_idx(node);
+			else if(normdy <= 0.5)
+				return this->get_right_idx(node);
+			else
+				return this->get_bottomright_idx(node);
+		}
+		else if (normdx >= -0.5)
+		{
+			if(normdy <= 0)
+				return this->get_top_idx(node);
+			else
+				return this->get_bottom_idx(node);
+		}
+		else
+		{
+			if(normdy <= -0.5)
+				return this->get_topleft_idx(node);
+			else if(normdy < 0.5)
+				return this->get_left_idx(node);
+			else
+				return this->get_bottomleft_idx(node);
+		}
+
+	}
+
+
+	
+	// ------------------------------------------------
 	//	                             	              __
 	//                                             / _)
 	//                                    _.----._/ /

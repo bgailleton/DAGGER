@@ -481,8 +481,54 @@ public:
 		return n;
 	}
 
-		// ------------------------------------------------
 
+	template<class ii_t>
+	ii_t get_neighbour_idx_from_normalised_dxdy(ii_t node, float_t normdx, float_t normdy)
+	{
+		
+		if(std::abs(normdx) > std::abs(normdy))
+		{
+			if(normdx > 0)
+				return this->get_right_idx(node);
+			else
+				return this->get_left_idx(node);
+		}
+		else
+		{
+			if(normdy > 0)
+				return this->get_bottom_idx(node);
+			else
+				return this->get_top_idx(node);
+		}
+
+	}
+
+
+	template<class i_t, class ii_t>
+	std::pair<T,T> get_directed_dxdy_from_links_idx( i_t li, ii_t original_node, ii_t n1, ii_t n2)
+	{
+		int C_C = (original_node == n1) ? 1 : -1;
+		if(li%4 == 0)
+			return std::make_pair(C_C * this->dx,C_C * 0.);
+		else if(li%4 == 1)
+			return std::make_pair(0.,C_C * this->dy);
+		else
+			return std::make_pair(C_C * this->dx,C_C * 0.);
+	}
+
+	template<class i_t, class ii_t>
+	std::pair<T,T> get_dxdy_from_links_idx( i_t li)
+	{
+		if(li%4 == 0)
+			return std::make_pair(this->dx,0.);
+		else if(li%4 == 1)
+			return std::make_pair(0.,this->dy);
+
+		else
+			return std::make_pair(this->dx,0.);
+	}
+
+	// ------------------------------------------------
 	//	                             	              __
 	//                                             / _)
 	//                                    _.----._/ /

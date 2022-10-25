@@ -4,9 +4,8 @@
 
 ## Quickstart 
 
-
-- I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python)
-- I want to use the [c++ version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/c++)
+- I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python) (principal and most complete frontend)
+- I want to use the [c++ version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/c++) (the backend)
 - To do: the other bindings
 
 ## Documentation
