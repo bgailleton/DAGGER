@@ -22,6 +22,9 @@ void declare_graph(py::module &m, std::string typestr)
 		.def("print_receivers", &graph<double, CONNECTOR_T >::template print_receivers<CONNECTOR_T, std::vector<double> >)
 		.def("get_rec_array_size",&graph<double, CONNECTOR_T >::template get_rec_array_size)
 		.def("init_graph", &graph<double, CONNECTOR_T >::template init_graph<CONNECTOR_T >)
+		.def("update_Mrecs", &graph<double, CONNECTOR_T >::template update_Mrecs<CONNECTOR_T, std::vector<double> >)
+		.def("update_recs", &graph<double, CONNECTOR_T >::template update_recs<CONNECTOR_T, std::vector<double> >)
+		.def("set_opt_stst_rerouting", &graph<double, CONNECTOR_T >::template set_opt_stst_rerouting)
 		.def("compute_graph", &graph<double, CONNECTOR_T >::template compute_graph<CONNECTOR_T, py::array_t<double,1>, py::array >)
 		.def("test_Srecs", &graph<double, CONNECTOR_T >::template test_Srecs<py::array >)
 		.def("sum_at_outlets", &graph<double, CONNECTOR_T >::template sum_at_outlets<CONNECTOR_T, py::array_t<double,1>, double >)
@@ -103,6 +106,7 @@ PYBIND11_MODULE(dagger, m) {
 		// .def("fill_barne_2014", &D8connector<double>::fill_barne_2014<std::vector<double> >)
 		.def("get_mask_array",&D8connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
+		.def("set_out_boundaries_to_permissive", &D8connector<double>::set_out_boundaries_to_permissive)
 	;
 
 	py::class_<D4connector<double> >(m, "D4N")
@@ -114,6 +118,7 @@ PYBIND11_MODULE(dagger, m) {
 		// .def("fill_barne_2014", &D4connector<double>::fill_barne_2014<std::vector<double> >)
 		.def("get_mask_array",&D4connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D4connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
+		.def("set_out_boundaries_to_permissive", &D4connector<double>::set_out_boundaries_to_permissive)
 	;
 
 	py::class_<numvec<double> >(m,"numvecf64")

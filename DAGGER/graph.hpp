@@ -94,6 +94,15 @@ public:
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
 
+
+
+	// Other options
+
+	// # if opt_stst_rerouting is true, only the multiple flow receivers are fully recalculated after preprocessing the dem
+	// # The steepest descent are approximated by the rerouting and may not represent the steepest slope in areas where the topography has been modified
+	// # Defaulted to true because the differences are minor and not necessarily wanted
+	bool opt_stst_rerouting = true; void set_opt_stst_rerouting(bool nval){this->opt_stst_rerouting = nval;}
+
 	
 	// default empty constructor
 	graph(){};
@@ -244,6 +253,11 @@ public:
 				if(this->depression_resolver == DEPRES::cordonnier_carve)
 					this->carve_topo_v2(connector, faketopo);
 
+
+				// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
+				if(this->opt_stst_rerouting == false)	
+					this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
+
 				// My work here is done if only SD is needed
 				if(only_SD)
 					return;
@@ -254,8 +268,10 @@ public:
 				else
 					this->topological_sorting_dag(connector);
 
-				// And updating the multiple flow receivers (! careful not to touch the Sreceivers which are conditionned to Cordonnier solver)
-				this->update_Mrecs(faketopo,connector);
+				if(this->opt_stst_rerouting)
+					this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
+
+
 			}
 		}
 
@@ -675,7 +691,7 @@ public:
 			// Getting the node
 			int node  = this->Sstack[i];
 			// Checking its validiyt AND if it is not a base level
-			if(connector.can_flow_out_there(node) || connector.can_flow_even_go_there(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			// Getting the single receiver info
 			int rec = this->Sreceivers[node];
@@ -700,7 +716,7 @@ public:
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			int node  = this->Sstack[i];
-			if(connector.can_flow_out_there(node) || connector.can_flow_even_go_there(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 
 			int rec = this->Sreceivers[node];
@@ -904,7 +920,7 @@ public:
 			int node = this->stack[i];
 			DA[node] += connector.get_area_at_node(node);
 
-			if(connector.is_active(node))
+			if(this->is_active(node,connector))
 			{
 				int nn = this->get_receivers_idx_links(node, connector,reclinks);
 
@@ -1027,7 +1043,7 @@ public:
 				{
 					out += array[i];
 				}
-				else if(connector.can_flow_out_there(i) )
+				else if(this->is_active(i,connector) == false && connector.can_flow_out_there(i))
 				{
 					out += array[i];
 				}
@@ -1051,7 +1067,7 @@ public:
 			{
 				if(include_internal_pits)
 					out[i] = array[i];
-				else if(connector.can_flow_out_there(i) )
+				else if(this->is_active(i,connector) == false)
 					out[i] = array[i];
 			}
 		}
@@ -1190,7 +1206,7 @@ public:
 		for(auto tnode:this->Sstack)
 		{
 			// ignoring the not ode and outlets
-			if(connector.is_active(tnode))
+			if(this->is_active(tnode,connector))
 			{
 				// Getting the receiver
 				int rec = this->Sreceivers[tnode];
@@ -1292,7 +1308,7 @@ public:
 		{
 			int tnode = this->Sstack[i];
 			// ignoring the not ode and outlets
-			if(connector.is_active(tnode))
+			if(this->is_active(tnode,connector))
 			{
 				// Getting the receiver
 				int rec = this->Sreceivers[tnode];
@@ -1375,8 +1391,9 @@ public:
 			int node = this->Sstack[i];
 			if(connector.can_flow_even_go_there(node))
 				continue;
+
 			int rec = this->Sreceivers[node];
-			if(connector.can_flow_out_there(node) == false)
+			if(this->is_active(node,connector))
 			{
 				flowacc[rec] += flowacc[node] + 1;
 			}
@@ -1857,7 +1874,7 @@ public:
 
 			out[node] += var;
 
-			if(connector.can_flow_out_there(node))
+			if(this->is_active(node,connector) == false)
 				continue;
 
 			out[this->Sreceivers[node]] += out[node];
@@ -1888,7 +1905,7 @@ public:
 
 			out[node] += var[node];
 
-			if(connector.can_flow_out_there(node))
+			if(this->is_active(node,connector) == false)
 				continue;
 
 			out[this->Sreceivers[node]] += out[node];
@@ -1921,7 +1938,7 @@ public:
 
 			out[node] += var;
 
-			if(connector.can_flow_out_there(node))
+			if(this->is_active(node,connector) == false)
 				continue;
 
 			int nn = this->get_receivers_idx_links(node,connector, reclinks);
@@ -1960,7 +1977,7 @@ public:
 
 			out[node] += var[node];
 
-			if(connector.can_flow_out_there(node))
+			if(this->is_active(node,connector) == false)
 				continue;
 
 			int nn = this->get_receivers_idx_links(node,connector,reclinks);
@@ -1995,7 +2012,7 @@ public:
 
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	Links utility functions
+	Links/node utility functions
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 */
@@ -2004,6 +2021,19 @@ public:
 
 	template<class ti_t>
 	bool is_link_valid(ti_t i){return (this->linknodes[i*2]>=0)?true:false; }
+
+
+	// return true is the node is active: i.e. flow transfer through it
+	// reflects the connector version of the function, but adds extra graph specific checks.
+	// For example a node with permissive outletting border will be active in the connector sense, but can be inactive in the graph if it has no downstream neighbours.
+	template<class ti_t, class Connector_t>
+	bool is_active(ti_t node, Connector_t& connector)
+	{
+		bool con_val = connector.is_active(node);
+		if(con_val && this->Sreceivers[node] != int(node))
+			return true;
+		return false;
+	}
 
 	template<class ti_t>
 	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
@@ -2162,7 +2192,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			// Getting the receiver
 			int rec = this->Sreceivers[node];
@@ -2190,7 +2220,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			int rec = this->Sreceivers[node];
 			if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + this->Sdistance2receivers[node])
@@ -2218,7 +2248,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			int rec = this->Sreceivers[node];
 			if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + this->Sdistance2receivers[node])
@@ -2246,7 +2276,7 @@ public:
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2283,7 +2313,7 @@ public:
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2322,7 +2352,7 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2361,7 +2391,7 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(connector.is_active(node) == false)
+			if(this->is_active(node,connector) == false)
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2422,7 +2452,7 @@ public:
 			int node = this->Sstack[i];
 			if(connector.can_flow_even_go_there(node) == false)
 				continue;
-			if(connector.can_flow_out_there(node))
+			if(this->is_active(node,connector) == false)
 				++label;
 			baslab[node] = label;
 		}

@@ -229,6 +229,16 @@ public:
 		}
 	}
 
+	// Set all the out boundaries to 3, meaning they can now give to lower elevation neighbours
+	void set_out_boundaries_to_permissive()
+	{
+		for(auto& v:this->boundary)
+		{
+			if(v == 0)
+				v = 3;
+		}
+	}
+
 	int get_boundary_at_node(int i){return this->boundary[i];}
 
 	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
@@ -385,28 +395,28 @@ public:
 
 		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_bottom_idx(i);
 		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
 		next = this->get_left_idx(i);
 		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_top_idx(i);
 		if(this->can_flow_even_go_there(next) && this->is_in_bound(next))
 		{	
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
@@ -419,28 +429,28 @@ public:
 		int next = this->get_right_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 2)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_bottom_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 2)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
 		next = this->get_left_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 2)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_top_idx_links(i);
 		if(next >= 0 && next < this->nnodes * 2)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
@@ -453,28 +463,28 @@ public:
 		int next = this->get_right_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 4)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_bottom_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 4)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
 		next = this->get_left_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 4)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dx);
+			out[n] = std::make_pair(next,this->dx);
 			++n;
 		}
 		
 		next = this->get_top_idx_linknodes(i);
 		if(next >=0 && next < this->nnodes * 4)
 		{
-			out[n] = std::make_pair<int,T>(next,this->dy);
+			out[n] = std::make_pair(next,this->dy);
 			++n;
 		}
 		
@@ -853,7 +863,7 @@ public:
 	// Method to test whether a node can outlet flow OUT of the model
 	inline bool can_flow_out_there(int i)
 	{
-		if(this->boundary[i] == 0)
+		if(this->boundary[i] == 3 || this->boundary[i] == 0 )
 			return true;
 		else
 		{
@@ -874,8 +884,11 @@ public:
 
 	inline bool is_active(int i)
 	{
-		if(this->can_flow_out_there(i))
+		if(this->can_flow_out_there(i) && this->boundary[i] != 3)
 			return false;
+		else if(this->boundary[i] == 3)
+			return true;
+
 		if(this->can_flow_even_go_there(i))
 			return true;
 		return false;
