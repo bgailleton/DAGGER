@@ -1,9 +1,6 @@
 #ifndef wrap_helper_HPP
 #define wrap_helper_HPP
 
-#ifndef DAGGER_FT_PYTHON
-#define DAGGER_FT_PYTHON
-#endif
 
 // STL imports
 #include <iostream>
@@ -29,6 +26,8 @@
 // defines all the format_input depnding on the eventual wrapper
 #ifdef DAGGER_FT_PYTHON
 #include "wrap_helper_python.hpp"
+#elif DAGGER_FT_JULIA
+#include "wrap_helper_julia.hpp"
 #else
 #include "wrap_helper_cpp.hpp"
 #endif

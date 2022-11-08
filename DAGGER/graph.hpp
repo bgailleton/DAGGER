@@ -2018,7 +2018,8 @@ public:
 */
 
 
-
+	// Checks the validity of a link
+	// Invalid links have a linknode value of -1
 	template<class ti_t>
 	bool is_link_valid(ti_t i){return (this->linknodes[i*2]>=0)?true:false; }
 
@@ -2035,6 +2036,9 @@ public:
 		return false;
 	}
 
+
+
+	// Returns the pair of node making a link, starting from the donor to the receiver
 	template<class ti_t>
 	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
 	{
@@ -2042,6 +2046,21 @@ public:
 			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
 		else
 			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
+
+	}
+
+
+	template<class ti_t>
+	void get_from_to_links(ti_t i, std::pair<ti_t,ti_t>& fromto)
+	{
+		if(this->links[i])
+		{
+			fromto.first = this->linknodes[i*2]; fromto.second = this->linknodes[i*2 + 1];
+		}
+		else
+		{
+			fromto.first = this->linknodes[i*2 + 1]; fromto.second =  this->linknodes[i*2];
+		}
 
 	}
 

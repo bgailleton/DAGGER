@@ -60,6 +60,7 @@ public:
 	T dx;
 	// #-> length in the y direction.
 	T dy;
+	T dxy;
 	T dxmax;
 	T dxmin;
 	// #-> cell area
@@ -149,6 +150,7 @@ public:
 		this->nnodes_t = size_t(nnodes);
 		this->dx = dx;
 		this->dy = dy;
+		this->dxy = std::sqrt(std::pow(dx,2)+ std::pow(dy,2));
 		this->cellarea = this->dx * this->dy;
 		this->Xmin = xmin;
 		this->Ymin = ymin;

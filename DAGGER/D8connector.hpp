@@ -1191,7 +1191,6 @@ public:
 		// std::vector<double> hillshade(ptr, ptr + this->nnodes);
 		std::vector<double> hillshade(this->nnodes,0.);
 
-
 		//convert zenith and azimuth into radians for calculation
 		double zenith_rad = (90 - altitude) * pi / 180.0;
 		double azimuth_math = 360-azimuth + 90;
