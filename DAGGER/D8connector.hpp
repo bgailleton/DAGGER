@@ -95,9 +95,19 @@ public:
 
 	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 
+	// Default constructor, empty
 	D8connector(){};
 
+
+	// construct directly from dimensions
 	D8connector(int nx, int ny, T dx, T dy, T xmin, T ymin)
+	{
+		// initialisation is offset to dedicated function because some languages like Julia are complicating non default constructor initialisation.
+		this->init_dimensions(nx,ny,dx,dy,xmin,ymin);
+	}
+
+	// initialise with dimension
+	void init_dimensions(int nx, int ny, T dx, T dy, T xmin, T ymin)
 	{
 		int nnodes = nx * ny;
 		this->set_dimensions(nx,ny,nnodes,dx,dy,xmin,ymin);

@@ -93,14 +93,25 @@ public:
 
 	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 
+	// Default constructor, empty
 	D4connector(){};
 
+
+	// construct directly from dimensions
 	D4connector(int nx, int ny, T dx, T dy, T xmin, T ymin)
+	{
+		// initialisation is offset to dedicated function because some languages like Julia are complicating non default constructor initialisation.
+		this->init_dimensions(nx,ny,dx,dy,xmin,ymin);
+	}
+
+	// initialise with dimension
+	void init_dimensions(int nx, int ny, T dx, T dy, T xmin, T ymin)
 	{
 		int nnodes = nx * ny;
 		this->set_dimensions(nx,ny,nnodes,dx,dy,xmin,ymin);
 		this->set_default_boundaries("4edges");
 	}
+
 	
 	/// @Description: Initialising the "neighbourer", a data structure managing the iterations though the neighbours of a given node
 	/// Function of boundary conditions, one can feed the neighbourer with an indice which returns the index to ADD to the node to get its neighbour.

@@ -214,6 +214,8 @@ public:
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
 
+	bool opti_sparse_border = false;
+
 	//
 	// std::unordered_map<int , float_t> edges;
 	// std::unordered_map<int , std::pair<int,int> > edges_nodes;
@@ -274,9 +276,12 @@ public:
 		// std::cout << "DEBUGLM_II::nbas2solve" << nbas2solve <<std::endl;
 
 		// Relabelling 0 all the open basins to gain time
-		for(int i=0; i<connector.nnodes; ++i)
+		if(this->opti_sparse_border)
 		{
-			if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
+			for(int i=0; i<connector.nnodes; ++i)
+			{
+				if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
+			}
 		}
 
 		// std::cout << "DEBUGLM_II::3" <<std::endl;
@@ -318,8 +323,21 @@ public:
 			if(bj == bk || (this->is_open_basin[bj] && this->is_open_basin[bk]) )
 				continue;
 
-			// The score is the minimum elevation of the pass
-			float_t score = std::min(topography[links[j]],topography[links[k]]);
+			// The score is the minimum elevation of the pass or the elevation of the outlet if the flow can out a place
+			float_t score;
+			if(connector.can_flow_out_there(links[j]))
+			{
+				score = topography[links[j]];
+			}
+			else if (connector.can_flow_out_there(links[k]))
+			{
+				score = topography[links[k]];
+			}
+			else
+			{
+				score = std::min(topography[links[j]],topography[links[k]]);
+			}
+			
 			// is bj < bk (the std::pair storing the pass always starts from the lowes to the highest by convention to keep the std::pair map keys unique)
 			bool bjmin = bj<bk;
 			if(bjmin == false)

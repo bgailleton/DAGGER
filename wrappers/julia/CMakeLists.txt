@@ -1,4 +1,4 @@
-project(TestLib)
+project(JuDagger)
 
 cmake_minimum_required(VERSION 2.8.12)
 set(CMAKE_MACOSX_RPATH 1)
@@ -12,14 +12,14 @@ set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib;${JlCxx_location}")
 
 message(STATUS "Found JlCxx at ${JlCxx_location}")
 
-add_library(testlib SHARED main.cpp)
+add_library(judagger SHARED main.cpp)
 
 include_directories("../../DAGGER/")
 
-target_link_libraries(testlib JlCxx::cxxwrap_julia)
+target_link_libraries(judagger JlCxx::cxxwrap_julia)
 
 install(TARGETS
-  testlib
+  judagger
 LIBRARY DESTINATION lib
 ARCHIVE DESTINATION lib
 RUNTIME DESTINATION lib)

@@ -95,6 +95,11 @@ public:
 	float_t slope_randomness = 1e-6;
 
 
+	// Solving large number of local minima with cordonnier can be expensive and this optimises
+	// But the Algorithm may become unstable - especially if boundary conditions are weird
+	bool opti_sparse_border = false;
+
+
 
 	// Other options
 
@@ -109,6 +114,7 @@ public:
 
 	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
 	graph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
+	void init(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
 
 
 	/*
@@ -230,6 +236,8 @@ public:
 			
 			// LMRerouter is the class managing the different cordonnier's mthod
 			LMRerouter<float_t> depsolver;
+			if(this->opti_sparse_border)
+				depsolver.opti_sparse_border = true;
 			depsolver.minimum_slope = this->minimum_slope;
 			depsolver.slope_randomness = this->slope_randomness;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
@@ -439,6 +447,8 @@ public:
 		return format_output<decltype(OUT), out_t>(OUT);
 	}
 
+
+	void activate_opti_sparse_border_cordonnier(){this->opti_sparse_border = true;}
 
 
 
