@@ -691,7 +691,7 @@ public:
 	//	                             	              __
 	//                                             / _)
 	//                                    _.----._/ /
-	//   Conversion METHODS        /         /
+	//   Conversion METHODS              /         /
 	//                                __/ (  | (  |
 	//                               /__.-'|_|--|_|
 

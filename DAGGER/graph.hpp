@@ -28,7 +28,9 @@ B.G. 2022
 #include <thread>
 #include <stdlib.h>
 #include <ctime>
+#ifdef OPENMP_YOLO
 #include <omp.h>
+#endif
 #include <iomanip>
 
 // local includes 

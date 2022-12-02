@@ -15,7 +15,7 @@ __version__ = "0.0.1"
 #	 Sort input source files if you glob sources to ensure bit-for-bit
 #	 reproducible builds (https://github.com/pybind/python_example/pull/53)
 MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None)]
-EXTRA_COMPILE = ['-O3']
+EXTRA_COMPILE = ['-O3', '-Wall']
 if "--exp" in sys.argv:
 	MACROS.append(('OPENMP_YOLO', None))
 	EXTRA_COMPILE.append('-fopenmp')
