@@ -28,10 +28,12 @@
 #include "wrap_helper_python.hpp"
 #elif DAGGER_FT_JULIA
 #include "wrap_helper_julia.hpp"
+#elif DAGGER_FT_MATLAB
+// #include "wrap_helper_MATLAB.hpp" // DOES NOT WORK AT THE MOMENT
+#include "wrap_helper_cpp.hpp"
 #else
 #include "wrap_helper_cpp.hpp"
 #endif
-
 
 
 namespace DAGGER
@@ -44,31 +46,6 @@ namespace DAGGER
 
 	template<class in_t, class out_t> 
 	out_t format_output(in_t& tin){out_t ret = _format_output(tin); return ret;}
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
