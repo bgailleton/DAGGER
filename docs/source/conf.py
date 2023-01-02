@@ -2,9 +2,9 @@
 
 # -- Project information
 
-project = 'Lumache'
-copyright = '2021, Graziella'
-author = 'Graziella'
+project = 'DAGGER'
+copyright = '2022, Boris Gailleton'
+author = 'Boris Gailleton'
 
 release = '0.1'
 version = '0.1.0'
@@ -29,7 +29,8 @@ templates_path = ['_templates']
 
 # -- Options for HTML output
 
-html_theme = 'sphinx_rtd_theme'
+# html_theme = 'sphinx_rtd_theme'
+html_theme = 'groundwork'
 
 # -- Options for EPUB output
 epub_show_urls = 'footnote'
