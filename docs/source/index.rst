@@ -20,6 +20,6 @@ Contents
 .. toctree::
    
    quickstart
-   installation
+   modules
    usage
    api
