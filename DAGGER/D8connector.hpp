@@ -1605,6 +1605,25 @@ public:
 			return this->dy;
 	}
 
+
+	// return the orthogonal node from a pair of node / link indices
+	template<class i_t>
+	std::pair<i_t,i_t> get_orthogonal_nodes(i_t node, i_t link)
+	{
+
+		if(node%4 == 0)
+			return {this->get_top_idx(node), this->get_bottom_idx(node)};
+		else if(node%4 == 1)
+			return {this->get_topright_idx(node), this->get_bottomleft_idx(node)};
+		else if(node%4 == 2)
+			return {this->get_left_idx(node), this->get_right_idx(node)};
+		else if(node%4 == 3)
+			return {this->get_topleft_idx(node), this->get_bottomright_idx(node)};
+		else
+			throw std::runtime_error("Fatal error in DAGGER::D8connector::get_orthogonal_nodes");
+	}
+
+
 	template<class i_t, class ii_t>
 	std::pair<T,T> get_directed_dxdy_from_links_idx( i_t li, ii_t original_node, ii_t n1, ii_t n2)
 	{
@@ -1641,6 +1660,28 @@ public:
 	{
 		int j = std::floor(i/2);
 		return this->get_dx_from_links_idx(j);
+	}
+
+
+	template<class i_t>
+	i_t linkidx_from_nodes(i_t n1, i_t n2)
+	{
+		if(n1>n2)
+			std::swap(n1,n2);
+		int delta = n2 - n1;
+		// std::cout << n1 << "|" << n2 << "|" << delta << "||" << nnodes << std::endl;
+
+
+		if (delta == 1)
+			return n1 * 4;
+		else if(delta == this->nx + 1)
+			return n1 * 4 + 1;
+		else if(delta == this->nx)
+			return n1 * 4 + 2;
+		else if(delta == this->nx - 1)
+			return n1 * 4 + 3;
+		else
+			throw std::runtime_error("Fatal error in DAGGER::D8connector::linkidx_from_nodes");
 	}
 
 	std::vector<int> get_ilinknodes_from_node_v1(int i)
