@@ -168,7 +168,7 @@ public:
 		this->Ymin = ymin;
 
 		// Not a node is utilised to detect when a neighbouring operation returns not a node
-		this->not_a_node = - nx * ny - 10;
+		this->not_a_node = - nx * ny * 2;
 
 		this->initialise_neighbourer();
 
@@ -1606,21 +1606,41 @@ public:
 	}
 
 
+
+
 	// return the orthogonal node from a pair of node / link indices
 	template<class i_t>
-	std::pair<i_t,i_t> get_orthogonal_nodes(i_t node, i_t link)
+	std::pair<i_t,i_t> get_orthogonal_nodes(i_t node_from, i_t node_to)
 	{
 
-		if(node%4 == 0)
-			return {this->get_top_idx(node), this->get_bottom_idx(node)};
-		else if(node%4 == 1)
-			return {this->get_topright_idx(node), this->get_bottomleft_idx(node)};
-		else if(node%4 == 2)
-			return {this->get_left_idx(node), this->get_right_idx(node)};
-		else if(node%4 == 3)
-			return {this->get_topleft_idx(node), this->get_bottomright_idx(node)};
+		if(node_to == this->get_top_idx(node_from))
+			return {this->get_left_idx(node_from), this->get_right_idx(node_from)};
+		if(node_to == this->get_topright_idx(node_from))
+			return {this->get_top_idx(node_from), this->get_right_idx(node_from)};
+		if(node_to == this->get_right_idx(node_from))
+			return {this->get_top_idx(node_from), this->get_bottom_idx(node_from)};
+		if(node_to == this->get_bottomright_idx(node_from))
+			return {this->get_right_idx(node_from), this->get_bottom_idx(node_from)};
+		if(node_to == this->get_bottom_idx(node_from))
+			return {this->get_left_idx(node_from), this->get_right_idx(node_from)};
+		if(node_to == this->get_bottomleft_idx(node_from))
+			return {this->get_left_idx(node_from), this->get_bottom_idx(node_from)};
+		if(node_to == this->get_left_idx(node_from))
+			return {this->get_top_idx(node_from), this->get_bottom_idx(node_from)};
+		if(node_to == this->get_topleft_idx(node_from))
+			return {this->get_top_idx(node_from), this->get_left_idx(node_from)};
+		// i_t n1 = node
+
+		// if(link%4 == 0)
+		// 	return {this->get_top_idx(node), this->get_bottom_idx(node)};
+		// else if(link%4 == 1)
+		// 	return {this->get_topright_idx(node), this->get_bottomleft_idx(node)};
+		// else if(link%4 == 2)
+		// 	return {this->get_left_idx(node), this->get_right_idx(node)};
+		// else if(link%4 == 3)
+		// 	return {this->get_topleft_idx(node), this->get_bottomright_idx(node)};
 		else
-			throw std::runtime_error("Fatal error in DAGGER::D8connector::get_orthogonal_nodes");
+			throw std::runtime_error("Fatal error in DAGGER::D8connector::get_orthogonal_nodes -> from: " + std::to_string(node_from) + " and node to " + std::to_string(node_to));
 	}
 
 
@@ -1662,7 +1682,15 @@ public:
 		return this->get_dx_from_links_idx(j);
 	}
 
+	T get_travers_dy_from_dx(T tdx)
+	{
+		if(tdx == this->dx) return this->dy;
+		else if(tdx == this->dy) return this->dx;
+		else return this->dxy;
+	}
 
+
+	// EXPERIMENTAL!!!! POSSIBLE ISSUES WITH BC
 	template<class i_t>
 	i_t linkidx_from_nodes(i_t n1, i_t n2)
 	{

@@ -1397,6 +1397,14 @@ public:
 		return this->get_dx_from_links_idx(j);
 	}
 
+
+	T get_travers_dy_from_dx(T tdx)
+	{
+		if(tdx == this->dx) return this->dy;
+		else if(tdx == this->dy) return this->dx;
+		else return tdx;
+	}
+
 	std::vector<int> get_ilinknodes_from_node_v1(int i)
 	{
 		std::vector<int> out;out.reserve(4);

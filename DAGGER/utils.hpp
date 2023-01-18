@@ -405,6 +405,13 @@ public:
 		double timing = ms_double.count();
 		std::cout << message << " took " << timing << " ms" << std::endl;
 	}
+	float_t tok()
+	{
+		this->end = std::chrono::high_resolution_clock::now();
+		std::chrono::duration<double, std::milli> ms_double = this->end - this->start;
+		double timing = ms_double.count();
+		return timing;
+	}
 
 
 	

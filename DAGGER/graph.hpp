@@ -272,12 +272,6 @@ public:
 				if(only_SD)
 					return;
 				
-				// Otherwise, conducting the topological sorting
-				if(quicksort)
-					this->topological_sorting_quicksort(faketopo);
-				else
-					this->topological_sorting_dag(connector);
-
 				if(this->opt_stst_rerouting)
 					this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
 
@@ -293,6 +287,203 @@ public:
 					this->topological_sorting_quicksort(faketopo);
 				else
 					this->topological_sorting_dag(connector);
+		}
+
+	}
+
+	
+
+	// Compute the graph using the cordonnier metod to solve the depressions
+	// template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
+	template<class Connector_t,class topo_t, class out_t>
+	out_t compute_graph_timer(
+	  topo_t& ttopography, // the input topography
+	  Connector_t& connector, // the input connector to use (e.g. D8connector)
+	  bool only_SD, // only computes the single flow graph if true
+	  bool quicksort, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
+	  int NN // N iteration of the process
+	  )
+	{
+		ocarina timer;
+		std::map<std::string, std::pair<int,double> > timer_by_stuff;
+		timer_by_stuff["initialising_data"] = {0,0.};
+		timer_by_stuff["reinit_graph"] = {0,0.};
+		timer_by_stuff["local_minima"] = {0,0.};
+		timer_by_stuff["update_recs"] = {0,0.};
+		timer_by_stuff["TS_SF"] = {0,0.};
+		timer_by_stuff["TS_MF"] = {0,0.};
+		auto topography = format_input<topo_t>(ttopography);
+		std::vector<float_t> faketopo(this->nnodes,0);
+
+
+		for (int tn = 0; tn<NN ; ++tn)
+		{
+			// updating the timer increment 
+			for(auto& kv:timer_by_stuff)
+				++kv.second.first;
+
+			// Formatting the input to match all the wrappers
+			timer.tik();
+			topography = format_input<topo_t>(ttopography);
+			// Formatting the output topo
+			faketopo = std::vector<float_t>(this->nnodes,0);
+
+			for(int i=0; i<this->nnodes; ++i)
+			{
+				faketopo[i] = topography[i];
+			}
+			timer_by_stuff["initialising_data"].second += timer.tok();
+
+			this->_compute_graph_timer(faketopo,connector,only_SD,quicksort,timer, timer_by_stuff);
+		}
+
+		float_t total = 0;
+		for(auto& kv:timer_by_stuff)total+=kv.second.second;
+
+
+		std::cout << "Result for the timer - mean time on " << NN << " iterations:" << std::endl;
+		for(auto& kv:timer_by_stuff)
+			std::cout << kv.first << ": " << kv.second.second/kv.second.first << " ms on average, which is " << 100*kv.second.second/total << " %% of total time" << std::endl; 
+
+		// Finally I format the output topography to the right wrapper
+		return format_output<decltype(faketopo), out_t >(faketopo);
+	}
+
+
+	template<class Connector_t>
+	void _compute_graph_timer(
+		std::vector<float_t>& faketopo,
+	  Connector_t& connector, // the input connector to use (e.g. D8connector)
+	  bool only_SD, // only computes the single flow graph if true
+	  bool quicksort, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
+	  ocarina& timer,
+	  std::map<std::string, std::pair<int,double> >& timer_by_stuff
+
+		)
+	{
+
+		// std::cout << "DEBUG::STOPOP::1" << std::endl;
+		// Checking if the depression method is cordonnier or node
+		bool isCordonnier = this->is_method_cordonnier();
+
+		// std::cout << "DEBUG::STOPOP::2" << std::endl;
+		// if the method is not Cordonnier -> apply the other first
+		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
+		{
+			// filling the topography with a minimal slope using Wei et al., 2018
+			timer.tik();
+			if(this->depression_resolver == DEPRES::priority_flood)
+				faketopo = connector.PriorityFlood_Wei2018(faketopo);
+			else
+				faketopo = connector.PriorityFlood(faketopo);
+			timer_by_stuff["local_minima"].second += timer.tok();
+			
+		}
+
+		// std::cout << "DEBUG::STOPOP::3" << std::endl;
+
+		// Making sure the graph is not inheriting previous values
+		timer.tik();
+		this->reinit_graph(connector);
+		timer_by_stuff["reinit_graph"].second += timer.tok();
+
+
+		// std::cout << "DEBUG::STOPOP::4" << std::endl;
+
+		// Updates the links vector and the Srecs vector by checking each link new elevation
+		timer.tik();
+		this->update_recs(faketopo, connector);
+		timer_by_stuff["update_recs"].second += timer.tok();
+
+		// std::cout << "DEBUG::STOPOP::5" << std::endl;
+		// Compute the topological sorting for single stack
+		// Braun and willett 2014 (modified)
+		timer.tik();
+		this->topological_sorting_SF();
+		timer_by_stuff["TS_SF"].second += timer.tok();
+		// std::cout << "DEBUG::STOPOP::6" << std::endl;
+
+		// manages the Cordonnier method if needed
+		if(isCordonnier)
+		{
+			
+			// LMRerouter is the class managing the different cordonnier's mthod
+			LMRerouter<float_t> depsolver;
+			if(this->opti_sparse_border)
+				depsolver.opti_sparse_border = true;
+			depsolver.minimum_slope = this->minimum_slope;
+			depsolver.slope_randomness = this->slope_randomness;
+			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
+			// Note that faketopo are modified in place.
+			// std::cout << "wulf" << std::endl;
+		// std::cout << "DEBUG::STOPOP::7" << std::endl;
+			timer.tik();
+			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
+			timer_by_stuff["local_minima"].second += timer.tok();
+		// std::cout << "DEBUG::STOPOP::8" << std::endl;
+
+			// Right, if reomputed needs to be
+			if(need_recompute)
+			{
+				
+				// Re-inverting the Sreceivers into Sdonors
+				timer.tik();
+				this->recompute_SF_donors_from_receivers();
+				timer_by_stuff["update_recs"].second += timer.tok();
+				
+				// Recomputing Braun and willett 2014 (modified)
+				timer.tik();
+				this->topological_sorting_SF();
+				timer_by_stuff["TS_SF"].second += timer.tok();
+
+				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
+				if(this->depression_resolver == DEPRES::cordonnier_carve)
+				{
+					timer.tik();
+					this->carve_topo_v2(connector, faketopo);
+					timer_by_stuff["local_minima"].second += timer.tok();
+				}
+
+
+				// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
+				if(this->opt_stst_rerouting == false)	
+				{
+					timer.tik();
+					this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
+					timer_by_stuff["update_recs"].second += timer.tok();
+				}
+
+				// My work here is done if only SD is needed
+				if(only_SD)
+					return;
+
+				if(this->opt_stst_rerouting)
+				{
+					timer.tik();
+					this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
+					timer_by_stuff["update_recs"].second += timer.tok();
+				}
+
+
+			}
+		}
+
+		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
+		// for multiple as the toposort for SF is already done
+		if (only_SD == false)
+		{
+			if(quicksort)
+			{
+				timer.tik();
+				this->topological_sorting_quicksort(faketopo);
+				timer_by_stuff["TS_MF"].second += timer.tok();
+			}
+			else
+			{
+				timer.tik();
+				this->topological_sorting_dag(connector);
+				timer_by_stuff["TS_MF"].second += timer.tok();
+			}
 		}
 
 	}
@@ -595,7 +786,7 @@ public:
 		// nrecs tracks the number of receivers for each nodes
 		std::vector<int> nrecs(this->nnodes,0);
 		// The queueß
-		std::queue<int> toproc;
+		std::stack<int, std::vector<int> > toproc;
 
 		// preparing the stack
 		this->stack.clear();
@@ -604,6 +795,10 @@ public:
 		// Iterating through the links
 		for(int i = 0; i < int( this->links.size() ) ; ++i)
 		{
+			
+			if(this->linknodes[i*2] < 0)
+				continue;
+
 			// checking the validity of the links
 			if(connector.can_flow_even_go_there(this->linknodes[i*2]) == false)
 			{
@@ -614,9 +809,9 @@ public:
 
 			// Otherwise incrementing the number of receivers for the right link
 			if(this->links[i])
-				++nrecs[this->linknodes[i*2]];
-			else
 				++nrecs[this->linknodes[i*2+1]];
+			else
+				++nrecs[this->linknodes[i*2]];
 		}
 
 
@@ -632,14 +827,15 @@ public:
 		while(toproc.empty() == false)
 		{
 			// getting the next node
-			int next = toproc.front();
+			// int next = toproc.front();
+			int next = toproc.top();
 			// (and popping the node from the queue)
 			toproc.pop();
 			// if the node is poped out of the queue -> then it is ready to be in the stack
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
 			// getting the idx of the donors
-			int nn = this->get_donors_idx(next, connector, donors);
+			int nn = this->get_receivers_idx(next, connector, donors);
 			for(int td=0;td<nn;++td)
 			{
 				int d = donors[td];
@@ -650,6 +846,9 @@ public:
 					toproc.emplace(d);
 			}
 		}
+
+		if(int(this->stack.size()) != this->nnodes)
+			std::cout << "WARNING::Stack->" << this->stack.size() << "/" << this->nnodes << std::endl;
 
 	}
 

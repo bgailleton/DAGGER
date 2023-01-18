@@ -26,6 +26,7 @@ void declare_graph(py::module &m, std::string typestr)
 		.def("update_recs", &graph<double, CONNECTOR_T >::template update_recs<CONNECTOR_T, std::vector<double> >)
 		.def("set_opt_stst_rerouting", &graph<double, CONNECTOR_T >:: set_opt_stst_rerouting)
 		.def("compute_graph", &graph<double, CONNECTOR_T >::template compute_graph<CONNECTOR_T, py::array_t<double,1>, py::array >)
+		.def("compute_graph_timer", &graph<double, CONNECTOR_T >::template compute_graph_timer<CONNECTOR_T, py::array_t<double,1>, py::array >)
 		.def("test_Srecs", &graph<double, CONNECTOR_T >::template test_Srecs<py::array >)
 		.def("sum_at_outlets", &graph<double, CONNECTOR_T >::template sum_at_outlets<CONNECTOR_T, py::array_t<double,1>, double >)
 		.def("keep_only_at_outlets", &graph<double, CONNECTOR_T >::template keep_only_at_outlets<CONNECTOR_T, py::array_t<double,1>, py::array >)
@@ -108,6 +109,7 @@ PYBIND11_MODULE(dagger, m) {
 		.def("get_mask_array",&D8connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 		.def("set_out_boundaries_to_permissive", &D8connector<double>::set_out_boundaries_to_permissive)
+		.def("get_boundary_at_node", &D8connector<double>::get_boundary_at_node)
 	;
 
 	py::class_<D4connector<double> >(m, "D4N")
@@ -120,6 +122,7 @@ PYBIND11_MODULE(dagger, m) {
 		.def("get_mask_array",&D4connector<double>::get_mask_array)
 		.def("set_values_at_boundaries", &D4connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
 		.def("set_out_boundaries_to_permissive", &D4connector<double>::set_out_boundaries_to_permissive)
+		.def("get_boundary_at_node", &D4connector<double>::get_boundary_at_node)
 	;
 
 	py::class_<numvec<double> >(m,"numvecf64")
