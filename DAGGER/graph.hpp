@@ -95,6 +95,7 @@ public:
 	// hte minimum slope to impose on the fake topography
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
+	float_t stochaticiy_for_SFD = 1;
 
 
 	// Solving large number of local minima with cordonnier can be expensive and this optimises
@@ -224,6 +225,7 @@ public:
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->update_recs(faketopo, connector);
+		// std::cout << "NODE 0::" << this->Sreceivers[0] << std::endl;
 
 		// std::cout << "DEBUG::STOPOP::5" << std::endl;
 		// Compute the topological sorting for single stack
@@ -519,6 +521,9 @@ public:
 	template<class Connector_t,class topo_t>
 	void update_recs(topo_t& topography, Connector_t& connector)
 	{
+
+		// am I using a stochastic adjustment for deciding on the steepest slope
+		bool stochastic_slope_on = this->stochaticiy_for_SFD != 0.;
 		// iterating through all the nodes
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
@@ -539,6 +544,9 @@ public:
 			float_t dx = connector.get_dx_from_links_idx(i);
 			// -> slope
 			float_t slope = (topography[from] - topography[to])/dx;
+
+			if(stochastic_slope_on) slope *= (1 - this->stochaticiy_for_SFD * connector.randu->get());
+
 
 			// if slope is positive, to is the receiver by convention
 			if(slope>0)

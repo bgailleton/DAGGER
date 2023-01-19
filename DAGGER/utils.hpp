@@ -39,6 +39,10 @@ enum class DEPRES
 	// Using the Barnes et al., 2014 priority flood algorithm
 	priority_flood_2014,
 	// TO ADD:: Cordonnier simple, Lindsay carving and why not others??
+	dagger_carve,
+	dagger_fill,
+	dagger_simple,
+
 
 };
 

@@ -552,8 +552,8 @@ public:
 		}
 		else if (method == DEPRES::cordonnier_fill)
 		{
-			std::vector<char> isinQ(connector.nnodes,false);
-			std::vector<char> isfilled(connector.nnodes,false);
+			std::vector<bool> isinQ(connector.nnodes,false);
+			std::vector<bool> isfilled(connector.nnodes,false);
 			std::vector<bool> basinDone(this->nbas,false);
 			std::vector<int> basfam(this->nbas,-1);
 			for(int i = 0; i< this->nbas; ++i)
@@ -714,6 +714,156 @@ public:
 
 
 };
+
+
+
+
+// // SOMETHING TO TEST HERE
+// template<class Graph_t, class Connector_t, class float_t>
+// class dagger_LM
+// {
+// public:
+
+// 	Graph_t* graph;
+// 	Connector_t* con;
+// 	std::vector<size_t> Sstack;
+// 	std::vector<int> baslab;
+// 	std::vector<int> neighbours;
+// 	std::vector<bool> is_Sdonor;
+// 	std::vector<float_t>* topography;
+// 	std::vector<bool> basout;
+// 	std::stack<size_t, std::vector<size_t> > stackhelper;
+// 	int idx_stack_checker = 0;
+
+
+
+// 	dagger_LM(){;}
+// 	dagger_LM(Graph_t& tgraph, Connector_t& tcon)
+// 	{
+// 		this->graph = &tgraph;
+// 		this->con = &tcon;
+// 		this->Sstack.reserve(this->graph->nnodes);
+// 		this->baslab = std::vector<int>(this->graph->nnodes, -1);
+// 		this->neighbours = this->con->get_empty_neighbour();
+// 		this->is_Sdonor = std::vector<bool>(this->neighbours.size(),false);
+// 	}
+
+
+
+// 	void run()
+// 	{
+// 		// first selecting the base nodes
+// 		std::priority_queue< PQ_helper<std::pair<int,int>,float_t>, std::vector<PQ_helper<std::pair<int,int>,float_t> >, std::greater<PQ_helper<std::pair<int,int>,float_t> > > maPQ;
+
+// 		std::vector<int> next_nodes;
+// 		next_nodes.reserve(this->con->nx * 4);
+// 		for(int i=0; i<this->graph->nnodes; ++i) if(i == this->graph->Sreceivers[i]) next_nodes.emplace_back(i);
+// 		bool keepon = true;
+// 		do
+// 		{
+// 			this->toposort_section(next_nodes);
+// 			while(this->idx_stack_checker < int(this->Sstack.size()))
+// 			{
+
+// 				++this->idx_stack_checker;
+// 			}
+
+
+// 		}while(keepon);
+		
+
+
+
+// 	}
+
+// 	void check_pass_at_node(int i)
+// 	{
+// 		int nn = this->con->get_neighbour_idx(i,this->neighbours);
+// 		for(int j=0; j< nn; ++j)
+// 		{
+// 			if()
+// 		}
+// 	}
+
+
+
+// 	void toposort_section(std::vector<int>& startnodes)
+// 	{
+
+
+// 		// going through all the starting nodes
+// 		for(auto i:startnodes)
+// 		{
+
+// 			stackhelper.emplace(i);
+
+
+// 			// While I still have stuff in the stack helper
+// 			while(stackhelper.empty() == false)
+// 			{
+// 				// I get the next node and pop it from the stack helper
+// 				int nextnode = stackhelper.top();stackhelper.pop();
+// 				this->Sstack.emplace_back(nextnode);
+// 				this->basout[nextnode] = true;
+
+// 				int nn = this->get_Sdonors_manual(nextnode);
+
+// 				// as well as all its donors which will be processed next
+// 				for(int j = 0; j < nn; ++j)	stackhelper.emplace(this->neighbours[j]);
+
+// 			}
+
+// 		}
+// 	}
+
+// 	int get_Sdonors_manual(int i)
+// 	{
+// 		// this->rinit_is_Sdonor();
+// 		int nn = this->con->get_neighbour_idx(i,this->neighbours);
+// 		int jn = 0;
+// 		for(int j=0; j< nn; ++j)
+// 		{
+// 			if(this->graph->Sreceivers[this->neighbours[j]] == i)
+// 			{
+// 				// this->is_Sdonor[j] = true;
+// 				this->neighbours[jn] = this->neighbours[j];
+// 				++jn;
+// 			}
+// 		}
+// 		return jn;
+// 	}
+
+// 	void rinit_is_Sdonor()
+// 	{
+// 		for(size_t j =0; j < this->is_Sdonor.size(); ++j) 
+// 			this->is_Sdonor[j] = false;
+// 	}
+
+
+// };
+
+
+
+// bool dagger_rerouter_v1(std::vector<float_t>& ttopo, Graph_t& graph, Connector_t& connector)
+// {
+
+// 	// Dynamic Stack
+// 	std::vector<size_t> Sstack;Sstack.reserve(graph.nnodes);
+// 	// Basin Labels
+// 	std::vector<int> baslab;baslab.reserve(std::ceil(graph.nnodes/10));
+// 	// is a basin connected to the outer world?
+// 	std::vector<bool> basout;basout.reserve(std::ceil(graph.nnodes/10));
+// 	// indices
+// 	int idinsert = 0;
+
+
+
+// 	// first, let's compute a partial toposort
+
+// 	return true;
+// }
+
+
 
 
 

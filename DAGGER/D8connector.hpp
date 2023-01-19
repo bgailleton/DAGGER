@@ -1629,18 +1629,23 @@ public:
 			return {this->get_top_idx(node_from), this->get_bottom_idx(node_from)};
 		if(node_to == this->get_topleft_idx(node_from))
 			return {this->get_top_idx(node_from), this->get_left_idx(node_from)};
-		// i_t n1 = node
-
-		// if(link%4 == 0)
-		// 	return {this->get_top_idx(node), this->get_bottom_idx(node)};
-		// else if(link%4 == 1)
-		// 	return {this->get_topright_idx(node), this->get_bottomleft_idx(node)};
-		// else if(link%4 == 2)
-		// 	return {this->get_left_idx(node), this->get_right_idx(node)};
-		// else if(link%4 == 3)
-		// 	return {this->get_topleft_idx(node), this->get_bottomright_idx(node)};
 		else
-			throw std::runtime_error("Fatal error in DAGGER::D8connector::get_orthogonal_nodes -> from: " + std::to_string(node_from) + " and node to " + std::to_string(node_to));
+			return {-1,-1};
+		
+		// else
+		// {
+		// 	std::cout << "Node was " << node_from << " to was " << node_to << " possible neighbours to node_from:" << std::endl;
+		// 	std::cout << this->get_top_idx(node_from) << std::endl;
+		// 	std::cout << this->get_topright_idx(node_from) << std::endl;
+		// 	std::cout << this->get_right_idx(node_from) << std::endl;
+		// 	std::cout << this->get_bottomright_idx(node_from) << std::endl;
+		// 	std::cout << this->get_bottom_idx(node_from) << std::endl;
+		// 	std::cout << this->get_bottomleft_idx(node_from) << std::endl;
+		// 	std::cout << this->get_left_idx(node_from) << std::endl;
+		// 	std::cout << this->get_topleft_idx(node_from) << std::endl;
+		// 	std::cout << "Boundary was " << this->boundary[node_from] << std::endl;
+		// 	throw std::runtime_error("Fatal error in DAGGER::D8connector::get_orthogonal_nodes -> from: " + std::to_string(node_from) + " and node to " + std::to_string(node_to));
+		// }
 	}
 
 
