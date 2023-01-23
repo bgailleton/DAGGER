@@ -40,6 +40,7 @@ B.G. 2022
 #include "cordonnier_versatile_2019.hpp"
 // -> The connector classes
 #include "D8connector.hpp"
+#include "priority_flood.hpp"
 
 #include "wrap_helper.hpp"
 
@@ -207,14 +208,14 @@ public:
 
 		// std::cout << "DEBUG::STOPOP::2" << std::endl;
 		// if the method is not Cordonnier -> apply the other first
-		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
-		{
-			// filling the topography with a minimal slope using Wei et al., 2018
-			if(this->depression_resolver == DEPRES::priority_flood)
-				faketopo = connector.PriorityFlood_Wei2018(faketopo);
-			else
-				faketopo = connector.PriorityFlood(faketopo);
-		}
+		// if(isCordonnier == false && this->depression_resolver != DEPRES::none)
+		// {
+		// 	// filling the topography with a minimal slope using Wei et al., 2018
+		// 	// if(this->depression_resolver == DEPRES::priority_flood)
+		// 	faketopo = PriorityFlood(faketopo, connector, *(this));
+		// 	// else
+		// 	// 	faketopo = connector.PriorityFlood(faketopo);
+		// }
 
 		// std::cout << "DEBUG::STOPOP::3" << std::endl;
 
@@ -279,6 +280,12 @@ public:
 
 
 			}
+		}
+		else if (this->depression_resolver == DEPRES::priority_flood)
+		{
+			faketopo = PriorityFlood(faketopo, connector, *(this));
+			// faketopo = connector.PriorityFlood(faketopo);
+			this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
 		}
 
 		// if there is no need to recompute neighbours, then I can only calculate the topological sorting

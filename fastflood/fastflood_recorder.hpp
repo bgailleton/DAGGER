@@ -79,6 +79,14 @@ namespace fastflood
 		out_t get_lateral_ddot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->lateral_ddot) ;}
 
 
+		bool qs2record = false;
+		std::vector<float_t> qs;
+		void enable_qs_recording(){this->qs2record = true; this->qs = std::vector<float_t>(this->nnodes,0.);};
+		void disable_qs_recording(){this->qs2record = false; this->qs = std::vector<float_t>();}
+		template<class out_t>
+		out_t get_qs(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->qs) ;}
+
+
 
 
 	};
