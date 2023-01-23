@@ -16,6 +16,11 @@ else:
 	print("use option -v to get the whole install log")
 	stttd = sub.DEVNULL
 
+dagger = True
+graphflood = True
+popscape = True
+
+
 print("Installing dagger ... ", end = "", flush = True)
 try:
 	sub.run("rm -r dist", cwd = "./dagger/", shell = True, check = False, stdout=stttd, stderr=stttd)

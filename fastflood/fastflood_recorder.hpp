@@ -86,6 +86,13 @@ namespace fastflood
 		template<class out_t>
 		out_t get_qs(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->qs) ;}
 
+		bool dhw2record = false;
+		std::vector<float_t> dhw;
+		void enable_dhw_recording(){this->dhw2record = true; this->dhw = std::vector<float_t>(this->nnodes,0.);};
+		void disable_dhw_recording(){this->dhw2record = false; this->dhw = std::vector<float_t>();}
+		template<class out_t>
+		out_t get_dhw(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->dhw) ;}
+
 
 
 

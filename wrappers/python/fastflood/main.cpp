@@ -94,6 +94,24 @@ PYBIND11_MODULE(fastflood_dagger, m) {
 
 	py::class_<recorder<double> >(m, "recorder")
 		.def(py::init<>())
+		.def("enable_edot_recording",&recorder<double>::enable_edot_recording)
+		.def("disable_edot_recording",&recorder<double>::disable_edot_recording)
+		.def("get_edot",&recorder<double>::get_edot<py::array_t<double,1> >)
+		.def("enable_ddot_recording",&recorder<double>::enable_ddot_recording)
+		.def("disable_ddot_recording",&recorder<double>::disable_ddot_recording)
+		.def("get_ddot",&recorder<double>::get_ddot<py::array_t<double,1> >)
+		.def("enable_lateral_edot_recording",&recorder<double>::enable_lateral_edot_recording)
+		.def("disable_lateral_edot_recording",&recorder<double>::disable_lateral_edot_recording)
+		.def("get_lateral_edot",&recorder<double>::get_lateral_edot<py::array_t<double,1> >)
+		.def("enable_lateral_ddot_recording",&recorder<double>::enable_lateral_ddot_recording)
+		.def("disable_lateral_ddot_recording",&recorder<double>::disable_lateral_ddot_recording)
+		.def("get_lateral_ddot",&recorder<double>::get_lateral_ddot<py::array_t<double,1> >)
+		.def("enable_qs_recording",&recorder<double>::enable_qs_recording)
+		.def("disable_qs_recording",&recorder<double>::disable_qs_recording)
+		.def("get_qs",&recorder<double>::get_qs<py::array_t<double,1> >)
+		.def("enable_dhw_recording",&recorder<double>::enable_dhw_recording)
+		.def("disable_dhw_recording",&recorder<double>::disable_dhw_recording)
+		.def("get_dhw",&recorder<double>::get_dhw<py::array_t<double,1> >)
 	;
 
 
