@@ -42,6 +42,7 @@ else:
 if(dagger or none):
 	print(f"{bcolors.BOLD}Installing dagger ... {bcolors.ENDC}", end = "", flush = True)
 	try:
+		sub.run("pip uninstall -y dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
 		sub.run("rm -r dist", cwd = "./dagger/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("rm -r build", cwd = "./dagger/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("pip install .", cwd = "./dagger/", shell = True, check = True, stdout=stttd, stderr=stttd)
@@ -52,6 +53,7 @@ if(dagger or none):
 if(graphflood or none):
 	print(f"{bcolors.BOLD}Installing graphflood ... {bcolors.ENDC}", end = "", flush = True)
 	try:
+		sub.run("pip uninstall -y fastflood-dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
 		sub.run("rm -r dist", cwd = "./fastflood/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("rm -r build", cwd = "./fastflood/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("pip install .", cwd = "./fastflood/", shell = True, check = True, stdout=stttd, stderr=stttd)
@@ -62,6 +64,7 @@ if(graphflood or none):
 if(popscape or none):
 	print(f"{bcolors.BOLD}Installing popscape ... {bcolors.ENDC}", end = "", flush = True)
 	try:
+		sub.run("pip uninstall -y popscape-dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
 		sub.run("rm -r dist", cwd = "./popscape/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("rm -r build", cwd = "./popscape/", shell = True, check = False, stdout=stttd, stderr=stttd)
 		sub.run("pip install .", cwd = "./popscape/", shell = True, check = True, stdout=stttd, stderr=stttd)
