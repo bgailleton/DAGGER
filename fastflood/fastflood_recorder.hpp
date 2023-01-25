@@ -53,6 +53,7 @@ namespace DAGGER
 			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
 			if(this->qs2record) this->qs2record_init();
 			if(this->dhw2record) this->dhw2record_init();
+			if(this->tau2record) this->dhw2record_init();
 		}
 
 		void init_water()
@@ -67,7 +68,8 @@ namespace DAGGER
 			if(this->lateral_edot2record) this->lateral_edot2record_init();
 			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
 			if(this->qs2record) this->qs2record_init();
-			
+			if(this->tau2record) this->qs2record_init();
+
 		}
 
 		// nnodes for the recording
@@ -123,6 +125,14 @@ namespace DAGGER
 		template<class out_t>
 		out_t get_dhw(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->dhw) ;}
 		void dhw2record_init(){this->dhw = std::vector<float_t>(this->nnodes,0.);}
+
+		bool tau2record = false;
+		std::vector<float_t> tau;
+		void enable_tau_recording(){this->tau2record = true; this->tau = std::vector<float_t>(this->nnodes,0.);};
+		void disable_tau_recording(){this->tau2record = false; this->tau = std::vector<float_t>();}
+		template<class out_t>
+		out_t get_tau(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->tau) ;}
+		void tau2record_init(){this->tau = std::vector<float_t>(this->nnodes,0.);}
 
 
 
