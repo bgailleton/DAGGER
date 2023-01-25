@@ -24,7 +24,7 @@ class bcolors:
 # graphflood = True if ("-g" in sys.argv or none) else False
 # popscape = True if ("-p" in sys.argv or none) else False
 
-print(f"\n\n{bcolors.YELLOW}~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~={bcolors.ENDC}")
+print(f"\n\n{bcolors.YELLOW}~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~={bcolors.ENDC}")
 print(f"{bcolors.HEADER}I am going to install/update dagger suite codes from source in python.{bcolors.ENDC}\n")
 print(f"{bcolors.BOLD}DAGGER core:{bcolors.ENDC} {bcolors.OKGREEN }{'included'}{bcolors.ENDC} ")
 print(f"{bcolors.BOLD}graphflood core:{bcolors.ENDC} {bcolors.OKGREEN }{'included'}{bcolors.ENDC} ")
@@ -59,4 +59,4 @@ if(run_test):
 
 
 print(f"{bcolors.BOLD}Done!{bcolors.ENDC}")
-print(f"\n{bcolors.YELLOW}~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~={bcolors.ENDC}")
+print(f"\n{bcolors.YELLOW}~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~={bcolors.ENDC}")

@@ -83,6 +83,8 @@ public:
 		// graph.compute_graph("none",topo, connector,true, true);
 		this->graph = &graph;
 		this->connector = &connector;
+		this->rec.nnodes = connector.nnodes;
+		this->rec.nlinks = connector.nnodes * 4;
 		auto temp = DAGGER::format_input<topo_t>(topo);
 		this->topography = DAGGER::to_vec(temp);
 		temp = DAGGER::format_input<topo_t>(Qbase);
@@ -1668,6 +1670,7 @@ public:
 
 					this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
 					if(this->Qsin[to] < 0) this->Qsin[to] = 0;
+
 
 					if(this->rec.edot2record) this->rec.edot[node] += edot;
 					if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;

@@ -58,10 +58,7 @@ out_t generate_perlin_noise_2D(Connector_t& con, float_t frequency, int octaves,
   {
     int xi,yi; con.rowcol_from_node_id(i,yi,xi);
     noise[i] = perlin.octave2D_01((xi * fx), (yi * fy), octaves);
-
   }
-
-
 
   return DAGGER::format_output<std::vector<float_t>, out_t >(noise) ;
 }

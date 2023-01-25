@@ -67,6 +67,7 @@ namespace DAGGER
 			if(this->lateral_edot2record) this->lateral_edot2record_init();
 			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
 			if(this->qs2record) this->qs2record_init();
+			
 		}
 
 		// nnodes for the recording
