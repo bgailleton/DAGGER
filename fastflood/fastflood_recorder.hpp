@@ -34,16 +34,40 @@
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
 
-namespace fastflood
+namespace DAGGER
 {
 
 	template<class float_t>
-	class recorder
+	class fastflood_recorder
 	{
 	public:
 
-		recorder(){;}
-		recorder(int nnodes, int nlinks){this->nnodes = nnodes; this->nlinks = nlinks;}
+		fastflood_recorder(){;}
+		fastflood_recorder(int nnodes, int nlinks){this->nnodes = nnodes; this->nlinks = nlinks;}
+
+		void init()
+		{
+			if(this->edot2record) this->edot2record_init();
+			if(this->ddot2record) this->ddot2record_init();
+			if(this->lateral_edot2record) this->lateral_edot2record_init();
+			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
+			if(this->qs2record) this->qs2record_init();
+			if(this->dhw2record) this->dhw2record_init();
+		}
+
+		void init_water()
+		{
+			if(this->dhw2record) this->dhw2record_init();
+		}
+
+		void init_geo()
+		{
+			if(this->edot2record) this->edot2record_init();
+			if(this->ddot2record) this->ddot2record_init();
+			if(this->lateral_edot2record) this->lateral_edot2record_init();
+			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
+			if(this->qs2record) this->qs2record_init();
+		}
 
 		// nnodes for the recording
 		int nnodes = 0;
@@ -56,6 +80,7 @@ namespace fastflood
 		void disable_edot_recording(){this->edot2record = false; this->edot = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_edot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->edot) ;}
+		void edot2record_init(){this->edot = std::vector<float_t>(this->nnodes,0.);}
 
 		bool ddot2record = false;
 		std::vector<float_t> ddot;
@@ -63,6 +88,7 @@ namespace fastflood
 		void disable_ddot_recording(){this->ddot2record = false; this->ddot = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_ddot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->ddot) ;}
+		void ddot2record_init(){this->ddot = std::vector<float_t>(this->nnodes,0.);}
 
 		bool lateral_edot2record = false;
 		std::vector<float_t> lateral_edot;
@@ -70,6 +96,7 @@ namespace fastflood
 		void disable_lateral_edot_recording(){this->lateral_edot2record = false; this->lateral_edot = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_lateral_edot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->lateral_edot) ;}
+		void lateral_edot2record_init(){this->lateral_edot = std::vector<float_t>(this->nnodes,0.);}
 
 		bool lateral_ddot2record = false;
 		std::vector<float_t> lateral_ddot;
@@ -77,6 +104,7 @@ namespace fastflood
 		void disable_lateral_ddot_recording(){this->lateral_ddot2record = false; this->lateral_ddot = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_lateral_ddot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->lateral_ddot) ;}
+		void lateral_ddot2record_init(){this->lateral_ddot = std::vector<float_t>(this->nnodes,0.);}
 
 
 		bool qs2record = false;
@@ -85,6 +113,7 @@ namespace fastflood
 		void disable_qs_recording(){this->qs2record = false; this->qs = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_qs(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->qs) ;}
+		void qs2record_init(){this->qs = std::vector<float_t>(this->nnodes,0.);}
 
 		bool dhw2record = false;
 		std::vector<float_t> dhw;
@@ -92,6 +121,7 @@ namespace fastflood
 		void disable_dhw_recording(){this->dhw2record = false; this->dhw = std::vector<float_t>();}
 		template<class out_t>
 		out_t get_dhw(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->dhw) ;}
+		void dhw2record_init(){this->dhw = std::vector<float_t>(this->nnodes,0.);}
 
 
 

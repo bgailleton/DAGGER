@@ -3,6 +3,7 @@
 // -> The connector classes
 #include "D8connector.hpp"
 #include "D4connector.hpp"
+#include "PerlinNoise.hpp"
 
 enum class RANDNOISE
 {
@@ -42,6 +43,28 @@ public:
   void speed_up(std::pair<double,double>& speedin, double weigght){this->speed.first += speedin.first * weigght;this->speed.second += speedin.second * weigght;}
 };
 
+
+
+
+template<class out_t, class float_t, class Connector_t>
+out_t generate_perlin_noise_2D(Connector_t& con, float_t frequency, int octaves, std::uint32_t seed)
+{
+  std::vector<float_t> noise(con.nx*con.ny, 0.);
+  float_t fx = frequency/con.nx;
+  float_t fy = frequency/con.ny;
+  siv::PerlinNoise perlin{ seed };
+
+  for(int i = 0; i<con.nnodes;++i)
+  {
+    int xi,yi; con.rowcol_from_node_id(i,yi,xi);
+    noise[i] = perlin.octave2D_01((xi * fx), (yi * fy), octaves);
+
+  }
+
+
+
+  return DAGGER::format_output<std::vector<float_t>, out_t >(noise) ;
+}
 
 
 

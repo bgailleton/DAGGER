@@ -40,7 +40,7 @@
 namespace py = pybind11;
 
 
-namespace popscape
+namespace DAGGER
 {
 
 template<class float_t,class Graph_t, class Connector_t>

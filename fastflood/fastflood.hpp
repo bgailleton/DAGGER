@@ -33,8 +33,9 @@
 
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
+#include "fastflood_recorder.hpp"
 
-namespace fastflood
+namespace DAGGER
 {
 
 float_t GRAVITY = 9.8, FIVETHIRD = 5./3., RHO = 1000;
@@ -53,6 +54,8 @@ public:
 
 	std::vector<int> Qs_entry_point;
 	std::vector<float_t> Qs_entry;
+
+	fastflood_recorder<float_t> rec;
 
 
 	float_t mannings = 0.033, topological_number = 4./8, froude_number = 0.8, alpha = 0.5;
@@ -326,6 +329,9 @@ public:
 	// This function runs one iteration of the static multiple flow solver for the SWE 
 	void run_MFD()
 	{
+
+		this->rec.init_water();
+
 		// timer, to ignore
 		DAGGER::ocarina link;
 		link.tik();
@@ -458,7 +464,9 @@ public:
 				this->Qwout[node] = this->topological_number * facgrad/maxgrad_sqrt * std::pow(this->hw[node],FIVETHIRD) * cellarea/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
 
 			//## Divergence of Q to apply changes to water height
-			this->hw[node] += (this->Qwin[node] - this->Qwout[node]) * dt(node) / this->connector->get_area_at_node(node);
+			float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt(node) / this->connector->get_area_at_node(node);
+			if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
+			this->hw[node] += tdhw;
 
 			//## water height cannot be 0
 			if(this->hw[node] < 0) this->hw[node] = 0;
@@ -1443,6 +1451,7 @@ public:
 
 		// Reinit the sediment fluxes
 		this->init_erosion();
+		this->rec.init_geo();
 
 		// This vector records and apply the vertical motions at the end of the time step
 		// THis reduce the stochasticity but ensure consistency in the sediment flux
@@ -1659,6 +1668,13 @@ public:
 
 					this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
 					if(this->Qsin[to] < 0) this->Qsin[to] = 0;
+
+					if(this->rec.edot2record) this->rec.edot[node] += edot;
+					if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;
+					if(this->rec.lateral_edot2record && orthonodes.first >=0) {this->rec.lateral_edot[orthonodes.first] += latedotA;}
+					if(this->rec.lateral_edot2record && orthonodes.second >=0) {this->rec.lateral_edot[orthonodes.second] += latedotB;}
+					if(this->rec.lateral_ddot2record && orthonodes.first >=0) {this->rec.lateral_ddot[orthonodes.first] += latddotA;}
+					if(this->rec.lateral_ddot2record && orthonodes.second >=0) {this->rec.lateral_ddot[orthonodes.second] += latddotB;}
 
 				}
 
