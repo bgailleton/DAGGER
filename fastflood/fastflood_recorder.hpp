@@ -53,7 +53,8 @@ namespace DAGGER
 			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
 			if(this->qs2record) this->qs2record_init();
 			if(this->dhw2record) this->dhw2record_init();
-			if(this->tau2record) this->dhw2record_init();
+			if(this->vmot2record) this->vmot2record_init();
+			if(this->tau2record) this->tau2record_init();
 		}
 
 		void init_water()
@@ -68,7 +69,8 @@ namespace DAGGER
 			if(this->lateral_edot2record) this->lateral_edot2record_init();
 			if(this->lateral_ddot2record) this->lateral_ddot2record_init();
 			if(this->qs2record) this->qs2record_init();
-			if(this->tau2record) this->qs2record_init();
+			if(this->tau2record) this->tau2record_init();
+			if(this->vmot2record) this->vmot2record_init();
 
 		}
 
@@ -133,6 +135,14 @@ namespace DAGGER
 		template<class out_t>
 		out_t get_tau(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->tau) ;}
 		void tau2record_init(){this->tau = std::vector<float_t>(this->nnodes,0.);}
+
+		bool vmot2record = false;
+		std::vector<float_t> vmot;
+		void enable_vmot_recording(){this->vmot2record = true; this->vmot = std::vector<float_t>(this->nnodes,0.);};
+		void disable_vmot_recording(){this->vmot2record = false; this->vmot = std::vector<float_t>();}
+		template<class out_t>
+		out_t get_vmot(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->vmot) ;}
+		void vmot2record_init(){this->vmot = std::vector<float_t>(this->nnodes,0.);}
 
 
 

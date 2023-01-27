@@ -556,7 +556,7 @@ public:
 
 
 			// if slope is positive, to is the receiver by convention
-			if(slope>0)
+			if(slope>0 || connector.is_forcing_entry)// STOPPED HERE NEED TO ADD FUNCTION IN CONNECTOR TO CHECK WETHER ENTRY IS FORCED
 			{
 				// Conventional direction
 				this->links[i] = true;

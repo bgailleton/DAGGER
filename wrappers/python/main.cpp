@@ -158,6 +158,7 @@ void declare_ff(py::module &m, std::string typestr)
 		.def("run_SFD_with_erosion", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_SFD_with_erosion)
 		.def("run_MFD_erosion", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion)
 		.def("run_MFD_erosion_B", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion_B)
+		.def("run_MFD_static", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static)
 		.def("run_MFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD)
 		.def("run_MFD_dynamic", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_dynamic)
 		.def("run_MFD_exp", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_exp)
@@ -197,6 +198,9 @@ void declare_ff(py::module &m, std::string typestr)
 		.def("get_sensibility_to_flowdepth",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::get_sensibility_to_flowdepth)
 		.def("fill_topo",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::fill_topo)
 		.def("set_stochaslope",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_stochaslope)
+		.def("out_boundary_match_donors",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::out_boundary_match_donors)
+		.def("set_boundary_slope", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_boundary_slope)
+
 
 
 
@@ -297,6 +301,12 @@ PYBIND11_MODULE(dagger, m) {
 		.def("enable_dhw_recording",&fastflood_recorder<double>::enable_dhw_recording)
 		.def("disable_dhw_recording",&fastflood_recorder<double>::disable_dhw_recording)
 		.def("get_dhw",&fastflood_recorder<double>::get_dhw<py::array_t<double,1> >)
+		.def("enable_tau_recording",&fastflood_recorder<double>::enable_tau_recording)
+		.def("disable_tau_recording",&fastflood_recorder<double>::disable_tau_recording)
+		.def("get_tau",&fastflood_recorder<double>::get_tau<py::array_t<double,1> >)
+		.def("enable_vmot_recording",&fastflood_recorder<double>::enable_vmot_recording)
+		.def("disable_vmot_recording",&fastflood_recorder<double>::disable_vmot_recording)
+		.def("get_vmot",&fastflood_recorder<double>::get_vmot<py::array_t<double,1> >)
 	;
 
   declare_ff<DAGGER::D8connector<double> >(m,"FF");

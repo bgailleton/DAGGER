@@ -846,7 +846,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 13;
 				// Case Noraml
-				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 )
+				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4 )
 					id_neighbourer = 9;
 			}
 			// Case top right corner 
@@ -856,7 +856,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 14;
 				// Case Noraml
-				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 )
+				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4 )
 					id_neighbourer = 10;
 			}
 			// Case bottom left corner 
@@ -866,7 +866,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 15;
 				// Case Noraml
-				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 )
+				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4 )
 					id_neighbourer = 11;
 			}
 			// Case bottom right corner 
@@ -876,7 +876,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 16;
 				// Case Noraml
-				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 )
+				else if ( this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4 )
 					id_neighbourer = 12;
 			}
 			// Cases first row (no corner)
@@ -886,7 +886,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 1;
 				// Case normal
-				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3)
+				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4)
 					id_neighbourer = 5;
 			}
 			// Cases last row (no corner)
@@ -896,7 +896,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 2;
 				// Case normal
-				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3)
+				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4)
 					id_neighbourer = 6;
 			}
 			// Cases first col (no corner)
@@ -906,7 +906,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 3;
 				// Case normal
-				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3)
+				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4)
 					id_neighbourer = 7;
 			}
 			// Cases last col (no corner)
@@ -916,7 +916,7 @@ public:
 				if(this->boundary[i] == 2)
 					id_neighbourer = 4;
 				// Case normal
-				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3)
+				else if (this->boundary[i] == 0 || this->boundary[i] == -1 || this->boundary[i] == 3 || this->boundary[i] == 4)
 					id_neighbourer = 8;
 			}
 			else
@@ -1133,6 +1133,8 @@ public:
 			return false;
 		else if(this->boundary[i] == 3)
 			return true;
+		else if(this->boundary[i] == 4)
+			return false;
 
 		if(this->can_flow_even_go_there(i))
 			return true;
