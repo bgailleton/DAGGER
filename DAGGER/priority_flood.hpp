@@ -58,7 +58,7 @@ namespace DAGGER
 
 	  for(int i=0; i<connector.nnodes;++i)
 	  {
-	  	if(connector.can_flow_out_there(i))
+	  	if(connector.boundaries.can_out(i))
 	  	{
 	  		open.emplace(PQ_helper<int,double>(i,topography[i]));
 	  		closed[i] = true;
@@ -87,7 +87,7 @@ namespace DAGGER
 	    {
 	      int n = neighbours[j];
 
-	      if(connector.can_flow_even_go_there(n) == false) continue;
+	      if(connector.boundaries.no_data(n) || connector.boundaries.force_giving(n)) continue;
 	      
 	      if(closed[n])
 	        continue;
@@ -134,7 +134,7 @@ namespace DAGGER
 	  for(int i = 0; i<connector.nnodes; ++i)
 	  {
 	  	// if(connector.can_flow_even_go_there(i) && i == graph.Sreceivers[i])
-	  	if(connector.can_flow_out_there(i))
+	  	if(connector.boundaries.can_out(i))
 	  	{
 	  		closed[i] = true; 
 	  		open.emplace(i,topography[i]);

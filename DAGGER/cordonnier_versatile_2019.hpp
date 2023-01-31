@@ -247,7 +247,7 @@ public:
 				// incrementing the basin label
 				++this->nbas;
 				// is it a base level
-				if(connector.can_flow_out_there(node))
+				if(connector.boundaries.can_out(node))
 				{
 					// then it is an open basin
 					this->is_open_basin.emplace_back(true);
@@ -325,11 +325,11 @@ public:
 
 			// The score is the minimum elevation of the pass or the elevation of the outlet if the flow can out a place
 			float_t score;
-			if(connector.can_flow_out_there(links[j]))
+			if(connector.boundaries.can_out(links[j]))
 			{
 				score = topography[links[j]];
 			}
-			else if (connector.can_flow_out_there(links[k]))
+			else if (connector.boundaries.can_out(links[k]))
 			{
 				score = topography[links[k]];
 			}
@@ -517,7 +517,7 @@ public:
 				int bas = this->stack[i];
 				// std::cout << bas << "/" << this->nbas << std::endl;;
 				// HOTFIX TO CHECK!!!!!: || this->is_open_basin[bas] == false, needed when p_nlinkignored is triggered
-				if(connector.can_flow_out_there(this->pitnode[bas]) || this->is_open_basin[bas] == false)
+				if(connector.boundaries.can_out(this->pitnode[bas]) || this->is_open_basin[bas] == false)
 					continue;
 				// std::cout << "A" << std::endl;
 				int from = this->receivers_node[bas].first; 
@@ -558,7 +558,7 @@ public:
 			std::vector<int> basfam(this->nbas,-1);
 			for(int i = 0; i< this->nbas; ++i)
 			{
-				if(connector.can_flow_out_there(this->pitnode[i]))
+				if(connector.boundaries.can_out(this->pitnode[i]))
 					basinDone[i] = true;
 
 				int node = this->stack[i];
@@ -572,7 +572,7 @@ public:
 			for(int i = 0; i < this->nbas; ++i)
 			{
 				int bas = this->stack[i];
-				if(connector.can_flow_out_there(this->pitnode[bas]))
+				if(connector.boundaries.can_out(this->pitnode[bas]))
 					continue;
 
 

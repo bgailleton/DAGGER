@@ -121,38 +121,38 @@ public:
 	template<class tt0>
 	float_t dt(tt0 i)
 	{
-		float tdt = (this->spatially_varying_dt)?this->dts[i]:this->dts[0];
-		if(this->Afdt)
-		{
-			if(this->Qwin[i]>0)
-			{
-				float_t ratio_Q = this->Qwout[i] / this->Qwin[i];
-				tdt = this->k_dt *  tdt / ratio_Q;
-				if(tdt < this->min_dt)
-					tdt = this->min_dt;
-				else if (this->max_dt < tdt)
-					tdt = this->max_dt;
-			}
-			this->saved_dts[i] = tdt;
-			return tdt;
-		}
-		else if(this->spatially_varying_dt)
-			return this->dts[i];
-		else
+		// float tdt = (this->spatially_varying_dt)?this->dts[i]:this->dts[0];
+		// if(this->Afdt)
+		// {
+		// 	if(this->Qwin[i]>0)
+		// 	{
+		// 		float_t ratio_Q = this->Qwout[i] / this->Qwin[i];
+		// 		tdt = this->k_dt *  tdt / ratio_Q;
+		// 		if(tdt < this->min_dt)
+		// 			tdt = this->min_dt;
+		// 		else if (this->max_dt < tdt)
+		// 			tdt = this->max_dt;
+		// 	}
+		// 	this->saved_dts[i] = tdt;
+		// 	return tdt;
+		// }
+		// else if(this->spatially_varying_dt)
+		// 	return this->dts[i];
+		// else
 			return this->dts[0];
 		// return tdt;
 	}
 
 	void set_parting_coeff(float_t tpart){this->parting_coeff = tpart;}
 	void set_out_boundaries_to_permissive(){this->connector->set_out_boundaries_to_permissive();}
-	void set_edges_to_0()
-	{
-		for(int i = 0; i<this->graph->nnodes; ++i)
-		{
-			if(this->connector->can_flow_out_there(i))
-				this->hw[i] = 0;
-		}
-	}
+	// void set_edges_to_0()
+	// {
+	// 	for(int i = 0; i<this->graph->nnodes; ++i)
+	// 	{
+	// 		if(this->connector->can_flow_out_there(i))
+	// 			this->hw[i] = 0;
+	// 	}
+	// }
 	void enable_hflow(){this->hflow = true;}
 	void disable_hflow(){this->hflow = false;}
 	void set_sensibility_to_flowdepth(float_t exp){this->sensibility_to_flowdepth = exp;}
@@ -177,37 +177,38 @@ public:
 
 	void fill_up(float_t tdt)
 	{
-		std::vector<float_t> surf(this->connector->nnodes,0);
+		std::cout << "fill_up is DEPRECATED" << std::endl;
+		// std::vector<float_t> surf(this->connector->nnodes,0);
 
-		// float_t sumgrad_sqrt = 0, sumHW = 0;
+		// // float_t sumgrad_sqrt = 0, sumHW = 0;
 
-		for(int i=0; i< this->connector->nnodes; ++i)
-			surf[i] = this->topography[i] + this->hw[i];
+		// for(int i=0; i< this->connector->nnodes; ++i)
+		// 	surf[i] = this->topography[i] + this->hw[i];
 
+		// // std::vector<float_t> surfpp(surf);
 		// std::vector<float_t> surfpp(surf);
-		std::vector<float_t> surfpp(surf);
-		// std::cout << "DEBUGDEBUGA11" << std::endl;
-		(*this->graph)._compute_graph(surfpp, *(this->connector), true, true);
-		// py::array temp  = this->graph->compute_graph<Connector_t, std::vector<double> , py::array>(depression_solver, surfpp, *(this->connector), true, true);
-		// std::cout << "DEBUGDEBUGA2" << std::endl;
-		// float_t totaddedbystuff = 0;
-		int n_pixel_filled = 0;
-		for(int i=this->connector->nnodes-1; i>=0; --i)
-		{
+		// // std::cout << "DEBUGDEBUGA11" << std::endl;
+		// (*this->graph)._compute_graph(surfpp, *(this->connector), true, true);
+		// // py::array temp  = this->graph->compute_graph<Connector_t, std::vector<double> , py::array>(depression_solver, surfpp, *(this->connector), true, true);
+		// // std::cout << "DEBUGDEBUGA2" << std::endl;
+		// // float_t totaddedbystuff = 0;
+		// int n_pixel_filled = 0;
+		// for(int i=this->connector->nnodes-1; i>=0; --i)
+		// {
 
-			if(surfpp[i] > surf[i])
-			{
-				this->hw[i] += surfpp[i] - surf[i];
-				n_pixel_filled++;
-				// totaddedbystuff += surfpp[i] - surf[i];
-			}
+		// 	if(surfpp[i] > surf[i])
+		// 	{
+		// 		this->hw[i] += surfpp[i] - surf[i];
+		// 		n_pixel_filled++;
+		// 		// totaddedbystuff += surfpp[i] - surf[i];
+		// 	}
 
-		}
-
+		// }
 
 
-		if(this->REPORT_N_PIXEL_FILLED)
-			std:: cout << n_pixel_filled << "where filled" << std::endl;
+
+		// if(this->REPORT_N_PIXEL_FILLED)
+		// 	std:: cout << n_pixel_filled << "where filled" << std::endl;
 
 	}
 
@@ -305,7 +306,7 @@ public:
 			}
 			// sumgrad_sqrt += std::sqrt(gradients[i]);
 
-			if(this->connector->is_active(i))
+			if(this->graph->flow_out_or_pit(i) == false)
 			{
 				float_t thw = (this->hflow)? this->get_hflow_from_nodes(i,rec): this->hw[i];
 
@@ -333,150 +334,151 @@ public:
 	void run_MFD()
 	{
 
-		this->rec.init_water();
+		std::cout << "run_MFD is temporarily unavailable " << std::endl;
+		// this->rec.init_water();
 
-		// timer, to ignore
-		DAGGER::ocarina link;
-		link.tik();
+		// // timer, to ignore
+		// DAGGER::ocarina link;
+		// link.tik();
 
-		// The surface (Hw + topo)
-		std::vector<float_t> surf(this->connector->nnodes,0);
-		for(int i=0; i< this->connector->nnodes; ++i)
-			surf[i] = this->topography[i] + this->hw[i];
-		// link.tok("surfcalc");
+		// // The surface (Hw + topo)
+		// std::vector<float_t> surf(this->connector->nnodes,0);
+		// for(int i=0; i< this->connector->nnodes; ++i)
+		// 	surf[i] = this->topography[i] + this->hw[i];
+		// // link.tok("surfcalc");
 		
 
-		// Filling the surface (filling local minimas)
-		link.tik();
-		std::vector<float_t> surfpp(surf);
-		(*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
-		// link.tok("graph");
+		// // Filling the surface (filling local minimas)
+		// link.tik();
+		// std::vector<float_t> surfpp(surf);
+		// (*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
+		// // link.tok("graph");
 
 
-		// applying the filling to the water height
-		link.tik();
-		int n_pixel_filled = 0;
-		for(int i=0; i<this->connector->nnodes; ++i)
-		{
-			if(surfpp[i] > surf[i])
-			{
-				this->hw[i] += surfpp[i] - surf[i];
-				// Tracking the number of pixel filled as one indicator for stability
-				n_pixel_filled++;
-			}
-		}
-		if(this->REPORT_N_PIXEL_FILLED)
-			std:: cout << n_pixel_filled << "where filled" << std::endl;
+		// // applying the filling to the water height
+		// link.tik();
+		// int n_pixel_filled = 0;
+		// for(int i=0; i<this->connector->nnodes; ++i)
+		// {
+		// 	if(surfpp[i] > surf[i])
+		// 	{
+		// 		this->hw[i] += surfpp[i] - surf[i];
+		// 		// Tracking the number of pixel filled as one indicator for stability
+		// 		n_pixel_filled++;
+		// 	}
+		// }
+		// if(this->REPORT_N_PIXEL_FILLED)
+		// 	std:: cout << n_pixel_filled << "where filled" << std::endl;
 
 
-		// reinitialising the Qw in and out
-		for(auto& v: this->Qwin)
-			v=0;
-		for(auto& v: this->Qwout)
-			v=0;
+		// // reinitialising the Qw in and out
+		// for(auto& v: this->Qwin)
+		// 	v=0;
+		// for(auto& v: this->Qwout)
+		// 	v=0;
 
 
-		// Getting things ready for the main loop
-		//# allocating the vector fetching the neighbours
-		auto reclink = this->connector->get_empty_neighbour();
-		//# allocating the local vector storing sqrt of the gradient
-		std::vector<float_t> sqrtgrads(reclink.size(),0);
-		//# iterating through all the nodes
-		for(int i = this->graph->nnodes-1; i>=0; --i)
-		{
-			//## Current node
-			int node = this->graph->stack[i];
+		// // Getting things ready for the main loop
+		// //# allocating the vector fetching the neighbours
+		// auto reclink = this->connector->get_empty_neighbour();
+		// //# allocating the local vector storing sqrt of the gradient
+		// std::vector<float_t> sqrtgrads(reclink.size(),0);
+		// //# iterating through all the nodes
+		// for(int i = this->graph->nnodes-1; i>=0; --i)
+		// {
+		// 	//## Current node
+		// 	int node = this->graph->stack[i];
 	
-			//## is the node active?
-			if(this->graph->is_active(node, *this->connector) == false)
-				continue;
+		// 	//## is the node active?
+		// 	if(!this->graph->flow_out_model(node, *this->connector) == false)
+		// 		continue;
 
-			//## getting the receiver links (all where heaviside is 1)
-			int nn = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+		// 	//## getting the receiver links (all where heaviside is 1)
+		// 	int nn = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
 			
-			//## Accumulating local discharge
-			this->Qwin[node] += this->Qbase[node];
+		// 	//## Accumulating local discharge
+		// 	this->Qwin[node] += this->Qbase[node];
 
-			//## (Rare) no receivers?? then I skip
-			if(nn == 0)
-			{
-				continue;
-			}
+		// 	//## (Rare) no receivers?? then I skip
+		// 	if(nn == 0)
+		// 	{
+		// 		continue;
+		// 	}
 
-			//## bunch of temporary variables to accumulate factors, reuse characteristics and determine max slope
-			float_t maxgrad_sqrt = 0, sumgrad_sqrt = 0, facgrad = 0, cellarea = this->connector->get_area_at_node(i);
+		// 	//## bunch of temporary variables to accumulate factors, reuse characteristics and determine max slope
+		// 	float_t maxgrad_sqrt = 0, sumgrad_sqrt = 0, facgrad = 0, cellarea = this->connector->get_area_at_node(i);
 			
-			//## iterating through neighbours
-			for(int ttl = 0; ttl<nn; ++ttl)
-			{
-				//### neighbouring link id
-				int li = reclink[ttl];
+		// 	//## iterating through neighbours
+		// 	for(int ttl = 0; ttl<nn; ++ttl)
+		// 	{
+		// 		//### neighbouring link id
+		// 		int li = reclink[ttl];
 
-				//### Not valid 4 some reasons? skip
-				if(this->graph->is_link_valid(li) == false)
-					continue;
+		// 		//### Not valid 4 some reasons? skip
+		// 		if(this->graph->is_link_valid(li) == false)
+		// 			continue;
 
-				//### local dx
-				float_t dx = this->connector->get_dx_from_links_idx(li);
+		// 		//### local dx
+		// 		float_t dx = this->connector->get_dx_from_links_idx(li);
 				
-				//### receiving node
-				int to = this->graph->get_to_links(li);
+		// 		//### receiving node
+		// 		int to = this->graph->get_to_links(li);
 
-				//### local gradient, set to a numrically unsignificant minimum
-				float_t tgrad = (surfpp[node] - surfpp[to]) / dx;
-				tgrad = std::max(tgrad,1e-8);
-				//### its squareroot
-				float_t tsqrt = std::sqrt(tgrad);
-				//### Storing local slope to the power needed
-				sqrtgrads[ttl] = (parting_coeff == 0.5)?tsqrt:std::pow(tgrad, this->parting_coeff);
-				sqrtgrads[ttl] *= 1 - this->randu.get() * this->stochaslope;
-				//### SUmming the slope to the power needed
-				sumgrad_sqrt += sqrtgrads[ttl];
-				//### accumulating the equation factor
-				if(this->hflow)
-				{
+		// 		//### local gradient, set to a numrically unsignificant minimum
+		// 		float_t tgrad = (surfpp[node] - surfpp[to]) / dx;
+		// 		tgrad = std::max(tgrad,1e-8);
+		// 		//### its squareroot
+		// 		float_t tsqrt = std::sqrt(tgrad);
+		// 		//### Storing local slope to the power needed
+		// 		sqrtgrads[ttl] = (parting_coeff == 0.5)?tsqrt:std::pow(tgrad, this->parting_coeff);
+		// 		sqrtgrads[ttl] *= 1 - this->randu.get() * this->stochaslope;
+		// 		//### SUmming the slope to the power needed
+		// 		sumgrad_sqrt += sqrtgrads[ttl];
+		// 		//### accumulating the equation factor
+		// 		if(this->hflow)
+		// 		{
 
-					facgrad += std::pow(this->get_hflow_at_link(reclink[ttl]), FIVETHIRD) * tgrad/dx;
-				}
-				else
-					facgrad += tgrad/dx;
+		// 			facgrad += std::pow(this->get_hflow_at_link(reclink[ttl]), FIVETHIRD) * tgrad/dx;
+		// 		}
+		// 		else
+		// 			facgrad += tgrad/dx;
 
-				//### Saving the max sqrt slope
-				if(tsqrt > maxgrad_sqrt)
-					maxgrad_sqrt = tsqrt;
-			}
+		// 		//### Saving the max sqrt slope
+		// 		if(tsqrt > maxgrad_sqrt)
+		// 			maxgrad_sqrt = tsqrt;
+		// 	}
 
-			//## Parting the Qin to the receivers
-			//## Going through neighbours
-			for(int ttl = 0; ttl<nn; ++ttl)
-			{
-				///### Getting the link id
-				int li = reclink[ttl];
-				if(this->graph->is_link_valid(li) == false)
-					continue;
-				///### the other node
-				int to = this->graph->get_to_links(li);
-				///### partitioning proportional to the slope to the power this->parting_coeff
-				this->Qwin[to] += sqrtgrads[ttl]/sumgrad_sqrt * this->Qwin[node];
-			}
+		// 	//## Parting the Qin to the receivers
+		// 	//## Going through neighbours
+		// 	for(int ttl = 0; ttl<nn; ++ttl)
+		// 	{
+		// 		///### Getting the link id
+		// 		int li = reclink[ttl];
+		// 		if(this->graph->is_link_valid(li) == false)
+		// 			continue;
+		// 		///### the other node
+		// 		int to = this->graph->get_to_links(li);
+		// 		///### partitioning proportional to the slope to the power this->parting_coeff
+		// 		this->Qwin[to] += sqrtgrads[ttl]/sumgrad_sqrt * this->Qwin[node];
+		// 	}
 		
-			//## Finally calculating Qout
-			if(this->hflow)
-				this->Qwout[node] = this->topological_number * facgrad/maxgrad_sqrt * cellarea/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
-			else
-				this->Qwout[node] = this->topological_number * facgrad/maxgrad_sqrt * std::pow(this->hw[node],FIVETHIRD) * cellarea/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+		// 	//## Finally calculating Qout
+		// 	if(this->hflow)
+		// 		this->Qwout[node] = this->topological_number * facgrad/maxgrad_sqrt * cellarea/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+		// 	else
+		// 		this->Qwout[node] = this->topological_number * facgrad/maxgrad_sqrt * std::pow(this->hw[node],FIVETHIRD) * cellarea/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
 
-			//## Divergence of Q to apply changes to water height
-			float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt(node) / this->connector->get_area_at_node(node);
-			if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
-			this->hw[node] += tdhw;
+		// 	//## Divergence of Q to apply changes to water height
+		// 	float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt(node) / this->connector->get_area_at_node(node);
+		// 	if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
+		// 	this->hw[node] += tdhw;
 
-			//## water height cannot be 0
-			if(this->hw[node] < 0) this->hw[node] = 0;
+		// 	//## water height cannot be 0
+		// 	if(this->hw[node] < 0) this->hw[node] = 0;
 		
-		}// end of the loop
+		// }// end of the loop
 
-		this->manage_hydrology_at_BC();
+		// this->manage_hydrology_at_BC();
 
 
 		// Done
@@ -538,7 +540,7 @@ public:
 			int node = this->graph->stack[i];
 	
 			//## is the node active?
-			if(this->graph->is_active(node, *this->connector) == false)
+			if(!this->graph->flow_out_model(node, *this->connector) == false)
 				continue;
 
 			//## getting the receiver links (all where heaviside is 1)
@@ -626,7 +628,7 @@ public:
 		auto neighbours = this->connector->get_empty_neighbour();
 		for(int i = 0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i) == false)
+			if(!this->graph->flow_out_model(i,*this->connector) == false)
 			{
 				// throw std::runtime_error("BITE");
 				int nn = this->connector->get_neighbour_idx(i,neighbours);
@@ -709,7 +711,7 @@ public:
 				int node = this->graph->stack[i];
 			// std::cout << "DEBUGDEBUGA42" << std::endl;
 				
-				if(this->connector->is_active(node) == false)
+				if(!this->graph->flow_out_model(node,*this->connector) == false)
 					continue;
 
 				int nn = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
@@ -797,7 +799,7 @@ public:
 
 		for(int i=0; i< this->connector->nnodes; ++i)
 		{
-			if(this->graph->is_active(i, *this->connector))
+			if(!this->graph->flow_out_model(i, *this->connector))
 			{
 				w_eff[i] = A[i]/a_eff[i];
 			}
@@ -832,7 +834,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes;++i)
 		{
-			if(this->graph->is_active(i, *this->connector))
+			if(!this->graph->flow_out_model(i, *this->connector))
 			{
 				a_eff[i] = (std::pow(this->hw[i],FIVETHIRD) * std::sqrt(S_h[i]))/(this->mannings*prec);
 			}
@@ -863,7 +865,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes;++i)
 		{
-			if(this->graph->is_active(i, *this->connector))
+			if(!this->graph->flow_out_model(i, *this->connector))
 			{
 				int rec = this->graph->Sreceivers[i];
 				float_t dx = this->graph->Sdistance2receivers[i];
@@ -953,7 +955,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(!this->graph->flow_out_model(i,*this->connector))
 			{
 				this->hw[i] += (dhw[i])/this->connector->get_area_at_node(i);
 				if (this->hw[i] < 0)
@@ -963,7 +965,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(!this->graph->flow_out_model(i,*this->connector))
 				this->hw[i] += (this->Qbase[i] * tdt)/this->connector->get_area_at_node(i);
 		}
 
@@ -1028,7 +1030,7 @@ public:
 	{
 		for(int i=0; i< this->connector->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(this->graph->flow_out_model(i, *this->connector) == false)
 				this->hw[i] += val;
 		}
 	}
@@ -1105,7 +1107,7 @@ public:
 			int node = this->graph->Sstack[i];
 			
 			// if node is inactive or there is no water -> skip
-			if(this->graph->is_active(node, *this->connector) == false || this->hw[node] <= 0)
+			if(!this->graph->flow_out_model(node, *this->connector) == false || this->hw[node] <= 0)
 				continue;
 
 			// Receiver node
@@ -1323,7 +1325,7 @@ public:
 		// {
 
 		// 	int node = this->graph->stack[i];
-		// 	if(this->graph->is_active(node,*this->connector) == false) continue;
+		// 	if(!this->graph->flow_out_model(node,*this->connector) == false) continue;
 
 		// 	if(this->hw[i] == 0) continue;
 
@@ -1432,7 +1434,7 @@ public:
 		// std::vector<int> dodons = this->connector->get_empty_neighbour();
 		// for(int i=0; i<this->graph->nnodes;++i)
 		// {
-		// 	if(this->graph->is_active(i,*this->connector) == false)
+		// 	if(!this->graph->flow_out_model(i,*this->connector) == false)
 		// 	{
 		// 		this->graph->get_donors_idx(i, *this->connector, dodons);
 		// 		for(auto dono:dodons)
@@ -1482,7 +1484,7 @@ public:
 			int node = this->graph->stack[i];
 
 			// If the current node is not active: ignore
-			if(this->graph->is_active(node,*this->connector) == false) continue;
+			if(!this->graph->flow_out_model(node,*this->connector) == false) continue;
 
 			// No water? no flow
 			if(this->hw[i] == 0) continue;
@@ -1499,7 +1501,7 @@ public:
 				int lix = reclink[j];
 				//#getting the slope and casting it to a minimum numeraicla value
 				float_t tsw = std::max(this->get_Sw_at_link(lix), 1e-6);
-				if(this->graph->is_active(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
+				if(!this->graph->flow_out_model(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
 				recslope[j] = tsw;
 
 				//# Registering and summing the slopes
@@ -1584,7 +1586,7 @@ public:
 
 					if(orthonodes.first >= 0)
 					{
-						if(this->graph->is_active(orthonodes.first,*this->connector))
+						if(!this->graph->flow_out_model(orthonodes.first,*this->connector))
 						{
 							if(this->topography[orthonodes.first] > this->topography[node] && crit)
 							{
@@ -1599,7 +1601,7 @@ public:
 					
 					if(orthonodes.second >= 0)
 					{
-						if(this->graph->is_active(orthonodes.second,*this->connector))
+						if(!this->graph->flow_out_model(orthonodes.second,*this->connector))
 						{
 							if(this->topography[orthonodes.second] > this->topography[node] && crit)
 							{
@@ -1718,425 +1720,439 @@ public:
 	}
 
 
-	void run_MFD_static(float_t ke, float_t aexp, float_t tau_c, float_t transport_length, float_t ke_lat, float_t kd_lat, bool erosion)
+	void run_MFD_static(float_t ke, float_t aexp, float_t tau_c, float_t transport_length, float_t ke_lat, float_t kd_lat, float_t dt_hydro, int n_erosion, float_t dt_erosion, bool stochastic_slope)
 	{
-
-		// Reinit the sediment fluxes
-		this->init_erosion();
-		if(erosion)
-			this->rec.init_geo();
-		this->rec.init_water();
-
-		// This vector records and apply the vertical motions at the end of the time step
-		// THis reduce the stochasticity but ensure consistency in the sediment flux
-		std::vector<float_t>vmot(this->connector->nnodes,0.);
-
-		// Getting the filled topo and processing the graph in MFD (only_SS = false)
-		this->graph_automator(false);
-
-
-		// reinitialising the Qw in and out
-		for(auto& v: this->Qwin)
-			v=0;
-		for(auto& v: this->Qwout)
-			v=0;
-
-		// pre-caching the receivers links
-		std::vector<int> reclink = this->connector->get_empty_neighbour();
-		// pre-caching the receivers weights
-		std::vector<float> recweight(reclink.size(),0.);
-		// pre-caching the receivers slopes
-		std::vector<float> recslope(reclink.size(),0.);
-
-		// debugging variables recording the factors regulating sediment fluxes
-		float_t max_fac = 0;
-		float_t min_fac = 1;
-
-
-		// MAIN LOOP
-		for(int i = this->graph->nnodes-1; i>=0; --i)
+		bool erosion = false;
+		this->stochaslope = 0;
+		for(int nit = 1; nit<=n_erosion;++nit)
 		{
-			// Getting ht enext upstreamest non processed node
-			int node = this->graph->stack[i];
 
-			// If the current node is not active: ignore
-			if(this->graph->is_active(node,*this->connector) == false) continue;
-
-			// No water? no flow
-			// if(this->hw[i] == 0) continue;
-
-			// getting the receiving links
-			int nr = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
-
-			//## (Rare) no receivers?? then I skip
-			if(nr == 0)
+			if(nit==n_erosion)
 			{
-				continue;
+				if(stochastic_slope)	this->stochaslope = 1.;
+				erosion = true;
 			}
 
-			//## Accumulating local discharge
-			this->Qwin[node] += this->Qbase[node];
+			// Reinit the sediment fluxes
+			this->init_erosion();
+			if(erosion)
+				this->rec.init_geo();
+			this->rec.init_water();
 
-			bool is_to_boundary = false;
-			for(int j = 0; j< nr; ++j)
+			// This vector records and apply the vertical motions at the end of the time step
+			// THis reduce the stochasticity but ensure consistency in the sediment flux
+			std::vector<float_t>vmot(this->connector->nnodes,0.);
+
+			// Getting the filled topo and processing the graph in MFD (only_SS = false)
+			this->graph_automator(false);
+
+
+			// reinitialising the Qw in and out
+			for(auto& v: this->Qwin)
+				v=0;
+			for(auto& v: this->Qwout)
+				v=0;
+
+			// pre-caching the receivers links
+			std::vector<int> reclink = this->connector->get_empty_neighbour();
+			// pre-caching the receivers weights
+			std::vector<float> recweight(reclink.size(),0.);
+			// pre-caching the receivers slopes
+			std::vector<float> recslope(reclink.size(),0.);
+
+			// debugging variables recording the factors regulating sediment fluxes
+			float_t max_fac = 0;
+			float_t min_fac = 1;
+
+
+			// MAIN LOOP
+			for(int i = this->graph->nnodes-1; i>=0; --i)
 			{
-				int to = this->graph->get_to_links(reclink[j]);
-				if(!this->graph->is_active(to,*this->connector) && this->connector->boundary[to] != 3)
-					is_to_boundary = true;
-			}
+				// Getting ht enext upstreamest non processed node
+				int node = this->graph->stack[i];
 
-			if(is_to_boundary)
-			{
-				int nj = 0;
-				for(int j = 0; j< nr; ++j)
-				{
-					int to = this->graph->get_to_links(reclink[j]);
+				// If the current node is not active: ignore
+				if(this->graph->flow_out_or_pit(node,*this->connector)) continue;
 
-					if(this->graph->is_active(this->graph->get_to_links(reclink[j]),*this->connector)  && this->connector->boundary[to] != 3)
-					{
-						reclink[nj] = reclink[j];
-						++nj;
-					}
-					
-				}
-				nr = nj;
+				// No water? no flow
+				// if(this->hw[i] == 0) continue;
+
+				// getting the receiving links
+				int nr = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+
 				//## (Rare) no receivers?? then I skip
 				if(nr == 0)
 				{
 					continue;
 				}
 
-			}
+				//## Accumulating local discharge
+				this->Qwin[node] += this->Qbase[node];
 
-
-			// First calculating the weights and slope
-			// # sumslopes sums the real slopes and wsumslopes is the weighted equivalent (the parting coeff is not always one)
-			float_t wsumslopes = 0., sumslopes = 0., maxslope = 0.;
-			for(int j = 0; j<nr; ++j)
-			{
-
-				//#getting the link ID
-				int lix = reclink[j];
-
-				if(this->graph->is_link_valid(lix) == false)
-					continue;
-
-				//#getting the slope and casting it to a minimum numeraicla value
-				float_t tsw = (is_to_boundary)? this->boundary_slope : std::max(this->get_Sw_at_link(lix), 1e-6);
-
-				// float_t tsw = std::max(this->get_Sw_at_link_custom_dx(lix, this->connector->dx), 1e-6);
-				// if(this->graph->is_active(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
-
-				recslope[j] = tsw;
-
-				if(tsw > maxslope) maxslope = tsw;
-
-				//# Registering and summing the slopes
-				float_t weisw = (this->parting_coeff == 1) ? tsw : std::pow(tsw,parting_coeff);
-
-				if(this->stochaslope >=0) weisw *= this->randu.get() * this->stochaslope + 1e-6;
-
-				wsumslopes += weisw;
-				recweight[j] = weisw;
-				sumslopes += tsw;
-			}
-
-			// normalising weights
-			float_t sumsum = 0;
-			for(int j = 0; j<nr; ++j)
-			{
-				if(this->graph->is_link_valid(reclink[j]) == false)
-					continue;
-				recweight[j] = recweight[j]/wsumslopes;
-				sumsum += recweight[j];
-			}
-
-
-
-			// Dealing with the divergence of sediments
-			this->Qsout[node] = this->Qsin[node];
-
-			float_t cA = this->connector->get_area_at_node(node);
-			float_t facgrad = 0;
-
-			for(int j=0; j<nr;++j)
-			{
-				//### Not valid 4 some reasons? skip
-				if(this->graph->is_link_valid(reclink[j]) == false)
-					continue;
-
-				int to = this->graph->get_to_links(reclink[j]);
-
-				// bool is_to_boundary = !this->graph->is_active(to,*this->connector);
-
-
-				float_t tdl = this->connector->get_traverse_dx_from_links_idx(reclink[j]);
-
-				float_t tdx = (is_to_boundary)? this->connector->dx : this->connector->get_dx_from_links_idx(reclink[j]);
-				// float_t tdx = this->connector->dx;
-
-
-				// float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
-				float_t tQin = this->Qsin[node] * recweight[j];
-
-				float_t thflow = this->get_hflow_at_link(reclink[j]);
-
-
-				//### accumulating the equation factor
-				if(this->hflow)
-				{
-					facgrad += std::pow(this->get_hflow_at_link(reclink[j]), FIVETHIRD) * recslope[j]/tdx;
-				}
-				else
-					facgrad += recslope[j]/tdx;
-
-				this->Qwin[to] += this->Qwin[node] * recweight[j];
-
-
-				// // EXPERIMENTAL!!!!!!!!!!
-				float_t regulator = 1.;
-				// if(thflow < this->hw[node])
+				// SECTION OF THE CODE MANAGING WHO GIVES TO THE BOUNDARY
+				// bool is_to_boundary = false;
+				// for(int j = 0; j< nr; ++j)
 				// {
-				// 	regulator=std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth);
-				// 	// throw std::runtime_error("exp RAN");	
-				// 	tau = tau * regulator;
-				// 	// if(std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth) > 1)
-				// 	// 	throw std::runtime_error("!");
+				// 	int to = this->graph->get_to_links(reclink[j]);
+				// 	if(!this->graph->flow_out_or_pit(to,*this->connector) && this->connector->boundary[to] != 3)
+				// 		is_to_boundary = true;
 				// }
 
-				// first deposition:
-				// float_t d_dot = (regulator>0) ? recweight[j]/regulator * tQin/(tdl * transport_length):tQin/cA;
+				// if(is_to_boundary)
+				// {
+				// 	int nj = 0;
+				// 	for(int j = 0; j< nr; ++j)
+				// 	{
+				// 		int to = this->graph->get_to_links(reclink[j]);
 
-				// if(thflow < this->hw[i]/2) tau * thflow/this
+				// 		if(!this->graph->flow_out_model(this->graph->get_to_links(reclink[j]),*this->connector)  && this->connector->boundary[to] != 3)
+				// 		{
+				// 			reclink[nj] = reclink[j];
+				// 			++nj;
+				// 		}
+						
+				// 	}
+				// 	nr = nj;
+				// 	//## (Rare) no receivers?? then I skip
+				// 	if(nr == 0)
+				// 	{
+				// 		continue;
+				// 	}
+
+				// }
 
 
-				if(erosion && this->hw[node] > 0)
+				// First calculating the weights and slope
+				// # sumslopes sums the real slopes and wsumslopes is the weighted equivalent (the parting coeff is not always one)
+				float_t wsumslopes = 0., sumslopes = 0., maxslope = 0.;
+				for(int j = 0; j<nr; ++j)
 				{
 
-					float_t thw = (this->hflow)?thflow:this->hw[node];
+					//#getting the link ID
+					int lix = reclink[j];
 
-					// float_t tau = RHO * GRAVITY * thw * recslope[j] * recweight[j];
-					float_t tau = RHO * GRAVITY * thw * recslope[j];
+					if(this->graph->is_link_valid(lix) == false)
+						continue;
 
-					// if(tau > 80)
-						// std::cout << "RHO::" << RHO << " | " << "GRAVITY::" << GRAVITY << " | " << "thw::" << thw << " | " << "recslope[j]::" << recslope[j] << " | " << std::endl;
+					//#getting the slope and casting it to a minimum numeraicla value
+					// float_t tsw = (is_to_boundary)? this->boundary_slope : std::max(this->get_Sw_at_link(lix), 1e-6);
+					float_t tsw = std::max(this->get_Sw_at_link(lix), 1e-6);
 
-					float_t d_dot = tQin/(transport_length);
+					// float_t tsw = std::max(this->get_Sw_at_link_custom_dx(lix, this->connector->dx), 1e-6);
+					// if(!this->graph->flow_out_model(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
+
+					recslope[j] = tsw;
+
+					if(tsw > maxslope) maxslope = tsw;
+
+					//# Registering and summing the slopes
+					float_t weisw = (this->parting_coeff == 1) ? tsw : std::pow(tsw,parting_coeff);
+
+					if(this->stochaslope > 0) weisw *= this->randu.get() + 1e-6;
+
+					wsumslopes += weisw;
+					recweight[j] = weisw;
+					sumslopes += tsw;
+				}
+
+				// normalising weights
+				float_t sumsum = 0;
+				for(int j = 0; j<nr; ++j)
+				{
+					if(this->graph->is_link_valid(reclink[j]) == false)
+						continue;
+					recweight[j] = recweight[j]/wsumslopes;
+					sumsum += recweight[j];
+				}
 
 
-					if(this->rec.tau2record) {this->rec.tau[node] += tau * recweight[j];}
-					
-					float_t edot = 0.;
 
-					float_t latedotA = 0;
-					float_t latddotA = 0;
-					float_t latedotB = 0;
-					float_t latddotB = 0;
+				// Dealing with the divergence of sediments
+				this->Qsout[node] = this->Qsin[node];
 
-					auto orthonodes = this->connector->get_orthogonal_nodes(node, to);					
-					
-					bool crit = tau > tau_c;
-					
-					if(crit) edot = ke * std::pow(tau - tau_c,aexp);
-					// if(crit) edot = ke * std::pow(tau - tau_c,aexp) * recweight[j];
+				float_t cA = this->connector->get_area_at_node(node);
+				float_t facgrad = 0;
+
+				for(int j=0; j<nr;++j)
+				{
+					//### Not valid 4 some reasons? skip
+					if(this->graph->is_link_valid(reclink[j]) == false)
+						continue;
+
+					int to = this->graph->get_to_links(reclink[j]);
+
+					// bool is_to_boundary = !!this->graph->flow_out_model(to,*this->connector);
 
 
+					float_t tdl = this->connector->get_traverse_dx_from_links_idx(reclink[j]);
 
-					if(orthonodes.first >= 0)
+					float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
+					// float_t tdx = (is_to_boundary)? this->connector->dx : this->connector->get_dx_from_links_idx(reclink[j]);
+					// float_t tdx = this->connector->dx;
+
+
+					// float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
+					float_t tQin = this->Qsin[node] * recweight[j];
+
+					float_t thflow = this->get_hflow_at_link(reclink[j]);
+
+
+					//### accumulating the equation factor
+					if(this->hflow)
 					{
-						if(this->graph->is_active(orthonodes.first,*this->connector))
+						facgrad += std::pow(this->get_hflow_at_link(reclink[j]), FIVETHIRD) * recslope[j]/tdx;
+					}
+					else
+						facgrad += recslope[j]/tdx;
+
+					this->Qwin[to] += this->Qwin[node] * recweight[j];
+
+
+					// // EXPERIMENTAL!!!!!!!!!!
+					float_t regulator = 1.;
+					// if(thflow < this->hw[node])
+					// {
+					// 	regulator=std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth);
+					// 	// throw std::runtime_error("exp RAN");	
+					// 	tau = tau * regulator;
+					// 	// if(std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth) > 1)
+					// 	// 	throw std::runtime_error("!");
+					// }
+
+					// first deposition:
+					// float_t d_dot = (regulator>0) ? recweight[j]/regulator * tQin/(tdl * transport_length):tQin/cA;
+
+					// if(thflow < this->hw[i]/2) tau * thflow/this
+
+
+					if(erosion && this->hw[node] > 0)
+					{
+
+						float_t thw = (this->hflow)?thflow:this->hw[node];
+
+						// float_t tau = RHO * GRAVITY * thw * recslope[j] * recweight[j];
+						float_t tau = RHO * GRAVITY * thw * recslope[j];
+
+						// if(tau > 80)
+							// std::cout << "RHO::" << RHO << " | " << "GRAVITY::" << GRAVITY << " | " << "thw::" << thw << " | " << "recslope[j]::" << recslope[j] << " | " << std::endl;
+
+						float_t d_dot = tQin/(transport_length);
+
+
+						if(this->rec.tau2record) {this->rec.tau[node] += tau * recweight[j];}
+						
+						float_t edot = 0.;
+
+						float_t latedotA = 0;
+						float_t latddotA = 0;
+						float_t latedotB = 0;
+						float_t latddotB = 0;
+
+						auto orthonodes = this->connector->get_orthogonal_nodes(node, to);					
+						
+						bool crit = tau > tau_c;
+						
+						if(crit) edot = ke * std::pow(tau - tau_c,aexp);
+						// if(crit) edot = ke * std::pow(tau - tau_c,aexp) * recweight[j];
+
+
+
+						if(orthonodes.first >= 0)
 						{
-							if(this->topography[orthonodes.first] > this->topography[node] && crit)
+							if(this->graph->flow_out_model(orthonodes.first,*this->connector) == false)
 							{
-								latedotA = regulator * (this->topography[orthonodes.first] - this->topography[node])/tdl * edot * ke_lat;
-							}
-							else if(tQin > 0 && kd_lat > 0)
-							{
-								latddotA = ((this->topography[node] - this->topography[orthonodes.first])/tdl) * kd_lat* d_dot ;
+								if(this->topography[orthonodes.first] > this->topography[node] && crit)
+								{
+									latedotA = regulator * (this->topography[orthonodes.first] - this->topography[node])/tdl * edot * ke_lat;
+								}
+								else if(tQin > 0 && kd_lat > 0)
+								{
+									latddotA = ((this->topography[node] - this->topography[orthonodes.first])/tdl) * kd_lat* d_dot ;
+								}
 							}
 						}
-					}
-					
-					if(orthonodes.second >= 0)
-					{
-						if(this->graph->is_active(orthonodes.second,*this->connector))
+						
+						if(orthonodes.second >= 0)
 						{
-							if(this->topography[orthonodes.second] > this->topography[node] && crit)
+							if(this->graph->flow_out_model(orthonodes.second,*this->connector) == false)
 							{
-								latedotB = regulator * (this->topography[orthonodes.second] - this->topography[node])/tdl * edot * ke_lat;
-							}
-							else if(tQin > 0 && kd_lat > 0)
-							{
-								latddotB = ((this->topography[node] - this->topography[orthonodes.second])/tdl) * kd_lat* d_dot ; ;
+								if(this->topography[orthonodes.second] > this->topography[node] && crit)
+								{
+									latedotB = regulator * (this->topography[orthonodes.second] - this->topography[node])/tdl * edot * ke_lat;
+								}
+								else if(tQin > 0 && kd_lat > 0)
+								{
+									latddotB = ((this->topography[node] - this->topography[orthonodes.second])/tdl) * kd_lat* d_dot ; ;
+								}
 							}
 						}
+
+						float_t fac = 1.;
+						// float endQ = tQin/cA + edot + latedotA + latedotB - d_dot - latddotA - latddotB;
+						// if(endQ < 0 && (abs(endQ) + tQin/cA) > 0) fac = tQin/(cA * abs(endQ) + tQin);
+						float_t endQ = (d_dot + latddotA + latddotB) * tdx;
+						if(endQ > tQin) fac = tQin/endQ;
+
+						d_dot *= fac;
+						latddotA *= fac;
+						latddotB *= fac;
+
+						bool quit = false;
+
+						if(std::isfinite(fac) == false)
+						{
+							std::cout << "fac" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(edot) == false)
+						{
+							std::cout << "edot" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(tQin) == false)
+						{
+							std::cout << "tQin" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(d_dot) == false)
+						{
+							std::cout << "d_dot" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(latedotA) == false)
+						{
+							std::cout << "latedotA" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(latedotB) == false)
+						{
+							std::cout << "latedotB" << std::endl;
+							quit = true;
+						}
+						if(quit)
+						{
+							std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
+							throw std::runtime_error("non finite erosion");
+						}
+
+						if(max_fac< fac) max_fac = fac;
+						if(min_fac>fac) min_fac = fac;
+
+						vmot[node] -= (edot - d_dot) * dt_erosion;
+						if(orthonodes.first >= 0)	vmot[orthonodes.first] -= (latedotA - latddotA) * dt_erosion;
+						if(orthonodes.second >= 0)	vmot[orthonodes.second] -= (latedotB - latddotB) * dt_erosion;
+
+						if(std::isfinite((edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin) == false)
+						{
+							std::cout << fac * (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin << std::endl;
+							std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
+							throw std::runtime_error("nonfinitestuff");
+						}
+
+						this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
+						if(this->Qsin[to] < 0) this->Qsin[to] = 0;
+
+
+						if(this->rec.edot2record) this->rec.edot[node] += edot;
+						if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;
+						if(this->rec.lateral_edot2record && orthonodes.first >=0) {this->rec.lateral_edot[orthonodes.first] += latedotA;}
+						if(this->rec.lateral_edot2record && orthonodes.second >=0) {this->rec.lateral_edot[orthonodes.second] += latedotB;}
+						if(this->rec.lateral_ddot2record && orthonodes.first >=0) {this->rec.lateral_ddot[orthonodes.first] += latddotA;}
+						if(this->rec.lateral_ddot2record && orthonodes.second >=0) {this->rec.lateral_ddot[orthonodes.second] += latddotB;}
+
 					}
-
-					float_t fac = 1.;
-					// float endQ = tQin/cA + edot + latedotA + latedotB - d_dot - latddotA - latddotB;
-					// if(endQ < 0 && (abs(endQ) + tQin/cA) > 0) fac = tQin/(cA * abs(endQ) + tQin);
-					float_t endQ = (d_dot + latddotA + latddotB) * tdx;
-					if(endQ > tQin) fac = tQin/endQ;
-
-					d_dot *= fac;
-					latddotA *= fac;
-					latddotB *= fac;
-
-					bool quit = false;
-
-					if(std::isfinite(fac) == false)
-					{
-						std::cout << "fac" << std::endl;
-						quit = true;
-					}
-
-					if(std::isfinite(edot) == false)
-					{
-						std::cout << "edot" << std::endl;
-						quit = true;
-					}
-
-					if(std::isfinite(tQin) == false)
-					{
-						std::cout << "tQin" << std::endl;
-						quit = true;
-					}
-
-					if(std::isfinite(d_dot) == false)
-					{
-						std::cout << "d_dot" << std::endl;
-						quit = true;
-					}
-
-					if(std::isfinite(latedotA) == false)
-					{
-						std::cout << "latedotA" << std::endl;
-						quit = true;
-					}
-
-					if(std::isfinite(latedotB) == false)
-					{
-						std::cout << "latedotB" << std::endl;
-						quit = true;
-					}
-					if(quit)
-					{
-						std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
-						throw std::runtime_error("non finite erosion");
-					}
-
-					if(max_fac< fac) max_fac = fac;
-					if(min_fac>fac) min_fac = fac;
-
-					vmot[node] -= (edot - d_dot) * this->dt(node);
-					if(orthonodes.first >= 0)	vmot[orthonodes.first] -= (latedotA - latddotA) * this->dt(node);
-					if(orthonodes.second >= 0)	vmot[orthonodes.second] -= (latedotB - latddotB) * this->dt(node);
-
-					if(std::isfinite((edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin) == false)
-					{
-						std::cout << fac * (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin << std::endl;
-						std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
-						throw std::runtime_error("nonfinitestuff");
-					}
-
-					this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
-					if(this->Qsin[to] < 0) this->Qsin[to] = 0;
-
-
-					if(this->rec.edot2record) this->rec.edot[node] += edot;
-					if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;
-					if(this->rec.lateral_edot2record && orthonodes.first >=0) {this->rec.lateral_edot[orthonodes.first] += latedotA;}
-					if(this->rec.lateral_edot2record && orthonodes.second >=0) {this->rec.lateral_edot[orthonodes.second] += latedotB;}
-					if(this->rec.lateral_ddot2record && orthonodes.first >=0) {this->rec.lateral_ddot[orthonodes.first] += latddotA;}
-					if(this->rec.lateral_ddot2record && orthonodes.second >=0) {this->rec.lateral_ddot[orthonodes.second] += latddotB;}
 
 				}
 
+				//## Finally calculating Qout
+				if(this->hflow)
+					this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+				else
+					this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * std::pow(this->hw[node],FIVETHIRD) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+
+				//## Divergence of Q to apply changes to water height
+				float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt_hydro / this->connector->get_area_at_node(node);
+				if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
+				this->hw[node] += tdhw;
+
+				//## water height cannot be 0
+				if(this->hw[node] < 0) this->hw[node] = 0;
+
+
 			}
 
-			//## Finally calculating Qout
-			if(this->hflow)
-				this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
-			else
-				this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * std::pow(this->hw[node],FIVETHIRD) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+				// std::cout << max_fac << "<--- max fac||min fac ---->" << min_fac << std::endl;
 
-			//## Divergence of Q to apply changes to water height
-			float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt(node) / this->connector->get_area_at_node(node);
-			if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
-			this->hw[node] += tdhw;
-
-			//## water height cannot be 0
-			if(this->hw[node] < 0) this->hw[node] = 0;
-
-
-		}
-
-			// std::cout << max_fac << "<--- max fac||min fac ---->" << min_fac << std::endl;
-
-		if(erosion)
-		{
-			for(int i = 0; i<this->graph->nnodes; ++i)
+			if(erosion)
 			{
-				if(this->connector->boundary[i] == 3) continue;
-				this->topography[i] += vmot[i];
-				if(this->rec.vmot2record) this->rec.vmot[i] = vmot[i];
+				for(int i = 0; i<this->graph->nnodes; ++i)
+				{
+					if(this->connector->boundaries.forcing_io(i)) continue;
+					this->topography[i] += vmot[i];
+					if(this->rec.vmot2record) this->rec.vmot[i] = vmot[i];
+				}
 			}
-		}
 
 		// this->softbound(true,true);
+		}
 
 	}
 
 	void out_boundary_match_donors()
 	{
-		std::vector<int> dodons = this->connector->get_empty_neighbour();
-		for(int i=0; i<this->graph->nnodes;++i)
-		{
-			if(this->connector->is_active(i) == false && this->connector->boundary[i] != 3)
-			{
-				int nn = this->connector->get_neighbour_idx(i, dodons);
-				float_t minsurf = std::numeric_limits<float_t>::max();
-				for(int j=0; j<nn; ++j)
-				{
+		// std::vector<int> dodons = this->connector->get_empty_neighbour();
+		// for(int i=0; i<this->graph->nnodes;++i)
+		// {
+		// 	if(!this->graph->flow_out_model(i,*this->connector) == false && this->connector->boundary[i] != 3)
+		// 	{
+		// 		int nn = this->connector->get_neighbour_idx(i, dodons);
+		// 		float_t minsurf = std::numeric_limits<float_t>::max();
+		// 		for(int j=0; j<nn; ++j)
+		// 		{
 
-					int dono = dodons[j];
+		// 			int dono = dodons[j];
 					
-					if(this->connector->boundary[dono] <= 0 || this->connector->boundary[dono] == 3)
-						continue;
+		// 			if(this->connector->boundary[dono] <= 0 || this->connector->boundary[dono] == 3)
+		// 				continue;
 
-					// if(topo_)
-					// 	if(this->topography[dono]<this->topography[i])
-					// 		this->topography[i] = this->topography[dono] - 1e-6;
-					// // if(hw_)
-					// // 	if(this->topography[dono] + this->hw[dono]>this->topography[i] + this->hw[i])
-					// // 		this->topography[i] = this->topography[dono] - 1e-6;
+		// 			// if(topo_)
+		// 			// 	if(this->topography[dono]<this->topography[i])
+		// 			// 		this->topography[i] = this->topography[dono] - 1e-6;
+		// 			// // if(hw_)
+		// 			// // 	if(this->topography[dono] + this->hw[dono]>this->topography[i] + this->hw[i])
+		// 			// // 		this->topography[i] = this->topography[dono] - 1e-6;
 
-						if(this->topography[dono] + this->hw[dono] < minsurf)
-						{
-							// this->topography[i] = this->topography[dono] - 1e-6;
-							// this->hw[i] = this->hw[dono] - 1e-6;
-							minsurf = this->topography[dono] + this->hw[dono];
-						}
+		// 				if(this->topography[dono] + this->hw[dono] < minsurf)
+		// 				{
+		// 					// this->topography[i] = this->topography[dono] - 1e-6;
+		// 					// this->hw[i] = this->hw[dono] - 1e-6;
+		// 					minsurf = this->topography[dono] + this->hw[dono];
+		// 				}
 
-				}
+		// 		}
 
 
-				if(std::numeric_limits<float_t>::max() != minsurf)
-				{
-					if(minsurf < this->topography[i])
-					{
-						this->hw[i] = 0;
-						this->topography[i] = minsurf - 1e-6;
-					}
-					else
-					{
-						this->hw[i] = minsurf - this->topography[i] - 1e-6;
-					}
+		// 		if(std::numeric_limits<float_t>::max() != minsurf)
+		// 		{
+		// 			if(minsurf < this->topography[i])
+		// 			{
+		// 				this->hw[i] = 0;
+		// 				this->topography[i] = minsurf - 1e-6;
+		// 			}
+		// 			else
+		// 			{
+		// 				this->hw[i] = minsurf - this->topography[i] - 1e-6;
+		// 			}
 
-				}
+		// 		}
 
-			}
-		}
+		// 	}
+		// }
 	}
 
 
@@ -2146,7 +2162,7 @@ public:
 	// 	std::vector<int> dodons = this->connector->get_empty_neighbour();
 	// 	for(int i=0; i<this->graph->nnodes;++i)
 	// 	{
-	// 		if(this->graph->is_active(i,*this->connector) == false)
+	// 		if(!this->graph->flow_out_model(i,*this->connector) == false)
 	// 		{
 	// 			this->graph->get_donors_idx(i, *this->connector, dodons);
 	// 			for(auto dono:dodons)
@@ -2300,7 +2316,7 @@ public:
 	// 		}
 	// 		// sumgrad_sqrt += std::sqrt(gradients[i]);
 
-	// 		if(this->connector->is_active(i))
+	// 		if(!this->graph->flow_out_model(i,*this->connector))
 	// 		{
 					
 	// 			this->Qwout[i] = this->graph->Sdistance2receivers[i]/this->mannings * std::pow(this->hw[i],5./3) * std::pow(gradients[i],1./2);
@@ -2352,7 +2368,7 @@ public:
 			// starting index at a random position
 			int i = this->random_node_index();
 			// checking if the precipiton is valid
-			if(this->connector->is_active(i) == false)
+			if(!this->graph->flow_out_model(i,*this->connector) == false)
 			{
 				// "Cancelling" the iteration
 				--i_prec;
@@ -2369,7 +2385,7 @@ public:
 			// -> tracking the precipiton's path
 			int nwalk = 0;
 			// -> running
-			while(this->connector->is_active(i))
+			while(!this->graph->flow_out_model(i,*this->connector))
 			{
 				// Recording the number of pixel 
 				nwalk++;
@@ -2494,7 +2510,7 @@ public:
 			// starting index at a random position
 			int i = this->random_node_index();
 			// checking if the precipiton is valid
-			if(this->connector->is_active(i) == false)
+			if(!this->graph->flow_out_model(i,*this->connector) == false)
 			{
 				// "Cancelling" the iteration
 				--i_prec;
@@ -2513,7 +2529,7 @@ public:
 			// -> running
 			float_t MANNING_COEF = 0.6666666666666666666; 
 			float_t MANNING_COEF_INV = 1.5; 
-			while(this->connector->is_active(i))
+			while(!this->graph->flow_out_model(i,*this->connector))
 			{
 				// Recording the number of pixel 
 				nwalk++;
@@ -2702,13 +2718,13 @@ public:
 			this->maxdt = time;
 			int i = this->random_node_index();
 
-			if(this->graph->is_active(i, *this->connector) == false)
+			if(!this->graph->flow_out_model(i, *this->connector) == false)
 			{
 				--iprec;
 				continue;
 			}
 
-			while(this->graph->is_active(i, *this->connector))
+			while(!this->graph->flow_out_model(i, *this->connector))
 			{
 
 				float_t dt = time - this->lastdt[i];
@@ -2843,7 +2859,7 @@ public:
 			
 			// Walking the precipitons while in the landscape
 			float_t tA = 0;
-			while(this->connector->is_active(i))
+			while(!this->graph->flow_out_model(i,*this->connector))
 			{
 				int nl = this->connector->get_neighbour_idx_links(i, neighbours_links);
 				int nr = 0;
@@ -2934,7 +2950,7 @@ public:
 		std::vector<std::pair<int,float_t> > neighbours(8);
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(!this->graph->flow_out_model(i,*this->connector))
 			{
 				int NN = this->connector->get_neighbour_idx_distance(i, neighbours);
 				int steepest_i = i;
@@ -3077,7 +3093,7 @@ public:
 		
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(!this->graph->flow_out_model(i,*this->connector))
 			{
 				this->hw[i] += (dhw[i])/this->connector->get_area_at_node(i);
 				if (this->hw[i] < 0)
@@ -3088,7 +3104,7 @@ public:
 		
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(this->connector->is_active(i))
+			if(!this->graph->flow_out_model(i,*this->connector))
 				this->hw[i] += (this->Qbase[i] * dt)/this->connector->get_area_at_node(i);
 		}
 

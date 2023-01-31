@@ -171,7 +171,7 @@ public:
 		this->z_surf = std::vector<float_t>(nxy,0.);
 		
 		// init connector
-		_create_connector(nx,ny,dx,dy,0.,0.,this->connector);
+		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
 
 		// boundary conditions:
 		this->connector.set_default_boundaries(boundary_conditions);
@@ -390,7 +390,7 @@ public:
 			// # location
 			int node = this->graph.Sstack[i];
 			// # Aborting if outnode
-			if(this->graph.is_active(node,this->connector) == false)
+			if(!this->graph.flow_out_or_pit(node,this->connector) == false)
 				continue;
 			// # receiver
 			int rec = this->graph.Sreceivers[node];
@@ -536,7 +536,7 @@ public:
 		auto U = DAGGER::format_input(tU);
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
-			if(this->connector.is_active(i) || apply_to_edges)
+			if(!this->connector.boundaries.can_out(i) || apply_to_edges)
 				this->z_surf[i] += U[i] * dt;
 		}
 
@@ -546,7 +546,7 @@ public:
 	{
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
-			if(this->connector.can_flow_out_there(i) == false)
+			if(this->connector.boundaries.can_out(i))
 				this->z_surf[i] += rate * dt;
 		}
 	}
@@ -607,7 +607,7 @@ public:
 		if(zfQ < 0)
 			zfQ = 0;
 
-		if(this->graph.is_active(ir,this->connector))
+		if(!this->graph.flow_out_or_pit(ir,this->connector))
 		{
 			if(thillslopes)
 				BasePropStorer<float_t>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->TSP_Qsh[ir], zfQ, tpropr);
@@ -632,7 +632,7 @@ public:
 		std::vector<float_t> props(this->graph.nnodes, 0.);
 		for(int i=0; i<this->graph.nnodes; ++i)
 		{
-			if(this->graph.is_active(i,this->connector) == false)
+			if(!this->graph.flow_out_or_pit(i,this->connector) == false)
 				continue;
 
 			if(this->TSP_store.pile[i].size() > 0)
@@ -770,7 +770,7 @@ public:
 		if(zfQ < 0)
 			zfQ = 0;
 
-		if(this->graph.is_active(ir,this->connector))
+		if(!this->graph.flow_out_or_pit(ir,this->connector))
 		{
 			if(thillslopes)
 				BasePropStorer<float_t>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->Ch_MTSI_Qsh[ir], zfQ, tpropr);
@@ -800,7 +800,7 @@ public:
 		std::vector<float_t> timeryolo(this->graph.nnodes, 0.);
 		for(int i=0; i<this->graph.nnodes; ++i)
 		{
-			if(this->graph.is_active(i,this->connector) == false)
+			if(!this->graph.flow_out_or_pit(i,this->connector) == false)
 				continue;
 
 			if(this->Ch_MTSI_store.pile[i].size() > 0)

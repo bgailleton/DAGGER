@@ -40,7 +40,7 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 	for(int i = 0; i<connector.nnodes; ++i)
 	{
 		// Ignoring no data
-		if(connector.boundary[i] < 0)
+		if(connector.boundaries.no_data(i))
 			continue;
 
 		float_t slope_rad = 0;

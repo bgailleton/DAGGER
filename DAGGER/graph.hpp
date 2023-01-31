@@ -62,9 +62,12 @@ public:
 	// Number of neighbours by nodes
 	int n_neighbours;
 	
-	// bool vector for each link: true is receiver direction and false is donor
-	// The meaning of the index depends on the connector
-	std::vector<bool> links;
+	// uint8_t vector for each link indicating its directionality: 
+	// - 0 is inverse (linknode 2 --> linknode 1)
+	// - 1 is normal (linknode 1 --> linknode 2)
+	// - 3 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) ) or temporarily invalid due to dynamic boundary conditions
+	// The index itself is calculated from a connector
+	std::vector<std::uint8_t> links;
 	
 	// integer vector of 2*links size with the node indices of each link
 	// for example, the nodes of link #42 would be indices 84 and 85
@@ -96,7 +99,9 @@ public:
 	// hte minimum slope to impose on the fake topography
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
-	float_t stochaticiy_for_SFD = 1;
+
+	float_t stochaticiy_for_SFD = 0; // (0 -> deactivates)
+	void set_stochaticiy_for_SFD(float_t val){this->stochaticiy_for_SFD = (val>0)?val:0;}
 
 
 	// Solving large number of local minima with cordonnier can be expensive and this optimises
@@ -371,129 +376,132 @@ public:
 		)
 	{
 
-		// std::cout << "DEBUG::STOPOP::1" << std::endl;
-		// Checking if the depression method is cordonnier or node
-		bool isCordonnier = this->is_method_cordonnier();
+		throw std::runtime_error("The Timer is temporarily unavailable, wait for future update");
 
-		// std::cout << "DEBUG::STOPOP::2" << std::endl;
-		// if the method is not Cordonnier -> apply the other first
-		if(isCordonnier == false && this->depression_resolver != DEPRES::none)
-		{
-			// filling the topography with a minimal slope using Wei et al., 2018
-			timer.tik();
-			if(this->depression_resolver == DEPRES::priority_flood)
-				faketopo = connector.PriorityFlood_Wei2018(faketopo);
-			else
-				faketopo = connector.PriorityFlood(faketopo);
-			timer_by_stuff["local_minima"].second += timer.tok();
+		// // std::cout << "DEBUG::STOPOP::1" << std::endl;
+		// // Checking if the depression method is cordonnier or node
+		// bool isCordonnier = this->is_method_cordonnier();
+
+		// // std::cout << "DEBUG::STOPOP::2" << std::endl;
+		// // if the method is not Cordonnier -> apply the other first
+		// if(isCordonnier == false && this->depression_resolver != DEPRES::none)
+		// {
+		// 	// filling the topography with a minimal slope using Wei et al., 2018
+		// 	timer.tik();
+		// 	if(this->depression_resolver == DEPRES::priority_flood)
+		// 		faketopo = connector.PriorityFlood_Wei2018(faketopo);
+		// 	else
+		// 		faketopo = connector.PriorityFlood(faketopo);
+		// 	timer_by_stuff["local_minima"].second += timer.tok();
 			
-		}
+		// }
 
-		// std::cout << "DEBUG::STOPOP::3" << std::endl;
+		// // std::cout << "DEBUG::STOPOP::3" << std::endl;
 
-		// Making sure the graph is not inheriting previous values
-		timer.tik();
-		this->reinit_graph(connector);
-		timer_by_stuff["reinit_graph"].second += timer.tok();
+		// // Making sure the graph is not inheriting previous values
+		// timer.tik();
+		// this->reinit_graph(connector);
+		// timer_by_stuff["reinit_graph"].second += timer.tok();
 
 
-		// std::cout << "DEBUG::STOPOP::4" << std::endl;
+		// // std::cout << "DEBUG::STOPOP::4" << std::endl;
 
-		// Updates the links vector and the Srecs vector by checking each link new elevation
-		timer.tik();
-		this->update_recs(faketopo, connector);
-		timer_by_stuff["update_recs"].second += timer.tok();
+		// // Updates the links vector and the Srecs vector by checking each link new elevation
+		// timer.tik();
+		// this->update_recs(faketopo, connector);
+		// timer_by_stuff["update_recs"].second += timer.tok();
 
-		// std::cout << "DEBUG::STOPOP::5" << std::endl;
-		// Compute the topological sorting for single stack
-		// Braun and willett 2014 (modified)
-		timer.tik();
-		this->topological_sorting_SF();
-		timer_by_stuff["TS_SF"].second += timer.tok();
-		// std::cout << "DEBUG::STOPOP::6" << std::endl;
+		// // std::cout << "DEBUG::STOPOP::5" << std::endl;
+		// // Compute the topological sorting for single stack
+		// // Braun and willett 2014 (modified)
+		// timer.tik();
+		// this->topological_sorting_SF();
+		// timer_by_stuff["TS_SF"].second += timer.tok();
+		// // std::cout << "DEBUG::STOPOP::6" << std::endl;
 
-		// manages the Cordonnier method if needed
-		if(isCordonnier)
-		{
+		// // manages the Cordonnier method if needed
+		// if(isCordonnier)
+		// {
 			
-			// LMRerouter is the class managing the different cordonnier's mthod
-			LMRerouter<float_t> depsolver;
-			if(this->opti_sparse_border)
-				depsolver.opti_sparse_border = true;
-			depsolver.minimum_slope = this->minimum_slope;
-			depsolver.slope_randomness = this->slope_randomness;
-			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
-			// Note that faketopo are modified in place.
-			// std::cout << "wulf" << std::endl;
-		// std::cout << "DEBUG::STOPOP::7" << std::endl;
-			timer.tik();
-			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
-			timer_by_stuff["local_minima"].second += timer.tok();
-		// std::cout << "DEBUG::STOPOP::8" << std::endl;
+		// 	// LMRerouter is the class managing the different cordonnier's mthod
+		// 	LMRerouter<float_t> depsolver;
+		// 	if(this->opti_sparse_border)
+		// 		depsolver.opti_sparse_border = true;
+		// 	depsolver.minimum_slope = this->minimum_slope;
+		// 	depsolver.slope_randomness = this->slope_randomness;
+		// 	// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
+		// 	// Note that faketopo are modified in place.
+		// 	// std::cout << "wulf" << std::endl;
+		// // std::cout << "DEBUG::STOPOP::7" << std::endl;
+		// 	timer.tik();
+		// 	bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
+		// 	timer_by_stuff["local_minima"].second += timer.tok();
+		// // std::cout << "DEBUG::STOPOP::8" << std::endl;
 
-			// Right, if reomputed needs to be
-			if(need_recompute)
-			{
+		// 	// Right, if reomputed needs to be
+		// 	if(need_recompute)
+		// 	{
 				
-				// Re-inverting the Sreceivers into Sdonors
-				timer.tik();
-				this->recompute_SF_donors_from_receivers();
-				timer_by_stuff["update_recs"].second += timer.tok();
+		// 		// Re-inverting the Sreceivers into Sdonors
+		// 		timer.tik();
+		// 		this->recompute_SF_donors_from_receivers();
+		// 		timer_by_stuff["update_recs"].second += timer.tok();
 				
-				// Recomputing Braun and willett 2014 (modified)
-				timer.tik();
-				this->topological_sorting_SF();
-				timer_by_stuff["TS_SF"].second += timer.tok();
+		// 		// Recomputing Braun and willett 2014 (modified)
+		// 		timer.tik();
+		// 		this->topological_sorting_SF();
+		// 		timer_by_stuff["TS_SF"].second += timer.tok();
 
-				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
-				if(this->depression_resolver == DEPRES::cordonnier_carve)
-				{
-					timer.tik();
-					this->carve_topo_v2(connector, faketopo);
-					timer_by_stuff["local_minima"].second += timer.tok();
-				}
-
-
-				// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
-				if(this->opt_stst_rerouting == false)	
-				{
-					timer.tik();
-					this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
-					timer_by_stuff["update_recs"].second += timer.tok();
-				}
-
-				// My work here is done if only SD is needed
-				if(only_SD)
-					return;
-
-				if(this->opt_stst_rerouting)
-				{
-					timer.tik();
-					this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
-					timer_by_stuff["update_recs"].second += timer.tok();
-				}
+		// 		// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
+		// 		if(this->depression_resolver == DEPRES::cordonnier_carve)
+		// 		{
+		// 			timer.tik();
+		// 			this->carve_topo_v2(connector, faketopo);
+		// 			timer_by_stuff["local_minima"].second += timer.tok();
+		// 		}
 
 
-			}
-		}
+		// 		// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
+		// 		if(this->opt_stst_rerouting == false)	
+		// 		{
+		// 			timer.tik();
+		// 			this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
+		// 			timer_by_stuff["update_recs"].second += timer.tok();
+		// 		}
 
-		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
-		// for multiple as the toposort for SF is already done
-		if (only_SD == false)
-		{
-			if(quicksort)
-			{
-				timer.tik();
-				this->topological_sorting_quicksort(faketopo);
-				timer_by_stuff["TS_MF"].second += timer.tok();
-			}
-			else
-			{
-				timer.tik();
-				this->topological_sorting_dag(connector);
-				timer_by_stuff["TS_MF"].second += timer.tok();
-			}
-		}
+		// 		// My work here is done if only SD is needed
+		// 		if(only_SD)
+		// 			return;
+
+		// 		if(this->opt_stst_rerouting)
+		// 		{
+		// 			timer.tik();
+		// 			this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
+		// 			timer_by_stuff["update_recs"].second += timer.tok();
+		// 		}
+
+
+		// 	}
+
+		// }
+
+		// // if there is no need to recompute neighbours, then I can only calculate the topological sorting
+		// // for multiple as the toposort for SF is already done
+		// if (only_SD == false)
+		// {
+		// 	if(quicksort)
+		// 	{
+		// 		timer.tik();
+		// 		this->topological_sorting_quicksort(faketopo);
+		// 		timer_by_stuff["TS_MF"].second += timer.tok();
+		// 	}
+		// 	else
+		// 	{
+		// 		timer.tik();
+		// 		this->topological_sorting_dag(connector);
+		// 		timer_by_stuff["TS_MF"].second += timer.tok();
+		// 	}
+		// }
 
 	}
 
@@ -511,15 +519,31 @@ public:
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
 			
-			// Checking the validity of the link
-			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
+			if(this->linknodes[i*2] < 0)
+			{
+				this->links[i] = 2;
 				continue;
+			}
+
+			if(connector.boundaries.forcing_io(from) || connector.boundaries.forcing_io(to) )
+			{
+
+				if(connector.boundaries.force_giving(from) || connector.boundaries.force_receiving(to))
+					this->links[i] = 1;
+				else if(connector.boundaries.force_giving(to) || connector.boundaries.force_receiving(from))
+					this->links[i] = 0;
+
+				continue;
+			} 
 
 			// by convention true -> topo1 > topo2
-			if(topography[from] > topography[to])
-				this->links[i] = true;
+			if(topography[from] > topography[to] && connector.boundaries.can_give(from) && connector.boundaries.can_receive(to))
+				this->links[i] = 1;
+			else if ( connector.boundaries.can_give(to) && connector.boundaries.can_receive(from))
+				this->links[i] = 0;
+			// If the configuration cannot allow the link, it is temporarily disabled
 			else
-				this->links[i] = false;
+				this->links[i] = 2;
 		}
 		// done
 	}
@@ -530,36 +554,52 @@ public:
 	{
 
 		// am I using a stochastic adjustment for deciding on the steepest slope
-		bool stochastic_slope_on = this->stochaticiy_for_SFD != 0.;
+		bool stochastic_slope_on = this->stochaticiy_for_SFD > 0.;
 		// iterating through all the nodes
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
+
+
+			// Checking the validity of the link
+			if(this->linknodes[i*2] < 0)
+			{
+				this->links[i] = 2;
+				continue;
+			}
 
 			// Getting ht etwo nodes of the links
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
 			// std::cout << from << "|" << to << "||";
 			
-			// Checking the validity of the link
-			if(connector.is_in_bound(from) == false || connector.is_in_bound(to) == false)
-			{
-				continue;
-			}
-
 			// getting the link infos
 			// -> dx
 			float_t dx = connector.get_dx_from_links_idx(i);
 			// -> slope
 			float_t slope = (topography[from] - topography[to])/dx;
 
-			if(stochastic_slope_on) slope *= (1 - this->stochaticiy_for_SFD * connector.randu->get());
+
+			if(connector.boundaries.forcing_io(from) || connector.boundaries.forcing_io(to) )
+			{
+
+				if(connector.boundaries.force_giving(from) || connector.boundaries.force_receiving(to))
+					slope = std::abs(slope);
+
+				else if(connector.boundaries.force_giving(to) || connector.boundaries.force_receiving(from))
+					slope = -std::abs(slope);					
+			} 
+
+			
+
+			if(stochastic_slope_on) 
+				slope *= (this->stochaticiy_for_SFD * connector.randu->get()) + 1e-6;
 
 
 			// if slope is positive, to is the receiver by convention
-			if(slope>0 || connector.is_forcing_entry)// STOPPED HERE NEED TO ADD FUNCTION IN CONNECTOR TO CHECK WETHER ENTRY IS FORCED
+			if(slope>0  && connector.boundaries.can_give(from) && connector.boundaries.can_receive(to))
 			{
 				// Conventional direction
-				this->links[i] = true;
+				this->links[i] = 1;
 				// if Steepest Slope is higher than the current recorded one
 				if(this->SS[from]<slope)
 				{
@@ -569,11 +609,11 @@ public:
 					this->SS[from] = slope;
 				}
 			}
-			else
+			else if (connector.boundaries.can_give(to) && connector.boundaries.can_receive(from))
 			{
 				// Otherwise the convention is inverted:
 				// isrec is falese and to is giving to from
-				this->links[i] = false;
+				this->links[i] = 0;
 				// NOte that slope is absolute values
 				slope = std::abs(slope);
 				if(this->SS[to]<slope)
@@ -583,6 +623,8 @@ public:
 					this->SS[to] = slope;
 				}
 			}
+			else
+				this->links[i] = 2;
 
 		}
 
@@ -687,8 +729,8 @@ public:
 	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
 	void _allocate_vectors()
 	{
-		this->links = std::vector<bool>(int(this->nnodes * this->n_neighbours/2), false);
-		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), 0);
+		this->links = std::vector<std::uint8_t>(int(this->nnodes * this->n_neighbours/2), 2);
+		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), -1);
 		this->Sreceivers = std::vector<int>(this->nnodes,-1);
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
 		for(int i=0;i<this->nnodes; ++i)
@@ -696,6 +738,8 @@ public:
 		this->Sdistance2receivers = std::vector<float_t >(this->nnodes,-1);
 		this->SS = std::vector<float_t>(this->nnodes,0.);
 	}
+
+
 	void _reallocate_vectors()
 	{
 		for(int i=0;i<this->nnodes; ++i)
@@ -808,24 +852,28 @@ public:
 		this->stack.reserve(this->nnodes);
 
 		// Iterating through the links
+		// int debug_cpt = 0;
 		for(int i = 0; i < int( this->links.size() ) ; ++i)
 		{
 			
-			if(this->linknodes[i*2] < 0)
-				continue;
-
-			// checking the validity of the links
-			if(connector.can_flow_even_go_there(this->linknodes[i*2]) == false)
+			if(this->links[i] == 2)
 			{
-				// if the flow cannot go there, we emplace it in the stack (ultimately it does not matter where they are in the stack)
-				this->stack.emplace_back(this->linknodes[i*2]);
+				// ++debug_cpt;
 				continue;
 			}
 
+			// checking for no data
+			// if(connector.boundaries.no_data(this->linknodes[i*2]))
+			// {
+			// 	// if the flow cannot go there, we emplace it in the stack (ultimately it does not matter where they are in the stack)
+			// 	this->stack.emplace_back(this->linknodes[i*2]);
+			// 	continue;
+			// }
+
 			// Otherwise incrementing the number of receivers for the right link
-			if(this->links[i])
+			if(this->links[i] == 1)
 				++nrecs[this->linknodes[i*2+1]];
-			else
+			else if (this->links[i] == 0)
 				++nrecs[this->linknodes[i*2]];
 		}
 
@@ -833,9 +881,11 @@ public:
 		// Now checking the receiverless nodes and emplacing them in the queueß
 		for(int i=0; i<this->nnodes; ++i)
 		{
-			if(nrecs[i] == 0 && connector.can_flow_even_go_there(i))
+			// std::cout << nrecs[i] << std::endl;;
+			if(nrecs[i] == 0)
 				toproc.emplace(i);
 		}
+
 
 		// then as lon g as there are nodes in the queue:
 		auto donors = connector.get_empty_neighbour();
@@ -865,6 +915,8 @@ public:
 		if(int(this->stack.size()) != this->nnodes)
 			std::cout << "WARNING::Stack->" << this->stack.size() << "/" << this->nnodes << std::endl;
 
+		// std::cout << debug_cpt << " <-- Nlinks invalids" << std::endl;
+		
 	}
 
 	// Multiple flow topological sorting using quicksort algorithm
@@ -917,7 +969,7 @@ public:
 			// Getting the node
 			int node  = this->Sstack[i];
 			// Checking its validiyt AND if it is not a base level
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_model(node,connector))
 				continue;
 			// Getting the single receiver info
 			int rec = this->Sreceivers[node];
@@ -942,7 +994,7 @@ public:
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			int node  = this->Sstack[i];
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_model(node,connector))
 				continue;
 
 			int rec = this->Sreceivers[node];
@@ -1003,14 +1055,14 @@ public:
 			int li = recs[ti];
 
 			// this link is a rec if the node is the first of the linknode and links is true
-			if(i == this->linknodes[li*2] && this->links[li])
+			if(i == this->linknodes[li*2] && this->links[li] == 1)
 			{
 				// in which case the receiver of the current node is the +  1
 				recs[idx] = this->linknodes[li*2 + 1];
 				++idx;
 			}
 			// OR if the current node is the +1 and the links false
-			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
+			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
 			{
 				// in which case the receivers is the 0 node
 				recs[idx] = this->linknodes[li*2];
@@ -1048,7 +1100,7 @@ public:
 				recs[idx] = li;
 				++idx;
 			}
-			else if(this->links[li] == false && i == this->linknodes[li*2 + 1])
+			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
 			{
 				recs[idx] = li;
 				++idx;
@@ -1078,12 +1130,12 @@ public:
 		{
 			// checking the orientation
 			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == false)
+			if(i == this->linknodes[li*2] && this->links[li] == 0)
 			{
 				dons[idx] = this->linknodes[li*2 + 1];
 				++idx;
 			}
-			else if(this->links[li] == true && i == this->linknodes[li*2 + 1])
+			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
 			{
 				dons[idx] = this->linknodes[li*2];
 				++idx;
@@ -1112,12 +1164,12 @@ public:
 		{
 			// checking the orientation
 			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == false)
+			if(i == this->linknodes[li*2] && this->links[li] == 0)
 			{
 				dons[idx] = li;
 				++idx;
 			}
-			else if(this->links[li] == true && i == this->linknodes[li*2 + 1])
+			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
 			{
 				dons[idx] = li;
 				++idx;
@@ -1146,7 +1198,7 @@ public:
 			int node = this->stack[i];
 			DA[node] += connector.get_area_at_node(node);
 
-			if(this->is_active(node,connector))
+			if(this->flow_out_or_pit(node,connector))
 			{
 				int nn = this->get_receivers_idx_links(node, connector,reclinks);
 
@@ -1189,7 +1241,7 @@ public:
 			int node = this->Sstack[i];
 			DA[node] += connector.get_area_at_node(node);
 
-			if(connector.can_flow_even_go_there(node) && node != this->Sreceivers[node])
+			if(!connector.boundaries.no_data(node) && node != this->Sreceivers[node])
 			{
 				int Srec = this->Sreceivers[node];
 				DA[Srec] += DA[node];
@@ -1269,7 +1321,7 @@ public:
 				{
 					out += array[i];
 				}
-				else if(this->is_active(i,connector) == false && connector.can_flow_out_there(i))
+				else if(this->flow_out_model(i,connector))
 				{
 					out += array[i];
 				}
@@ -1293,7 +1345,7 @@ public:
 			{
 				if(include_internal_pits)
 					out[i] = array[i];
-				else if(this->is_active(i,connector) == false)
+				else if(this->flow_out_model(i,connector))
 					out[i] = array[i];
 			}
 		}
@@ -1432,7 +1484,7 @@ public:
 		for(auto tnode:this->Sstack)
 		{
 			// ignoring the not ode and outlets
-			if(this->is_active(tnode,connector))
+			if(this->flow_out_or_pit(tnode,connector) == false)
 			{
 				// Getting the receiver
 				int rec = this->Sreceivers[tnode];
@@ -1534,7 +1586,7 @@ public:
 		{
 			int tnode = this->Sstack[i];
 			// ignoring the not ode and outlets
-			if(this->is_active(tnode,connector))
+			if(this->flow_out_or_pit(tnode,connector) == false)
 			{
 				// Getting the receiver
 				int rec = this->Sreceivers[tnode];
@@ -1615,11 +1667,11 @@ public:
 		for(int i = this->nnodes-1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			if(connector.can_flow_even_go_there(node))
+			if(connector.boundaries.no_data(node) == false)
 				continue;
 
 			int rec = this->Sreceivers[node];
-			if(this->is_active(node,connector))
+			if(this->flow_out_or_pit(node,connector) == false)
 			{
 				flowacc[rec] += flowacc[node] + 1;
 			}
@@ -1768,7 +1820,7 @@ public:
 		std::vector<std::vector<int> > out(this->links.size());
 		for(size_t i=0; i<this->links.size();++i)
 		{
-			out[i] = (this->links[i])? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} : std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
+			out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
 		}
 		return out;
 	}
@@ -1840,16 +1892,16 @@ public:
 	}
 
 	template<class Connector_t,class out_t, class topo_t>
-	out_t get_links_gradient(Connector_t& connector, topo_t& ttopography)
+	out_t get_links_gradient(Connector_t& connector, topo_t& ttopography, float_t min_slope)
 	{
 		auto topography = format_input<topo_t>(ttopography);
-		std::vector<float_t> gradient = this->_get_links_gradient(connector, topography);
+		std::vector<float_t> gradient = this->_get_links_gradient(connector, topography, min_slope);
 		return format_output<decltype(gradient), out_t>(gradient);
 	}
 
 
 	template<class Connector_t, class topo_t>
-	std::vector<float_t> _get_links_gradient(Connector_t& connector, topo_t& topography)
+	std::vector<float_t> _get_links_gradient(Connector_t& connector, topo_t& topography, float_t min_slope)
 	{
 
 		std::vector<float_t> gradient = std::vector<float_t>(this->links.size(), 0);
@@ -1858,7 +1910,7 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				gradient[i] = std::abs(topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
+				gradient[i] = std::max((topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i), min_slope);
 			}
 		}
 
@@ -2095,12 +2147,12 @@ public:
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			if(connector.can_flow_even_go_there(node) == false)
+			if(connector.boundaries.no_data(node))
 				continue;
 
 			out[node] += var;
 
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 
 			out[this->Sreceivers[node]] += out[node];
@@ -2126,12 +2178,13 @@ public:
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			if(connector.can_flow_even_go_there(node) == false)
+
+			if(connector.boundaries.no_data(node))
 				continue;
 
 			out[node] += var[node];
 
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 
 			out[this->Sreceivers[node]] += out[node];
@@ -2159,12 +2212,12 @@ public:
 		{
 
 			int node = this->stack[i];
-			if(connector.can_flow_even_go_there(node) == false)
+			if(connector.boundaries.no_data(node))
 				continue;
 
 			out[node] += var;
 
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 
 			int nn = this->get_receivers_idx_links(node,connector, reclinks);
@@ -2198,12 +2251,12 @@ public:
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
-			if(connector.can_flow_even_go_there(node) == false)
+			if(connector.boundaries.no_data(node))
 				continue;
 
 			out[node] += var[node];
 
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 
 			int nn = this->get_receivers_idx_links(node,connector,reclinks);
@@ -2247,31 +2300,50 @@ public:
 	// Checks the validity of a link
 	// Invalid links have a linknode value of -1
 	template<class ti_t>
-	bool is_link_valid(ti_t i){return (this->linknodes[i*2]>=0)?true:false; }
+	bool is_link_valid(ti_t i){return (this->links[i]==2)?false:true; }
 
 
 	// return true is the node is active: i.e. flow transfer through it
 	// reflects the connector version of the function, but adds extra graph specific checks.
 	// For example a node with permissive outletting border will be active in the connector sense, but can be inactive in the graph if it has no downstream neighbours.
 	template<class ti_t, class Connector_t>
-	bool is_active(ti_t node, Connector_t& connector)
+	bool flow_out_model(ti_t node, Connector_t& connector)
 	{
-		bool con_val = connector.is_active(node);
-		if(con_val && this->Sreceivers[node] != int(node))
+		
+		bool con_val = connector.boundaries.can_out(node);
+		if(con_val && this->Sreceivers[node] == int(node))
 			return true;
 		return false;
 	}
 
+	template<class ti_t, class Connector_t>
+	bool is_pit(ti_t node, Connector_t& connector)
+	{
+		
+		bool con_val = connector.boundaries.can_out(node);
+		if(!con_val && this->Sreceivers[node] == int(node))
+			return true;
+		return false;
+	}
 
+	template<class ti_t, class Connector_t>
+	bool flow_out_or_pit(ti_t node, Connector_t& connector)
+	{
+		if(this->Sreceivers[node] == int(node))
+			return true;
+		return false;
+	}
 
 	// Returns the pair of node making a link, starting from the donor to the receiver
 	template<class ti_t>
 	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
 	{
-		if(this->links[i])
+		if(this->links[i] == 1)
 			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
-		else
+		else if (this->links[i] == 0)
 			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
+		else
+			return {-1,-1};
 
 	}
 
@@ -2279,33 +2351,37 @@ public:
 	template<class ti_t>
 	void get_from_to_links(ti_t i, std::pair<ti_t,ti_t>& fromto)
 	{
-		if(this->links[i])
+		if(this->links[i] == 1)
 		{
 			fromto.first = this->linknodes[i*2]; fromto.second = this->linknodes[i*2 + 1];
 		}
-		else
+		else if (this->links[i] == 2)
 		{
 			fromto.first = this->linknodes[i*2 + 1]; fromto.second =  this->linknodes[i*2];
 		}
+		else
+			fromto = {-1,-1};
 
 	}
 
 	template<class ti_t>
 	ti_t get_from_links(ti_t i)
 	{
-		if(this->links[i])
+		if(this->links[i] == 1)
 			return this->linknodes[i*2];
-		else
+		else if (this->links[i] == 0)
 			return this->linknodes[i*2 + 1];
+		else return -1;
 	}
 
 	template<class ti_t>
 	ti_t get_to_links(ti_t i)
 	{
-		if(this->links[i] == false)
+		if(this->links[i] == 0)
 			return this->linknodes[i*2];
-		else
+		else if (this->links[i] == 1)
 			return this->linknodes[i*2 + 1];
+		else return -1;
 	}
 
 	template<class ti_t>
@@ -2316,7 +2392,7 @@ public:
 		else if (this->linknodes[li*2] == ni)
 			return this->linknodes[li*2 + 1];
 		else
-			throw std::runtime_error("DAGGER::graph::get_other_node_from_links::trying to access other nodes from a link that does not contains the reference node");
+			return -1;
 	}
 
 	std::vector<int> get_n_receivers()
@@ -2437,7 +2513,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			// Getting the receiver
 			int rec = this->Sreceivers[node];
@@ -2465,7 +2541,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			int rec = this->Sreceivers[node];
 			if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + this->Sdistance2receivers[node])
@@ -2493,7 +2569,7 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			int rec = this->Sreceivers[node];
 			if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + this->Sdistance2receivers[node])
@@ -2521,7 +2597,7 @@ public:
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2558,7 +2634,7 @@ public:
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2597,7 +2673,7 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2636,7 +2712,7 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				continue;
 			
 			int nl = this->get_receivers_idx_links(node, connector, receilink);
@@ -2695,9 +2771,9 @@ public:
 		for(int i=0; i< this->nnodes; ++i)
 		{
 			int node = this->Sstack[i];
-			if(connector.can_flow_even_go_there(node) == false)
+			if(connector.no_data(node))
 				continue;
-			if(this->is_active(node,connector) == false)
+			if(this->flow_out_or_pit(node,connector))
 				++label;
 			baslab[node] = label;
 		}

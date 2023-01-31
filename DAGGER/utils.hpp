@@ -426,8 +426,12 @@ public:
 // simple signum function (returns -1, 0 or 1)
 template <typename T> int sgn(T val) {return (T(0) < val) - (val < T(0));}
 
-
-
+// thanks https://stackoverflow.com/a/34199939
+template<typename E>
+constexpr auto Enum2UnderlyingType(E e) 
+{
+    return static_cast<typename std::underlying_type<E>::type>(e);
+}
 
 
 

@@ -81,7 +81,7 @@ public:
 		this->topography = std::vector<float_t>(nxy,0.);
 		
 		// init connector
-		_create_connector(nx,ny,dx,dy,0.,0.,this->connector);
+		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
@@ -133,7 +133,7 @@ public:
 			for(int i = 0; i<this->graph.nnodes; ++i)
 			{
 				int node = this->graph.Sstack[i];
-				if(this->connector.is_active(node) == false)
+				if(!this->graph.flow_out_or_pit(node,this->connector) == false)
 					continue;
 				int rec = this->graph.Sreceivers[node];
 				this->topography[node] = this->topography[rec] + this->graph.Sdistance2receivers[node] * std::pow(1e2,1./n)/std::pow(this->QA[node],m/n);
@@ -176,7 +176,7 @@ public:
 		float_t dx = this->connector.dx/2;
 		float_t dy = this->connector.dy/2;
 		// init connector
-		_create_connector(nx,ny,dx,dy,0.,0.,this->connector);
+		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
@@ -204,7 +204,7 @@ public:
 	    int rec = this->graph.Sreceivers[node];
 
 
-	    if (this->connector.is_active(node) == false)
+	    if (!this->graph.flow_out_or_pit(node,this->connector) == false)
        continue;
 
 	    float_t factor = K * dt * std::pow(this->QA[node],m) / std::pow(this->graph.Sdistance2receivers[node],n);
@@ -238,7 +238,7 @@ public:
 	{
 		for(int i=0; i < this->graph.nnodes;++i)
 		{
-			if(this->connector.is_active(i))
+			if(!this->graph.flow_out_or_pit(i,this->connector))
 			  this->topography[i]+=U*dt;
 		}
 	}
@@ -249,7 +249,7 @@ public:
 		auto U = DAGGER::format_input(tU);
 		for(int i=0; i < this->graph.nnodes;++i)
 		{
-			if(this->connector.is_active(i))
+			if(!this->graph.flow_out_or_pit(i,this->connector))
 			  this->topography[i]+=U[i]*dt;
 		}
 	}
@@ -297,7 +297,7 @@ public:
 				
 				// temp erosion
 				newtopo[tpart.pos] -= erosor;
-				if(this->connector.is_active(tpart.pos) == false || nrecs == 0 || newpos < 0 || newpos > this->graph.nnodes - 1 )
+				if(!this->graph.flow_out_or_pit(tpart.pos,this->connector) == false || nrecs == 0 || newpos < 0 || newpos > this->graph.nnodes - 1 )
 					break;
 
 				tpart.pos = newpos;
@@ -342,7 +342,7 @@ public:
 		for(int i=this->graph.nnodes-1; i>=0; --i)
 		{
 			int node = this->graph.Sstack[i];
-			if(this->graph.is_active(node, this->connector) == false) continue;
+			if(!this->graph.flow_out_or_pit(node, this->connector) == false) continue;
 
 			int rec = this->graph.Sreceivers[node];
 
