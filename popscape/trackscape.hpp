@@ -210,6 +210,9 @@ public:
 	void set_single_Ke(float_t TKe){this->_Ke = {TKe}; this->variable_Ke = false;}
 	void set_single_lambda(float_t tlambda){this->_lambda = {tlambda}; this->variable_lambda = false;}
 
+	void set_m(float_t m){this->mexp = m;}
+	void set_n(float_t n){this->nexp = n;}
+
 	template<class in_t>
 	void set_variable_Kr(in_t& arr)
 	{

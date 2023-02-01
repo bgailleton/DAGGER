@@ -153,8 +153,8 @@ void declare_trackscape(py::module &m, std::string typestr)
 		.def("set_variable_Sc_M",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Sc_M<py::array_t<double,1>& >)
 		.def("set_variable_Ke",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Ke<py::array_t<double,1>& >)
 		.def("set_variable_lambda",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_lambda<py::array_t<double,1>& >)
-
-		
+		.def("set_m",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_m)
+		.def("set_n",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_n)
 
 		
 		
