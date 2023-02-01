@@ -209,6 +209,19 @@ public:
 	void set_single_Ke(float_t TKe){this->_Ke = {TKe}; this->variable_Ke = false;}
 	void set_single_lambda(float_t tlambda){this->_lambda = {tlambda}; this->variable_lambda = false;}
 
+	template<class in_t>
+	void set_variable_precipitations(in_t& prec)
+	{
+		auto tprec = DAGGER::format_input(prec);
+		this->_precipitations.clear(); this->_precipitations.reserve(this->connector.nnodes);
+		this->variable_precipitations = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_precipitations[i] = tprec[i];
+		}
+
+	}
+
 
 
 

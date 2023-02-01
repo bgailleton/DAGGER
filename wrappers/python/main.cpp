@@ -141,6 +141,8 @@ void declare_trackscape(py::module &m, std::string typestr)
 		.def("rise_boundary_by", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::rise_boundary_by)
 		.def("get_TSP_surface_concentrations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_TSP_surface_concentrations<py::array>)
 		.def("get_Ch_MTIS_surface_age", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Ch_MTIS_surface_age<py::array>)
+		.def("set_variable_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_precipitations<py::array_t<double,1>& >)		
+
 
 		
 
