@@ -109,7 +109,7 @@ public:
 	bool variable_precipitations = false;
 	bool variable_depcoeff = false;
 	bool variable_Sc = false;
-	bool variable_ScM = false;
+	bool variable_Sc_M = false;
 	bool variable_Ke = false;
 	bool variable_lambda = false;
 
@@ -206,8 +206,33 @@ public:
 	void set_single_kappa_s(float_t tkappa_s){this->_kappa_s = {tkappa_s}; this->variable_kappa_s = false;}
 	void set_single_kappa_r(float_t tkappa_r){this->_kappa_r = {tkappa_r}; this->variable_kappa_r = false;}
 	void set_single_Sc_M(float_t tSc_M){this->_Sc_M = {tSc_M}; this->variable_Sc_M = false;}
+	void set_single_Sc(float_t tSc){this->_Sc = {tSc}; this->variable_Sc = false;}
 	void set_single_Ke(float_t TKe){this->_Ke = {TKe}; this->variable_Ke = false;}
 	void set_single_lambda(float_t tlambda){this->_lambda = {tlambda}; this->variable_lambda = false;}
+
+	template<class in_t>
+	void set_variable_Kr(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_Kr.clear(); this->_Kr.reserve(this->connector.nnodes);
+		this->variable_Kr = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_Kr[i] = tarr[i];
+		}
+	}
+
+	template<class in_t>
+	void set_variable_Ks(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_Ks.clear(); this->_Ks.reserve(this->connector.nnodes);
+		this->variable_Ks = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_Ks[i] = tarr[i];
+		}
+	}
 
 	template<class in_t>
 	void set_variable_precipitations(in_t& prec)
@@ -219,8 +244,95 @@ public:
 		{
 				this->_precipitations[i] = tprec[i];
 		}
-
 	}
+
+	template<class in_t>
+	void set_variable_depcoeff(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_depcoeff.clear(); this->_depcoeff.reserve(this->connector.nnodes);
+		this->variable_depcoeff = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_depcoeff[i] = tarr[i];
+		}
+	}
+
+
+	template<class in_t>
+	void set_variable_kappa_s(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_kappa_s.clear(); this->_kappa_s.reserve(this->connector.nnodes);
+		this->variable_kappa_s = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_kappa_s[i] = tarr[i];
+		}
+	}
+
+	template<class in_t>
+	void set_variable_kappa_r(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_kappa_r.clear(); this->_kappa_r.reserve(this->connector.nnodes);
+		this->variable_kappa_r = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_kappa_r[i] = tarr[i];
+		}
+	}
+
+	template<class in_t>
+	void set_variable_Sc(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_Sc.clear(); this->_Sc.reserve(this->connector.nnodes);
+		this->variable_Sc = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_Sc[i] = tarr[i];
+		}
+	}
+
+	template<class in_t>
+	void set_variable_Sc_M(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_Sc_M.clear(); this->_Sc_M.reserve(this->connector.nnodes);
+		this->variable_Sc_M = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_Sc_M[i] = tarr[i];
+		}
+	}
+
+	template<class in_t>
+	void set_variable_Ke(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_Ke.clear(); this->_Ke.reserve(this->connector.nnodes);
+		this->variable_Ke = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_Ke[i] = tarr[i];
+		}
+	}
+
+
+	template<class in_t>
+	void set_variable_lambda(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_lambda.clear(); this->_lambda.reserve(this->connector.nnodes);
+		this->variable_lambda = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_lambda[i] = tarr[i];
+		}
+	}
+
+
 
 
 
@@ -297,12 +409,12 @@ public:
 	}
 
 
-	float_t ScM(int i)
+	float_t Sc_M(int i)
 	{
-		if(variable_ScM == false)
-			return this->_ScM[0];
+		if(variable_Sc_M == false)
+			return this->_Sc_M[0];
 		else
-			return this->_ScM[i];
+			return this->_Sc_M[i];
 	}
 
 
