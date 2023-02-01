@@ -499,6 +499,7 @@ public:
 
 				// Deposition
 				float_t L = std::max(this->depcoeff(node) * this->Qw[node],cellarea);
+
 				fDs = this->Qs_sed[node]/L;
 				
 				if(this->TSP_module)
@@ -546,7 +547,7 @@ public:
 	{
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
-			if(this->connector.boundaries.can_out(i))
+			if(this->connector.boundaries.can_out(i) == false)
 				this->z_surf[i] += rate * dt;
 		}
 	}
