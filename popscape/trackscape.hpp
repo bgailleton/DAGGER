@@ -653,6 +653,64 @@ public:
 		
 	}
 
+
+	void run_SFD_implicit(float_t dt)
+	{
+
+		this->init_vectors();
+		this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
+		// std::vector<bool> testlinkchange(this->graph.links), nnodes2change(this->graph.nnodes,false);
+		this->graph._compute_graph(this->z_surf, this->connector, true, false);
+
+		if(this->variable_precipitations)
+		{
+			std::vector<float_t> tQA(this->connector.nnodes,0.);
+
+			for(int i=0; i<this->connector.nnodes;++i)
+				tQA[i] = this->_precipitations[i] * this->connector.get_area_at_node(i);
+
+
+			this->Qw = this->graph._accumulate_variable_downstream_SFD(this->connector, tQA);
+			
+		}
+		else
+			this->Qw = this->graph._accumulate_constant_downstream_SFD(this->connector, this->connector.get_area_at_node(0));
+
+
+    for (int i=0; i< this->graph.nnodes; ++i)
+  	{
+
+	    int node = this->graph.Sstack[i];
+	    int rec = this->graph.Sreceivers[node];
+
+
+	    if (this->graph.flow_out_or_pit(node,this->connector))
+       continue;
+
+      float_t tK = this->Kr(node);
+
+	    float_t factor = tK * dt * std::pow(this->Qw[node],this->mexp) / std::pow(this->graph.Sdistance2receivers[node],this->mexp);
+
+	    float_t ielevation = this->z_surf[node];
+	    float_t irec_elevation = this->z_surf[rec];
+
+	    float_t elevation_k = ielevation;
+	    float_t elevation_prev = std::numeric_limits<float_t>::max();
+	    float_t tolerance = 1e-4;
+
+	    while (abs(elevation_k - elevation_prev) > tolerance)
+	    {
+				elevation_prev = elevation_k;
+				float_t slope = std::max(elevation_k - irec_elevation,1e-6);
+				float_t diff =  (elevation_k - ielevation + factor * std::pow(slope,this->nexp)) / ( 1. + factor * this->nexp * std::pow(slope, this->nexp - 1) )  ;
+				elevation_k -= diff;
+	    }
+
+	    this->z_surf[node] = elevation_k;
+	  }
+	}
+
+
 	template<class out_t>
 	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->z_surf);}
 
