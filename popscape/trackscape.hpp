@@ -113,6 +113,10 @@ public:
 	bool variable_Ke = false;
 	bool variable_lambda = false;
 
+	// at least one tracking module is actiated if this is true
+	// and it can conflict with some functions
+	bool at_least_one_tracking_module_is_activated = false;
+
 
 	// Module TSP: 
 	// TRACKING SINGLE SOURCE
@@ -751,6 +755,7 @@ public:
 	void init_TSP_module(float_t dz, in_t& tconcent)
 	{
 		this->TSP_module = true;
+		this->at_least_one_tracking_module_is_activated = true;
 		auto concent = DAGGER::format_input(tconcent);
 		this->TSP_concentrations = DAGGER::to_vec(concent);
 		this->TSP_store = VerticalStorer<float_t, BasePropStorer<float_t> >(dz, this->graph.nnodes);
@@ -916,6 +921,7 @@ public:
 	void init_Ch_MTSI(float_t dz)
 	{
 		this->Ch_MTSI = true;
+		this->at_least_one_tracking_module_is_activated = true;
 		this->Ch_MTSI_store = VerticalStorer<float_t, BasePropStorer<float_t> >(dz, this->graph.nnodes);
 		this->init_Qs_TSP();
 	}
@@ -1070,8 +1076,31 @@ public:
 	
 
 
+	// this function "transforme" instantly all the sediments into rocks
+	// Not possible with tracking activated
+	void lithify()
+	{
+		if(this->at_least_one_tracking_module_is_activated)
+			throw std::runtime_error("Cannot lothify if tracking is activated");
+	
+		for(int i=0; i<this->connector.nnodes; ++i)
+		{
+			this->z_surf[i] += this->h_sed[i];
+			this->h_sed[i] = 0;
+		}
+	}
 
-
+	// this function remove instantly all the sediments
+	// Not possible with tracking activated
+	void strip_sediment()
+	{
+		if(this->at_least_one_tracking_module_is_activated)
+			throw std::runtime_error("Cannot remove all the seds if tracking is activated");
+	
+		for(int i=0; i<this->connector.nnodes; ++i)
+			this->h_sed[i] = 0;
+	
+	}
 
 
 
