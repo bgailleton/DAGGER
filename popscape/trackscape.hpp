@@ -88,12 +88,14 @@ public:
 	std::vector<float_t> _depcoeff;
 	// Spatial critical slope
 	std::vector<float_t> _Sc;
-	//Spatial marine _Sc
+	// Spatial marine _Sc
 	std::vector<float_t> _Sc_M;
-	//Spatial marine Ke
+	// Spatial marine Ke
 	std::vector<float_t> _Ke;
-	//Spatial marine lamdba
+	// Spatial marine lamdba
 	std::vector<float_t> _lambda;
+	// Spatial marine sea_level
+	std::vector<float_t> _sea_level;
 
 	// SPL exponents
 	float_t mexp = 0.45,nexp = 1;
@@ -112,6 +114,7 @@ public:
 	bool variable_Sc_M = false;
 	bool variable_Ke = false;
 	bool variable_lambda = false;
+	bool variable_sea_level = false;
 
 	// at least one tracking module is actiated if this is true
 	// and it can conflict with some functions
@@ -158,6 +161,7 @@ public:
 		this->_Sc_M = {0.6};
 		this->_Ke = {2e-2};
 		this->_lambda = {1000};
+		this->_sea_level = {0.};
 
 	};
 
@@ -213,6 +217,7 @@ public:
 	void set_single_Sc(float_t tSc){this->_Sc = {tSc}; this->variable_Sc = false;}
 	void set_single_Ke(float_t TKe){this->_Ke = {TKe}; this->variable_Ke = false;}
 	void set_single_lambda(float_t tlambda){this->_lambda = {tlambda}; this->variable_lambda = false;}
+	void set_single_sea_level(float_t tsea_level){this->_sea_level = {tsea_level}; this->variable_sea_level = false;}
 
 	void set_m(float_t m){this->mexp = m;}
 	void set_n(float_t n){this->nexp = n;}
@@ -221,7 +226,7 @@ public:
 	void set_variable_Kr(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_Kr.clear(); this->_Kr.reserve(this->connector.nnodes);
+		this->_Kr = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_Kr = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -233,7 +238,7 @@ public:
 	void set_variable_Ks(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_Ks.clear(); this->_Ks.reserve(this->connector.nnodes);
+		this->_Ks = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_Ks = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -245,7 +250,7 @@ public:
 	void set_variable_precipitations(in_t& prec)
 	{
 		auto tprec = DAGGER::format_input(prec);
-		this->_precipitations.clear(); this->_precipitations.reserve(this->connector.nnodes);
+		this->_precipitations = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_precipitations = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -257,7 +262,7 @@ public:
 	void set_variable_depcoeff(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_depcoeff.clear(); this->_depcoeff.reserve(this->connector.nnodes);
+		this->_depcoeff = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_depcoeff = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -270,7 +275,7 @@ public:
 	void set_variable_kappa_s(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_kappa_s.clear(); this->_kappa_s.reserve(this->connector.nnodes);
+		this->_kappa_s = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_kappa_s = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -282,7 +287,7 @@ public:
 	void set_variable_kappa_r(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_kappa_r.clear(); this->_kappa_r.reserve(this->connector.nnodes);
+		this->_kappa_r = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_kappa_r = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -294,7 +299,7 @@ public:
 	void set_variable_Sc(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_Sc.clear(); this->_Sc.reserve(this->connector.nnodes);
+		this->_Sc = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_Sc = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -306,7 +311,7 @@ public:
 	void set_variable_Sc_M(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_Sc_M.clear(); this->_Sc_M.reserve(this->connector.nnodes);
+		this->_Sc_M = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_Sc_M = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -318,7 +323,7 @@ public:
 	void set_variable_Ke(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_Ke.clear(); this->_Ke.reserve(this->connector.nnodes);
+		this->_Ke = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_Ke = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
@@ -331,11 +336,38 @@ public:
 	void set_variable_lambda(in_t& arr)
 	{
 		auto tarr = DAGGER::format_input(arr);
-		this->_lambda.clear(); this->_lambda.reserve(this->connector.nnodes);
+		this->_lambda = std::vector<float_t>(this->connector.nnodes,0.);
 		this->variable_lambda = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
 				this->_lambda[i] = tarr[i];
+		}
+	}
+
+
+	template<class in_t>
+	void set_variable_sea_level(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->_sea_level = std::vector<float_t>(this->connector.nnodes,0.);
+		this->variable_sea_level = true;
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->_sea_level[i] = tarr[i];
+		}
+	}
+
+
+
+	template<class in_t>
+	void feed_topo(in_t& arr)
+	{
+		auto tarr = DAGGER::format_input(arr);
+		this->z_surf = std::vector<float_t>(this->connector.nnodes,0.);
+
+		for(int i=0; i < this->graph.nnodes; ++i)
+		{
+				this->z_surf[i] = tarr[i];
 		}
 	}
 
@@ -441,6 +473,16 @@ public:
 			return this->_lambda[i];
 	}
 
+	float_t sea_level(int i)
+	{
+		if(variable_sea_level == false)
+			return this->_sea_level[0];
+		else
+			return this->_sea_level[i];
+	}
+
+
+
 
 
 	// ------------------------------------------------
@@ -539,122 +581,146 @@ public:
 			
 
 			// preparing processes
-			float_t fEs = 0, fEr = 0, fDs = 0, hEs = 0., hEr = 0., hDs = 0.;
+			float_t fEs = 0., fEr = 0., fDs = 0., hEs = 0., hEr = 0., hDs = 0., mEs = 0., mEr = 0., mDs = 0.;
 
-			// Running the hillslope processes
-			if(this->hillslopes)
+			bool isNodeContinental = true;
+			if(this->marine)
 			{
-				// Storing the proportion of bedrock-power used
-				float_t propused = 0;
+				if(this->z_surf[node] + this->h_sed[node] < this->sea_level(node))
+					isNodeContinental = false;
+			}
 
-				// If the slope is bellow the critical values
-				if(S <= Sc(node) - 1e-6)
+			if(isNodeContinental)
+			{
+				// Running the hillslope processes
+				if(this->hillslopes)
 				{
-					// If I have sediments
-					if(this->h_sed[node] > 0)
-					{
-						
-						// erosion power
-						hEs = Ks(node) * S;
-
-						// Checking I am not strapping more than the sediment pile
-						if(hEs * dt > this->h_sed[node])
-						{
-							// Correcting to the max sed height removal possible and calculating the proportion of sediment used
-							propused = this->h_sed[node]/dt /hEs;
-							hEs = this->h_sed[node]/dt;
-						}
-						else
-						{
-							// I don't have any sed? -> no propused
-							propused = 1.;
-						}
-
-					// end of the check for excessing sed height
-					}
-
-					// Remaining applied to bedrock
-					hEr = (1. - propused) * Kr(node) * S;
-					float_t L = cellarea/(1 - std::pow(S/Sc(node),2));
-					hDs = this->Qs_hs[node]/L;
-
-				}
-				else
-				{
-					float_t tothE = (z_surf[node] - (dx * Sc(node) + z_surf[rec]) )/dt;
-					if(tothE > this->h_sed[node])
-					{
-						hEs = this->h_sed[node]/dt;
-						hEr = tothE - hEs;
-					}
-					else
-						hEs = tothE;
+					this->_compute_SFD_hillslopes(node, rec, S, hEs, hEr, hDs, dt, dx, cellarea);
 				}
 
-				if(this->TSP_module)
-					this->apply_TSP(node, rec, hEs, hEr, hDs, dt, true);
-
-				if(this->Ch_MTSI)
-					this->apply_Ch_MTSI_SFD(node, rec, hEs, hEr, hDs, dt, true);
-
-				this->Qs_hs[node] += (hEs + hEr - hDs) * cellarea;
-
-				// Applying the fluxes
-				this->h_sed[node] += (hDs - hEs) * dt;
-				this->z_surf[node] += (hDs - hEs - hEr) * dt;
-				if(this->Qs_hs[node] < 0) this->Qs_hs[node] = 0;
-				this->Qs_hs[rec] += this->Qs_hs[node];
-
+				// Fluvial processes
+				if(this->fluvial)
+				{
+					this->_compute_SFD_fluvial(node,rec,S,fEs,fEr,fDs,dt,dx,cellarea);
+				}
+			}
+			else
+			{
+				this->_compute_SFD_marine(node,rec,S,mEs,mEr,mDs,dt,dx,cellarea);
 			}
 
 
-			// Fluvial processes
-			if(this->fluvial)
-			{
-				// Erosion
-				float_t stream_power = std::pow(this->Qw[node],this->mexp) * std::pow(S,this->nexp);
-				float_t propused = 0;
-				if(this->h_sed[node] > 0)
-				{
-					fEs = Ks(node) * stream_power;
-					if(this->h_sed[node] < fEs * dt)
-					{
-						propused = this->h_sed[node] / dt / fEs;
-						fEs = this->h_sed[node] / dt;
-					}
-					else
-					{
-						propused = 1.;
-					}
-				}
-				fEr = (1. - propused) * Kr(node) * stream_power;
-
-				// Deposition
-				float_t L = std::max(this->depcoeff(node) * this->Qw[node],cellarea);
-
-				fDs = this->Qs_sed[node]/L;
-				
-				if(this->TSP_module)
-					this->apply_TSP(node, rec, fEs, fEr, fDs, dt, false);
-
-				if(this->Ch_MTSI)
-					this->apply_Ch_MTSI_SFD(node, rec, fEs, fEr, fDs, dt, false);
-			
-				// Applying the fluxes
-				this->h_sed[node] += (fDs - fEs) * dt;
-				this->z_surf[node] += (fDs - fEs - fEr) * dt;
-				this->Qs_sed[node] += (fEs + fEr - fDs) * cellarea;
-
-				if(this->Qs_sed[node] < 0) this->Qs_sed[node] = 0;
-
-				// Transferring to receivers
-				this->Qw[rec] += this->Qw[node];
-				this->Qs_sed[rec] += this->Qs_sed[node];
-
-			}
 		}
 
 		
+	}
+
+	void _compute_SFD_hillslopes(int node, int rec, float_t& S, float_t & hEs, float_t & hEr, float_t & hDs, float_t& dt, float_t& dx, float_t& cellarea)
+	{
+		// Storing the proportion of bedrock-power used
+		float_t propused = 0;
+
+		// If the slope is bellow the critical values
+		if(S <= Sc(node) - 1e-6)
+		{
+			// If I have sediments
+			if(this->h_sed[node] > 0)
+			{
+				
+				// erosion power
+				hEs = Ks(node) * S;
+
+				// Checking I am not strapping more than the sediment pile
+				if(hEs * dt > this->h_sed[node])
+				{
+					// Correcting to the max sed height removal possible and calculating the proportion of sediment used
+					propused = this->h_sed[node]/dt /hEs;
+					hEs = this->h_sed[node]/dt;
+				}
+				else
+				{
+					// I don't have any sed? -> no propused
+					propused = 1.;
+				}
+
+			// end of the check for excessing sed height
+			}
+
+			// Remaining applied to bedrock
+			hEr = (1. - propused) * Kr(node) * S;
+			float_t L = cellarea/(1 - std::pow(S/Sc(node),2));
+			hDs = this->Qs_hs[node]/L;
+
+		}
+		else
+		{
+			float_t tothE = (z_surf[node] - (dx * Sc(node) + z_surf[rec]) )/dt;
+			if(tothE > this->h_sed[node])
+			{
+				hEs = this->h_sed[node]/dt;
+				hEr = tothE - hEs;
+			}
+			else
+				hEs = tothE;
+		}
+
+		if(this->TSP_module)
+			this->apply_TSP(node, rec, hEs, hEr, hDs, dt, true);
+
+		if(this->Ch_MTSI)
+			this->apply_Ch_MTSI_SFD(node, rec, hEs, hEr, hDs, dt, true);
+
+		this->Qs_hs[node] += (hEs + hEr - hDs) * cellarea;
+
+		// Applying the fluxes
+		this->h_sed[node] += (hDs - hEs) * dt;
+		this->z_surf[node] += (hDs - hEs - hEr) * dt;
+		if(this->Qs_hs[node] < 0) this->Qs_hs[node] = 0;
+		this->Qs_hs[rec] += this->Qs_hs[node];
+	}
+
+
+	void _compute_SFD_fluvial(int node, int rec, float_t& S, float_t & fEs, float_t & fEr, float_t & fDs, float_t& dt, float_t& dx, float_t& cellarea)
+	{
+		// Erosion
+		float_t stream_power = std::pow(this->Qw[node],this->mexp) * std::pow(S,this->nexp);
+		float_t propused = 0;
+		if(this->h_sed[node] > 0)
+		{
+			fEs = Ks(node) * stream_power;
+			if(this->h_sed[node] < fEs * dt)
+			{
+				propused = this->h_sed[node] / dt / fEs;
+				fEs = this->h_sed[node] / dt;
+			}
+			else
+			{
+				propused = 1.;
+			}
+		}
+		fEr = (1. - propused) * Kr(node) * stream_power;
+
+		// Deposition
+		float_t L = std::max(this->depcoeff(node) * this->Qw[node],cellarea);
+
+		fDs = this->Qs_sed[node]/L;
+		
+		if(this->TSP_module)
+			this->apply_TSP(node, rec, fEs, fEr, fDs, dt, false);
+
+		if(this->Ch_MTSI)
+			this->apply_Ch_MTSI_SFD(node, rec, fEs, fEr, fDs, dt, false);
+	
+		// Applying the fluxes
+		this->h_sed[node] += (fDs - fEs) * dt;
+		this->z_surf[node] += (fDs - fEs - fEr) * dt;
+		this->Qs_sed[node] += (fEs + fEr - fDs) * cellarea;
+
+		if(this->Qs_sed[node] < 0) this->Qs_sed[node] = 0;
+
+		// Transferring to receivers
+		this->Qw[rec] += this->Qw[node];
+		this->Qs_sed[rec] += this->Qs_sed[node];
 	}
 
 
@@ -693,7 +759,7 @@ public:
 
       float_t tK = this->Kr(node);
 
-	    float_t factor = tK * dt * std::pow(this->Qw[node],this->mexp) / std::pow(this->graph.Sdistance2receivers[node],this->mexp);
+	    float_t factor = tK * dt * std::pow(this->Qw[node],this->mexp) / std::pow(this->graph.Sdistance2receivers[node],this->nexp);
 
 	    float_t ielevation = this->z_surf[node];
 	    float_t irec_elevation = this->z_surf[rec];
@@ -712,6 +778,74 @@ public:
 
 	    this->z_surf[node] = elevation_k;
 	  }
+	}
+
+	void _compute_SFD_marine(int node, int rec, float_t& S, float_t & mEs, float_t & mEr, float_t & mDs, float_t& dt, float_t& dx, float_t& cellarea)
+	{
+		// Storing the proportion of bedrock-power used
+		float_t propused = 0;
+
+		// updating the node sediment flux with anything that came (river + hillslope)
+		this->Qs_hs[node] += this->Qs_sed[node];
+
+		// If the slope is bellow the critical values
+		if(S <= Sc_M(node) - 1e-6)
+		{
+			// If I have sediments
+			if(this->h_sed[node] > 0)
+			{
+				
+				// erosion power
+				mEs = Ke(node) * S;
+
+				// Checking I am not strapping more than the sediment pile
+				if(mEs * dt > this->h_sed[node])
+				{
+					// Correcting to the max sed height removal possible and calculating the proportion of sediment used
+					propused = this->h_sed[node]/dt /mEs;
+					mEs = this->h_sed[node]/dt;
+				}
+				else
+				{
+					// I don't have any sed? -> no propused
+					propused = 1.;
+				}
+
+			// end of the check for excessing sed height
+			}
+
+			// Remaining applied to bedrock
+			// mEr = (1. - propused) * Kr(node) * S;
+
+			float_t L = (this->connector.get_travers_dy_from_dx(dx) * this->lambda(node))/(1 - std::pow(S/Sc(node),2));
+			mDs = this->Qs_hs[node]/L;
+
+		}
+		else
+		{
+			float_t tothE = (z_surf[node] - (dx * Sc(node) + z_surf[rec]) )/dt;
+			if(tothE > this->h_sed[node])
+			{
+				mEs = this->h_sed[node]/dt;
+				// mEr = tothE - mEs;
+			}
+			else
+				mEs = tothE;
+		}
+
+		if(this->TSP_module)
+			this->apply_TSP(node, rec, mEs, mEr, mDs, dt, true);
+
+		if(this->Ch_MTSI)
+			this->apply_Ch_MTSI_SFD(node, rec, mEs, mEr, mDs, dt, true);
+
+		this->Qs_hs[node] += (mEs + mEr - mDs) * cellarea;
+
+		// Applying the fluxes
+		this->h_sed[node] += (mDs - mEs) * dt;
+		this->z_surf[node] += (mDs - mEs - mEr) * dt;
+		if(this->Qs_hs[node] < 0) this->Qs_hs[node] = 0;
+		this->Qs_hs[rec] += this->Qs_hs[node];
 	}
 
 
