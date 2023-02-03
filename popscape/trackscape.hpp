@@ -254,7 +254,7 @@ public:
 		this->variable_precipitations = true;
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
-				this->_precipitations[i] = tprec[i];
+			this->_precipitations[i] = tprec[i];
 		}
 	}
 
@@ -531,6 +531,8 @@ public:
 	void run_SFD(float_t dt)
 	{
 
+		// std::cout << "NEED TO APPLY FLUXES AT THE END OF TIMESTEP OR AT LEAST V. MOTIONS OR CHECK" << std::endl;;
+
 		if(this->Ch_MTSI)
 			this->Ch_MTSI_age(dt);
 
@@ -539,24 +541,6 @@ public:
 		// std::vector<bool> testlinkchange(this->graph.links), nnodes2change(this->graph.nnodes,false);
 		this->graph._compute_graph(this->z_surf, this->connector, true, false);
 
-		// int n_links_changed = 0, n_links = int(this->graph.links.size()), nnodeschanged = 0;;
-		// for(size_t i=0; i <this->graph.links.size();++i)
-		// {
-		// 	if(this->graph.links[i] != testlinkchange[i])
-		// 	{
-		// 		nnodes2change[this->graph.linknodes[i*2]] = true;
-		// 		nnodes2change[this->graph.linknodes[i*2 + 1]] = true;
-		// 		++n_links_changed;
-		// 	}
-		// }
-		// for(auto v:nnodes2change)
-		// {
-		// 	if(v)++nnodeschanged;
-		// }
-
-
-
-		// std::cout << n_links_changed << "/" << n_links << " links modified - " << nnodeschanged << "/" << this->graph.nnodes << " nodes to recompute" << std::endl;
 
 		for(int i= this->graph.nnodes -1; i>=0; --i)
 		{
@@ -737,7 +721,9 @@ public:
 			std::vector<float_t> tQA(this->connector.nnodes,0.);
 
 			for(int i=0; i<this->connector.nnodes;++i)
+			{
 				tQA[i] = this->_precipitations[i] * this->connector.get_area_at_node(i);
+			}
 
 
 			this->Qw = this->graph._accumulate_variable_downstream_SFD(this->connector, tQA);
@@ -817,8 +803,8 @@ public:
 			// Remaining applied to bedrock
 			// mEr = (1. - propused) * Kr(node) * S;
 
-			float_t L = (this->connector.get_travers_dy_from_dx(dx) * this->lambda(node))/(1 - std::pow(S/Sc(node),2));
-			mDs = this->Qs_hs[node]/L;
+			float_t L = (this->connector.get_travers_dy_from_dx(dx) * this->lambda(node))/(1 - std::pow(S/Sc_M(node),2));
+			mDs = this->Qs_hs[node]/std::max(L,cellarea);
 
 		}
 		else
@@ -853,6 +839,14 @@ public:
 	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->z_surf);}
 
 	template<class out_t>
+	out_t get_Qw(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->Qw);}
+
+	template<class out_t>
+	out_t get_precipitations(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->_precipitations);}
+
+
+
+	template<class out_t>
 	out_t get_h_sed(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->h_sed);}
 
 	template<class in_t>
@@ -862,7 +856,9 @@ public:
 		for(int i=0; i < this->graph.nnodes; ++i)
 		{
 			if(!this->connector.boundaries.can_out(i) || apply_to_edges)
+			{
 				this->z_surf[i] += U[i] * dt;
+			}
 		}
 
 	}
