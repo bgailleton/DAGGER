@@ -92,6 +92,8 @@ void declare_popscape(py::module &m, std::string typestr)
 {
 	py::class_<popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T > >(m, typestr.c_str())
 		.def(py::init<RANDNOISE,int,int,float_t,float_t>())
+		// .def_readwrite("graph",  &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::graph)
+		// .def_readwrite("connector",  &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::connector)
 		.def("solve_generic", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::solve_generic)
 		.def("get_topo", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array>)
 		.def("get_QA", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_QA<py::array>)
