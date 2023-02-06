@@ -20,7 +20,7 @@ template<class T>
 void _create_connector(int nx, int ny, T dx, T dy, T xmin, T ymin, DAGGER::D4connector<T>& con){con = DAGGER::D4connector<T>(nx, ny, dx, dy, xmin, ymin);}
 
 template<class Connector_t, class T>
-void _create_graph(int nxy, Connector_t& con,  DAGGER::graph<T,Connector_t>& gr){gr = DAGGER::graph<T,Connector_t>(nxy, con.get_nneighbours());}
+void _create_graph(int nxy, Connector_t& con,  DAGGER::graph<T,Connector_t>& gr){gr = DAGGER::graph<T,Connector_t>(con);}
 // DAGGER::D4connector _create_connector(int nx, int ny, T dx, T dy, T xmin, T ymin){return D4connector(int nx, int ny, T dx, T dy, T xmin, T ymin);}
 
 

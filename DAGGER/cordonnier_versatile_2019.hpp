@@ -224,30 +224,31 @@ public:
 
 	LMRerouter(){;};
 
+
 	template<class topo_t, class Connector_t>
-	bool run(DEPRES method, topo_t& topography, Connector_t& connector, std::vector<int>& Sreceivers, std::vector<float_t>& Sdistance2receivers, std::vector<size_t>& Sstack, std::vector<int>& links)
+	bool run(DEPRES method, topo_t& topography, Connector_t* connector, std::vector<size_t>& Sstack)
 	{
 		// std::cout << "DEBUGLM_II::1" <<std::endl;
 		// tracking the number of basins
 		this->nbas = -1;
 		// tracking to which basin each node belongs to
-		this->basins = std::vector<int>(connector.nnodes,0);
+		this->basins = std::vector<int>(connector->nnodes,0);
 		// number of internal basins to reroute
 		int nbas2solve = 0;
 
 		// First comuting the basin array
-		for(int i=0; i<connector.nnodes; ++i)
+		for(int i=0; i<connector->nnodes; ++i)
 		{
 			// getting the current nodes
 			size_t node = Sstack[i];
 
 			// If it is its own receiver, then
-			if(Sreceivers[node] == int(node))
+			if(connector->Sreceivers[node] == int(node))
 			{
 				// incrementing the basin label
 				++this->nbas;
 				// is it a base level
-				if(connector.boundaries.can_out(node))
+				if(connector->boundaries.can_out(node))
 				{
 					// then it is an open basin
 					this->is_open_basin.emplace_back(true);
@@ -278,7 +279,7 @@ public:
 		// Relabelling 0 all the open basins to gain time
 		if(this->opti_sparse_border)
 		{
-			for(int i=0; i<connector.nnodes; ++i)
+			for(int i=0; i<connector->nnodes; ++i)
 			{
 				if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
 			}
@@ -289,8 +290,8 @@ public:
 		if(nbas2solve == 0)
 			return false;
 
-		// tracking the number of links between a basin to another
-		// int nlinks = 0;
+		// tracking the number of connector->linknodes between a basin to another
+		// int nconnector->linknodes = 0;
 
 		// std::cout << "DEBUGLM_II::4" <<std::endl;
 		// this->stostor = SparseStorer<float_t>(std::round(std::pow(this->nbas,2)/2));
@@ -298,10 +299,10 @@ public:
 		this->stostor.optimize_memory = true;
 		
 		// going through each and every link
-		for(int i=0; i < int(links.size()); ++i)
+		for(int i=0; i < int(connector->linknodes.size()); ++i)
 		{
 			// if the link is not valid, I continue
-			if(links[i] < 0)
+			if(connector->linknodes[i] < 0)
 			{
 				// REALLY IMPORTANT: incrementing i as i is a noe and i+1 its counterpart
 				++i;
@@ -316,8 +317,8 @@ public:
 			++i;
 			
 			// translating the nodes to basin IDs 
-			int bj = this->basins[links[j]];
-			int bk = this->basins[links[k]];
+			int bj = this->basins[connector->linknodes[j]];
+			int bk = this->basins[connector->linknodes[k]];
 
 			// if in same basin or both open -> I skip
 			if(bj == bk || (this->is_open_basin[bj] && this->is_open_basin[bk]) )
@@ -325,17 +326,17 @@ public:
 
 			// The score is the minimum elevation of the pass or the elevation of the outlet if the flow can out a place
 			float_t score;
-			if(connector.boundaries.can_out(links[j]))
+			if(connector->boundaries.can_out(connector->linknodes[j]))
 			{
-				score = topography[links[j]];
+				score = topography[connector->linknodes[j]];
 			}
-			else if (connector.boundaries.can_out(links[k]))
+			else if (connector->boundaries.can_out(connector->linknodes[k]))
 			{
-				score = topography[links[k]];
+				score = topography[connector->linknodes[k]];
 			}
 			else
 			{
-				score = std::min(topography[links[j]],topography[links[k]]);
+				score = std::min(topography[connector->linknodes[j]],topography[connector->linknodes[k]]);
 			}
 			
 			// is bj < bk (the std::pair storing the pass always starts from the lowes to the highest by convention to keep the std::pair map keys unique)
@@ -352,7 +353,7 @@ public:
 			std::string tp = this->uniqueBasid(bj,bk);
 
 			
-			basinLink<float_t> tbasl(bj,bk,links[j],links[k],score);
+			basinLink<float_t> tbasl(bj,bk,connector->linknodes[j],connector->linknodes[k],score);
 			this->stostor.insert(tp, tbasl);
 
 		}
@@ -517,48 +518,48 @@ public:
 				int bas = this->stack[i];
 				// std::cout << bas << "/" << this->nbas << std::endl;;
 				// HOTFIX TO CHECK!!!!!: || this->is_open_basin[bas] == false, needed when p_nlinkignored is triggered
-				if(connector.boundaries.can_out(this->pitnode[bas]) || this->is_open_basin[bas] == false)
+				if(connector->boundaries.can_out(this->pitnode[bas]) || this->is_open_basin[bas] == false)
 					continue;
 				// std::cout << "A" << std::endl;
 				int from = this->receivers_node[bas].first; 
 				int to = this->receivers_node[bas].second;
 				// std::cout << "B" << std::endl;
-				// std::cout << Sreceivers[this->pitnode[bas]] << "|";
+				// std::cout << connector->Sreceivers[this->pitnode[bas]] << "|";
 
 				int A = from;
-				int B = Sreceivers[A];
+				int B = connector->Sreceivers[A];
 				int C = B;
 				// std::cout << "C" << std::endl;
 
 				while(A != this->pitnode[bas])
 				{
 					// std::cout << B << std::endl;
-					C = Sreceivers[B];
-					Sreceivers[B] = A;
-					// Sdistance2receivers[B] = Sdistance2receivers[A];
-					Sdistance2receivers[B] = connector.dx;
+					C = connector->Sreceivers[B];
+					connector->Sreceivers[B] = A;
+					// connector->Sdistance2receivers[B] = connector->Sdistance2receivers[A];
+					connector->Sdistance2receivers[B] = connector->dx;
 
 					A = B;
 					B = C;
 				}
 				// std::cout << "D" << std::endl;
 
-				Sreceivers[from] = to;
-				Sdistance2receivers[from] = connector.dx;
+				connector->Sreceivers[from] = to;
+				connector->Sdistance2receivers[from] = connector->dx;
 
-				// std::cout << Sreceivers[this->pitnode[bas]] << std::endl;
+				// std::cout << connector->Sreceivers[this->pitnode[bas]] << std::endl;
 			}
 
 		}
 		else if (method == DEPRES::cordonnier_fill)
 		{
-			std::vector<bool> isinQ(connector.nnodes,false);
-			std::vector<bool> isfilled(connector.nnodes,false);
+			std::vector<bool> isinQ(connector->nnodes,false);
+			std::vector<bool> isfilled(connector->nnodes,false);
 			std::vector<bool> basinDone(this->nbas,false);
 			std::vector<int> basfam(this->nbas,-1);
 			for(int i = 0; i< this->nbas; ++i)
 			{
-				if(connector.boundaries.can_out(this->pitnode[i]))
+				if(connector->boundaries.can_out(this->pitnode[i]))
 					basinDone[i] = true;
 
 				int node = this->stack[i];
@@ -568,36 +569,36 @@ public:
 					basfam[node] = node;
 			}
 
-			auto neighbours = connector.get_empty_neighbour();
+			auto neighbours = connector->get_empty_neighbour();
 			for(int i = 0; i < this->nbas; ++i)
 			{
 				int bas = this->stack[i];
-				if(connector.boundaries.can_out(this->pitnode[bas]))
+				if(connector->boundaries.can_out(this->pitnode[bas]))
 					continue;
 
 
 				int from = this->receivers_node[bas].first; 
 				int to = this->receivers_node[bas].second;
 				float_t zref = std::max(topography[from], topography[to]);
-				Sreceivers[from] = to;
-				Sdistance2receivers[from] = connector.dx;
+				connector->Sreceivers[from] = to;
+				connector->Sdistance2receivers[from] = connector->dx;
 				isinQ[from] = true;
 				std::queue<int> Q;Q.emplace(from);
 				while(Q.empty() == false)
 				{
 					int next = Q.front();Q.pop();
 					isfilled[next] = true;
-					int nn = connector.get_neighbour_idx(next, neighbours);
+					int nn = connector->get_neighbour_idx(next, neighbours);
 
-					float_t lowest_z = std::max(topography[Sreceivers[next]],topography[next]);
-					int nznodeext = Sreceivers[next];
+					float_t lowest_z = std::max(topography[connector->Sreceivers[next]],topography[next]);
+					int nznodeext = connector->Sreceivers[next];
 
 					for(int tnn = 0 ; tnn<nn; ++tnn )
 					{
 
 						int n = neighbours[tnn];
 
-						if (n<0 || n >= connector.nnodes)
+						if (n<0 || n >= connector->nnodes)
 							std::cout << "JDFKHJLDSFHJKDSFHJKLDFSHJKLDFS" << std::endl;
 
 						int basn = this->basins[n];
@@ -620,17 +621,17 @@ public:
 							continue;
 						if(topography[n] <= zref)
 						{
-							Sreceivers[n] = next;
+							connector->Sreceivers[n] = next;
 							isinQ[n] = true;
 							Q.emplace(n);
 						}
 					}
 
 
-					topography[next] = std::max(lowest_z + minimum_slope + connector.randu->get() * slope_randomness, topography[next]);
+					topography[next] = std::max(lowest_z + minimum_slope + connector->randu->get() * slope_randomness, topography[next]);
 					zref = std::max(topography[next],zref);
-					Sreceivers[next] = nznodeext;
-					Sdistance2receivers[next] = connector.dx;
+					connector->Sreceivers[next] = nznodeext;
+					connector->Sdistance2receivers[next] = connector->dx;
 				}
 
 				basinDone[bas] = true;
@@ -757,7 +758,7 @@ public:
 
 // 		std::vector<int> next_nodes;
 // 		next_nodes.reserve(this->con->nx * 4);
-// 		for(int i=0; i<this->graph->nnodes; ++i) if(i == this->graph->Sreceivers[i]) next_nodes.emplace_back(i);
+// 		for(int i=0; i<this->graph->nnodes; ++i) if(i == this->graph->connector->Sreceivers[i]) next_nodes.emplace_back(i);
 // 		bool keepon = true;
 // 		do
 // 		{
@@ -823,7 +824,7 @@ public:
 // 		int jn = 0;
 // 		for(int j=0; j< nn; ++j)
 // 		{
-// 			if(this->graph->Sreceivers[this->neighbours[j]] == i)
+// 			if(this->graph->connector->Sreceivers[this->neighbours[j]] == i)
 // 			{
 // 				// this->is_Sdonor[j] = true;
 // 				this->neighbours[jn] = this->neighbours[j];

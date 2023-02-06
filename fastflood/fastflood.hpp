@@ -92,7 +92,7 @@ public:
 		this->hw = std::vector<float_t>(this->connector->nnodes,0.);
 		this->Qwin = std::vector<float_t>(this->connector->nnodes,0.);
 		this->Qwout = std::vector<float_t>(this->connector->nnodes,0.);
-		this->weights = std::vector<float_t>(this->graph->links.size(),0.);
+		this->weights = std::vector<float_t>(this->connector->links.size(),0.);
 
 	}
 
@@ -116,7 +116,7 @@ public:
 	void enable_Afdt(){this->Afdt = true;}
 	void disable_Afdt(){this->Afdt = false;}
 
-	void set_stochaslope(float_t stosto){this->stochaslope = stosto; this->graph->stochaticiy_for_SFD = stosto;}
+	void set_stochaslope(float_t stosto){this->stochaslope = stosto; this->connector->stochaticiy_for_SFD = stosto;}
 
 	template<class tt0>
 	float_t dt(tt0 i)
@@ -222,7 +222,7 @@ public:
 		for(int i=0; i< this->connector->nnodes; ++i)
 			surf[i] = this->topography[i] + this->hw[i];
 		std::vector<float_t> surfpp(surf);
-		(*this->graph)._compute_graph(surfpp, *(this->connector), only_SS, true);
+		(*this->graph)._compute_graph(surfpp, only_SS, true);
 
 		for(int i=0; i<this->connector->nnodes; ++i)
 		{
@@ -255,7 +255,7 @@ public:
 		std::vector<float_t> surfpp(surf);
 		// std::cout << "DEBUGDEBUGA11" << std::endl;
 		// this->graph->depression_resolver = DAGGER::DEPRES::priority_flood_2014 ;
-		(*this->graph)._compute_graph(surfpp, *(this->connector), true, true);
+		(*this->graph)._compute_graph(surfpp, true, true);
 		// py::array temp  = this->graph->compute_graph<Connector_t, std::vector<double> , py::array>(depression_solver, surfpp, *(this->connector), true, true);
 		// std::cout << "DEBUGDEBUGA2" << std::endl;
 		// float_t totaddedbystuff = 0;
@@ -279,8 +279,8 @@ public:
 		// debugging process of checking the SD receivers
 		// this->check_SD_val();
 
-		this->Qwin = this->graph->_accumulate_variable_downstream_SFD(*this->connector, this->Qbase);
-		std::vector<float_t> gradients = this->graph->_get_SFD_gradient(surfpp);
+		this->Qwin = this->graph->_accumulate_variable_downstream_SFD(this->Qbase);
+		std::vector<float_t> gradients = this->connector->_get_SFD_gradient(surfpp);
 
 		for(auto& v:this->Qwout)
 			v=0;
@@ -297,7 +297,7 @@ public:
 		for(int ti = this->connector->nnodes -1; ti >= 0; --ti)
 		{
 			int i = int(this->graph->Sstack[ti]);
-			int rec = this->graph->Sreceivers[i];
+			int rec = this->connector->Sreceivers[i];
 			
 			if(gradients[i] < 0)
 			{
@@ -306,11 +306,11 @@ public:
 			}
 			// sumgrad_sqrt += std::sqrt(gradients[i]);
 
-			if(this->graph->flow_out_or_pit(i) == false)
+			if(this->connector->flow_out_or_pit(i) == false)
 			{
 				float_t thw = (this->hflow)? this->get_hflow_from_nodes(i,rec): this->hw[i];
 
-				this->Qwout[i] = this->graph->Sdistance2receivers[i]/this->mannings * std::pow(thw,exp2) * std::pow(gradients[i],exp1);
+				this->Qwout[i] = this->connector->Sdistance2receivers[i]/this->mannings * std::pow(thw,exp2) * std::pow(gradients[i],exp1);
 
 				this->hw[i] += dt(i) * ( this->Qwin[i] - this->Qwout[i])/this->connector->get_area_at_node(i);
 				
@@ -501,7 +501,7 @@ public:
 		// Filling the surface (filling local minimas)
 		link.tik();
 		std::vector<float_t> surfpp(surf);
-		(*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
+		(*this->graph)._compute_graph(surfpp, false, true);
 		// link.tok("graph");
 
 		// NO FILLING IN DYNAMIC
@@ -540,11 +540,11 @@ public:
 			int node = this->graph->stack[i];
 	
 			//## is the node active?
-			if(!this->graph->flow_out_model(node, *this->connector) == false)
+			if(this->connector->flow_out_model(node))
 				continue;
 
 			//## getting the receiver links (all where heaviside is 1)
-			int nn = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+			int nn = this->connector->get_receivers_idx_links(node, reclink);
 			
 			//## Accumulating local discharge
 			this->Qwin[node] += this->Qbase[node];
@@ -566,14 +566,14 @@ public:
 				int li = reclink[ttl];
 
 				//### Not valid 4 some reasons? skip
-				if(this->graph->is_link_valid(li) == false)
+				if(this->connector->is_link_valid(li) == false)
 					continue;
 
 				//### local dx
 				float_t dx = this->connector->get_dx_from_links_idx(li);
 				
 				//### receiving node
-				int to = this->graph->get_to_links(li);
+				int to = this->connector->get_to_links(li);
 
 				//### local gradient, set to a numrically unsignificant minimum
 				float_t tgrad = (surfpp[node] - surfpp[to]) / dx;
@@ -597,10 +597,10 @@ public:
 			{
 				///### Getting the link id
 				int li = reclink[ttl];
-				if(this->graph->is_link_valid(li) == false)
+				if(this->connector->is_link_valid(li) == false)
 					continue;
 				///### the other node
-				int to = this->graph->get_to_links(li);
+				int to = this->connector->get_to_links(li);
 				///### partitioning proportional to the slope to the power this->parting_coeff
 				this->Qwin[to] += sqrtgrads[ttl]/sumgrad_sqrt * this->Qwout[node];
 			}
@@ -628,9 +628,8 @@ public:
 		auto neighbours = this->connector->get_empty_neighbour();
 		for(int i = 0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector) == false)
+			if(!this->connector->flow_out_model(i) == false)
 			{
-				// throw std::runtime_error("BITE");
 				int nn = this->connector->get_neighbour_idx(i,neighbours);
 				float_t tsurf = std::numeric_limits<float_t>::max();
 				int tnode = -1;
@@ -669,11 +668,7 @@ public:
 		link.tik();
 		std::vector<float_t> surfpp(surf);
 		// std::cout << "DEBUGDEBUGA11" << std::endl;
-		(*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
-		// py::array temp  = this->graph->compute_graph<Connector_t, std::vector<double> , py::array>(depression_solver, surfpp, *(this->connector), true, true);
-		// std::cout << "DEBUGDEBUGA2" << std::endl;
-		// link.tok("graph");
-
+		(*this->graph)._compute_graph(surfpp, false, true);
 
 		link.tik();
 		int n_pixel_filled = 0;
@@ -711,16 +706,14 @@ public:
 				int node = this->graph->stack[i];
 			// std::cout << "DEBUGDEBUGA42" << std::endl;
 				
-				if(!this->graph->flow_out_model(node,*this->connector) == false)
+				if(this->connector->flow_out_model(node))
 					continue;
 
-				int nn = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+				int nn = this->connector->get_receivers_idx_links(node,reclink);
 				this->Qwin[node] += this->Qbase[node];
 
-			// std::cout << "DEBUGDEBUGA5" << std::endl;
 				if(nn == 0)
 				{
-					// throw std::runtime_error("happens2??");
 					continue;
 				}
 
@@ -728,12 +721,12 @@ public:
 				for(int ttl = 0; ttl<nn; ++ttl)
 				{
 					int li = reclink[ttl];
-					if(this->graph->is_link_valid(li) == false)
+					if(this->connector->is_link_valid(li) == false)
 						continue;
 
 					float_t dx = this->connector->get_dx_from_links_idx(li);
 					
-					int to = this->graph->get_to_links(li);
+					int to = this->connector->get_to_links(li);
 					float_t tgrad = (surfpp[node] - surfpp[to]) / dx;
 					tgrad = std::max(tgrad,1e-8);
 					float_t tsqrt = std::sqrt(tgrad);
@@ -751,10 +744,10 @@ public:
 					for(int ttl = 0; ttl<nn; ++ttl)
 					{
 						int li = reclink[ttl];
-						if(this->graph->is_link_valid(li) == false)
+						if(this->connector->is_link_valid(li) == false)
 							continue;
 
-						int to = this->graph->get_to_links(li);
+						int to = this->connector->get_to_links(li);
 
 						this->Qwin[to] += sqrtgrads[ttl]/sumgrad_sqrt * this->Qwin[node];
 					}
@@ -795,11 +788,11 @@ public:
 		// I need first the effective drainage area
 		std::vector<float_t> a_eff(this->graph->nnodes, 0.);
 		this->_get_a_eff(a_eff,prec,recompute_graph);
-		auto A = this->graph->_accumulate_constant_downstream_SFD(*this->connector,this->connector->get_area_at_node(0));
+		auto A = this->graph->_accumulate_constant_downstream_SFD(this->connector->get_area_at_node(0));
 
 		for(int i=0; i< this->connector->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i, *this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
 				w_eff[i] = A[i]/a_eff[i];
 			}
@@ -826,7 +819,7 @@ public:
 			for(int i=0; i< this->connector->nnodes; ++i)
 				surf[i] = this->topography[i] + this->hw[i];
 			std::vector<float_t> surfpp(surf);
-			(*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
+			(*this->graph)._compute_graph(surfpp, false, true);
 		}
 
 		std::vector<float_t> S_h(this->connector->nnodes,0);
@@ -834,7 +827,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes;++i)
 		{
-			if(!this->graph->flow_out_model(i, *this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
 				a_eff[i] = (std::pow(this->hw[i],FIVETHIRD) * std::sqrt(S_h[i]))/(this->mannings*prec);
 			}
@@ -860,15 +853,15 @@ public:
 			for(int i=0; i< this->connector->nnodes; ++i)
 				surf[i] = this->topography[i] + this->hw[i];
 			std::vector<float_t> surfpp(surf);
-			(*this->graph)._compute_graph(surfpp, *(this->connector), false, true);
+			(*this->graph)._compute_graph(surfpp, false, true);
 		}
 
 		for(int i=0; i<this->graph->nnodes;++i)
 		{
-			if(!this->graph->flow_out_model(i, *this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
-				int rec = this->graph->Sreceivers[i];
-				float_t dx = this->graph->Sdistance2receivers[i];
+				int rec = this->connector->Sreceivers[i];
+				float_t dx = this->connector->Sdistance2receivers[i];
 				S_h[i] = std::max((this->topography[i] + this->hw[i] - this->topography[rec] - this->hw[rec])/dx,0.);
 			}
 		}
@@ -883,7 +876,7 @@ public:
 		// FIrst checking if the Qlinks has been initialised
 		if(this->Qlink.size() == 0)
 		{
-			this->Qlink = std::vector<float_t>(this->graph->links.size(),0.);
+			this->Qlink = std::vector<float_t>(this->connector->links.size(),0.);
 		}
 
 		// Initializing the dhw
@@ -905,11 +898,11 @@ public:
 		for(size_t i=0; i < this->Qlink.size(); ++i)
 		{
 			// valid link??
-			if(this->graph->linknodes[i*2] == -1)
+			if(this->connector->linknodes[i*2] == -1)
 				continue;
 
 			// by convention n1 and n2 are in the arbitrary order of the linknode array (not really important)
-			int n1 = this->graph->linknodes[i*2], n2 = this->graph->linknodes[i*2 + 1];
+			int n1 = this->connector->linknodes[i*2], n2 = this->connector->linknodes[i*2 + 1];
 
 			// if both hw are below 0 I do not compute and qlink is null
 			if(this->hw[n1] <= 0 && this->hw[n2] <= 0)
@@ -955,7 +948,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
 				this->hw[i] += (dhw[i])/this->connector->get_area_at_node(i);
 				if (this->hw[i] < 0)
@@ -965,7 +958,7 @@ public:
 
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector))
+			if(!this->connector->flow_out_model(i))
 				this->hw[i] += (this->Qbase[i] * tdt)/this->connector->get_area_at_node(i);
 		}
 
@@ -1030,7 +1023,7 @@ public:
 	{
 		for(int i=0; i< this->connector->nnodes; ++i)
 		{
-			if(this->graph->flow_out_model(i, *this->connector) == false)
+			if(this->connector->flow_out_model(i) == false)
 				this->hw[i] += val;
 		}
 	}
@@ -1107,14 +1100,14 @@ public:
 			int node = this->graph->Sstack[i];
 			
 			// if node is inactive or there is no water -> skip
-			if(!this->graph->flow_out_model(node, *this->connector) == false || this->hw[node] <= 0)
+			if(!this->connector->flow_out_model(node) == false || this->hw[node] <= 0)
 				continue;
 
 			// Receiver node
-			int rec = this->graph->Sreceivers[node];
+			int rec = this->connector->Sreceivers[node];
 
 			// distance to the next node and to othogonal nodes
-			float_t tdx = this->graph->Sdistance2receivers[node];
+			float_t tdx = this->connector->Sdistance2receivers[node];
 			float_t tdw = this->connector->get_travers_dy_from_dx(tdx);
 			
 			// Getting the height of flow
@@ -1484,13 +1477,13 @@ public:
 			int node = this->graph->stack[i];
 
 			// If the current node is not active: ignore
-			if(!this->graph->flow_out_model(node,*this->connector) == false) continue;
+			if(!this->connector->flow_out_model(node) == false) continue;
 
 			// No water? no flow
 			if(this->hw[i] == 0) continue;
 
 			// getting the receiving links
-			int nr = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+			int nr = this->connector->get_receivers_idx_links(node,reclink);
 
 			// First calculating the weights and slope
 			// # sumslopes sums the real slopes and wsumslopes is the weighted equivalent (the parting coeff is not always one)
@@ -1501,7 +1494,7 @@ public:
 				int lix = reclink[j];
 				//#getting the slope and casting it to a minimum numeraicla value
 				float_t tsw = std::max(this->get_Sw_at_link(lix), 1e-6);
-				if(!this->graph->flow_out_model(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
+				if(!this->connector->flow_out_model(this->connector->get_to_links(lix)) == false) tsw = 1e-6;
 				recslope[j] = tsw;
 
 				//# Registering and summing the slopes
@@ -1530,7 +1523,7 @@ public:
 			for(int j=0; j<nr;++j)
 			{
 
-				int to = this->graph->get_to_links(reclink[j]);
+				int to = this->connector->get_to_links(reclink[j]);
 				float_t tdl = this->connector->get_traverse_dx_from_links_idx(reclink[j]);
 				float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
 				// float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
@@ -1586,7 +1579,7 @@ public:
 
 					if(orthonodes.first >= 0)
 					{
-						if(!this->graph->flow_out_model(orthonodes.first,*this->connector))
+						if(!this->connector->flow_out_model(orthonodes.first))
 						{
 							if(this->topography[orthonodes.first] > this->topography[node] && crit)
 							{
@@ -1601,7 +1594,7 @@ public:
 					
 					if(orthonodes.second >= 0)
 					{
-						if(!this->graph->flow_out_model(orthonodes.second,*this->connector))
+						if(!this->connector->flow_out_model(orthonodes.second))
 						{
 							if(this->topography[orthonodes.second] > this->topography[node] && crit)
 							{
@@ -1720,14 +1713,14 @@ public:
 	}
 
 
-	void run_MFD_static(float_t ke, float_t aexp, float_t tau_c, float_t transport_length, float_t ke_lat, float_t kd_lat, float_t dt_hydro, int n_erosion, float_t dt_erosion, bool stochastic_slope)
+	void run_MFD_static(float_t ke, float_t aexp, float_t tau_c, float_t transport_length, float_t ke_lat, float_t kd_lat, float_t dt_hydro, int n_erosion, float_t dt_erosion, bool stochastic_slope, bool no_erosion_at_all)
 	{
 		bool erosion = false;
 		this->stochaslope = 0;
 		for(int nit = 1; nit<=n_erosion;++nit)
 		{
 
-			if(nit==n_erosion)
+			if(nit==n_erosion && !no_erosion_at_all)
 			{
 				if(stochastic_slope)	this->stochaslope = 1.;
 				erosion = true;
@@ -1772,13 +1765,13 @@ public:
 				int node = this->graph->stack[i];
 
 				// If the current node is not active: ignore
-				if(this->graph->flow_out_or_pit(node,*this->connector)) continue;
+				if(this->connector->flow_out_or_pit(node)) continue;
 
 				// No water? no flow
 				// if(this->hw[i] == 0) continue;
 
 				// getting the receiving links
-				int nr = this->graph->get_receivers_idx_links(node, *this->connector, reclink);
+				int nr = this->connector->get_receivers_idx_links(node, reclink);
 
 				//## (Rare) no receivers?? then I skip
 				if(nr == 0)
@@ -1831,7 +1824,7 @@ public:
 					//#getting the link ID
 					int lix = reclink[j];
 
-					if(this->graph->is_link_valid(lix) == false)
+					if(this->connector->is_link_valid(lix) == false)
 						continue;
 
 					//#getting the slope and casting it to a minimum numeraicla value
@@ -1859,7 +1852,7 @@ public:
 				float_t sumsum = 0;
 				for(int j = 0; j<nr; ++j)
 				{
-					if(this->graph->is_link_valid(reclink[j]) == false)
+					if(this->connector->is_link_valid(reclink[j]) == false)
 						continue;
 					recweight[j] = recweight[j]/wsumslopes;
 					sumsum += recweight[j];
@@ -1876,10 +1869,10 @@ public:
 				for(int j=0; j<nr;++j)
 				{
 					//### Not valid 4 some reasons? skip
-					if(this->graph->is_link_valid(reclink[j]) == false)
+					if(this->connector->is_link_valid(reclink[j]) == false)
 						continue;
 
-					int to = this->graph->get_to_links(reclink[j]);
+					int to = this->connector->get_to_links(reclink[j]);
 
 					// bool is_to_boundary = !!this->graph->flow_out_model(to,*this->connector);
 
@@ -1959,7 +1952,7 @@ public:
 
 						if(orthonodes.first >= 0)
 						{
-							if(this->graph->flow_out_model(orthonodes.first,*this->connector) == false)
+							if(this->connector->flow_out_model(orthonodes.first) == false)
 							{
 								if(this->topography[orthonodes.first] > this->topography[node] && crit)
 								{
@@ -1974,7 +1967,7 @@ public:
 						
 						if(orthonodes.second >= 0)
 						{
-							if(this->graph->flow_out_model(orthonodes.second,*this->connector) == false)
+							if(this->connector->flow_out_model(orthonodes.second) == false)
 							{
 								if(this->topography[orthonodes.second] > this->topography[node] && crit)
 								{
@@ -2183,23 +2176,23 @@ public:
 
 	float_t get_Sw_at_link(int linkidx)
 	{
-		int n1 = this->graph->get_from_links(linkidx); 
-		int n2 = this->graph->get_to_links(linkidx);
+		int n1 = this->connector->get_from_links(linkidx); 
+		int n2 = this->connector->get_to_links(linkidx);
 		return (this->hw[n1] - this->hw[n2] + this->topography[n1] - this->topography[n2])/this->connector->get_dx_from_links_idx(linkidx);
 	}
 // 
 	float_t get_Sw_at_link_custom_dx(int linkidx, float_t dx)
 	{
-		int n1 = this->graph->get_from_links(linkidx); 
-		int n2 = this->graph->get_to_links(linkidx);
+		int n1 = this->connector->get_from_links(linkidx); 
+		int n2 = this->connector->get_to_links(linkidx);
 		return (this->hw[n1] - this->hw[n2] + this->topography[n1] - this->topography[n2])/dx;
 	}
 
 
 	float_t get_hflow_at_link(int linkidx)
 	{
-		int n1 = this->graph->get_from_links(linkidx); 
-		int n2 = this->graph->get_to_links(linkidx);
+		int n1 = this->connector->get_from_links(linkidx); 
+		int n2 = this->connector->get_to_links(linkidx);
 		return this->get_hflow_from_nodes(n1,n2);
 	}
 
@@ -2221,7 +2214,7 @@ public:
 		auto savep = this->graph->depression_resolver;
 		
 		this->graph->depression_resolver = DAGGER::DEPRES::cordonnier_fill;
-		this->graph->_compute_graph(surfpp, *(this->connector), false, true);
+		this->graph->_compute_graph(surfpp, false, true);
 		this->graph->depression_resolver = savep;
 
 		for(int i=0; i<this->connector->nnodes; ++i)
@@ -2368,7 +2361,7 @@ public:
 			// starting index at a random position
 			int i = this->random_node_index();
 			// checking if the precipiton is valid
-			if(!this->graph->flow_out_model(i,*this->connector) == false)
+			if(!this->connector->flow_out_model(i) == false)
 			{
 				// "Cancelling" the iteration
 				--i_prec;
@@ -2385,7 +2378,7 @@ public:
 			// -> tracking the precipiton's path
 			int nwalk = 0;
 			// -> running
-			while(!this->graph->flow_out_model(i,*this->connector))
+			while(!this->connector->flow_out_model(i))
 			{
 				// Recording the number of pixel 
 				nwalk++;
@@ -2416,7 +2409,7 @@ public:
 					// current link
 					int li = neighbours_links[tn];
 					// other node (ie the node that is not the current one yo)
-					int ri = (this->graph->linknodes[li*2] == i) ? this->graph->linknodes[li*2 + 1] : this->graph->linknodes[li*2];
+					int ri = (this->connector->linknodes[li*2] == i) ? this->connector->linknodes[li*2 + 1] : this->connector->linknodes[li*2];
 					// if hydrologic gradient > 0
 					if(this->topography[i] + this->hw[i] > this->topography[ri] + this->hw[ri])
 					{
@@ -2489,10 +2482,10 @@ public:
 		// vector tracking the last time passage of a single precipiton
 		std::vector<float_t> last_t_precipitons(this->graph->nnodes,0.);
 		auto surfpp = this->get_surface();
-		this->graph->_compute_graph(surfpp, *(this->connector), true, true);
-		std::vector<float_t> last_S = this->graph->_get_SFD_gradient(surfpp);
+		this->graph->_compute_graph(surfpp, true, true);
+		std::vector<float_t> last_S = this->connector->_get_SFD_gradient(surfpp);
 		// std::vector<float_t> last_S(surfpp.size(),0.);
-		std::vector<float_t> last_dx = this->graph->Sdistance2receivers;
+		std::vector<float_t> last_dx = this->connector->Sdistance2receivers;
 		surfpp.clear();
 
 		// Debug thingy
@@ -2510,7 +2503,7 @@ public:
 			// starting index at a random position
 			int i = this->random_node_index();
 			// checking if the precipiton is valid
-			if(!this->graph->flow_out_model(i,*this->connector) == false)
+			if(!this->connector->flow_out_model(i) == false)
 			{
 				// "Cancelling" the iteration
 				--i_prec;
@@ -2529,7 +2522,7 @@ public:
 			// -> running
 			float_t MANNING_COEF = 0.6666666666666666666; 
 			float_t MANNING_COEF_INV = 1.5; 
-			while(!this->graph->flow_out_model(i,*this->connector))
+			while(!this->connector->flow_out_model(i))
 			{
 				// Recording the number of pixel 
 				nwalk++;
@@ -2544,7 +2537,7 @@ public:
 					// current link
 					int li = neighbours_links[tn];
 					// other node (ie the node that is not the current one yo)
-					int ri = (this->graph->linknodes[li*2] == i) ? this->graph->linknodes[li*2 + 1] : this->graph->linknodes[li*2];
+					int ri = (this->connector->linknodes[li*2] == i) ? this->connector->linknodes[li*2 + 1] : this->connector->linknodes[li*2];
 					// this->hw[ri] = std::max(std::sqrt(last_S[ri]) * this->mannings/this->connector->get_dx_from_links_idx(li), 0.1);
 					float_t dx = this->connector->get_dx_from_links_idx(li);
 
@@ -2602,7 +2595,7 @@ public:
 					// current link
 					int li = neighbours_links[tn];
 					// other node (ie the node that is not the current one yo)
-					int ri = (this->graph->linknodes[li*2] == i) ? this->graph->linknodes[li*2 + 1] : this->graph->linknodes[li*2];
+					int ri = (this->connector->linknodes[li*2] == i) ? this->connector->linknodes[li*2 + 1] : this->connector->linknodes[li*2];
 					
 					float_t tgrad = std::abs((this->topography[i] + this->hw[i] - this->topography[ri] - this->hw[ri])/this->connector->get_dx_from_links_idx(li));
 					// float_t coeff = std::max(std::sqrt(xam) * this->mannings/this->connector->get_dx_from_links_idx(xi), 0.1);
@@ -2718,13 +2711,13 @@ public:
 			this->maxdt = time;
 			int i = this->random_node_index();
 
-			if(!this->graph->flow_out_model(i, *this->connector) == false)
+			if(!this->connector->flow_out_model(i) == false)
 			{
 				--iprec;
 				continue;
 			}
 
-			while(!this->graph->flow_out_model(i, *this->connector))
+			while(!this->connector->flow_out_model(i))
 			{
 
 				float_t dt = time - this->lastdt[i];
@@ -2748,7 +2741,7 @@ public:
 					// current link
 					int li = neighbours_links[tn];
 					// other node (ie the node that is not the current one yo)
-					int ri = (this->graph->linknodes[li*2] == i) ? this->graph->linknodes[li*2 + 1] : this->graph->linknodes[li*2];
+					int ri = (this->connector->linknodes[li*2] == i) ? this->connector->linknodes[li*2 + 1] : this->connector->linknodes[li*2];
 					// this->hw[ri] = std::max(std::sqrt(last_S[ri]) * this->mannings/this->connector->get_dx_from_links_idx(li), 0.1);
 					float_t dx = this->connector->get_dx_from_links_idx(li);
 					float_t tgrad = std::abs((this->topography[i] + this->hw[i] - this->topography[ri] - this->hw[ri])/dx);
@@ -2859,7 +2852,7 @@ public:
 			
 			// Walking the precipitons while in the landscape
 			float_t tA = 0;
-			while(!this->graph->flow_out_model(i,*this->connector))
+			while(!this->connector->flow_out_model(i))
 			{
 				int nl = this->connector->get_neighbour_idx_links(i, neighbours_links);
 				int nr = 0;
@@ -2871,7 +2864,7 @@ public:
 				for(int tn = 0; tn<nl; ++tn)
 				{
 					int li = neighbours_links[tn];
-					int ri = (this->graph->linknodes[li*2] == i) ? this->graph->linknodes[li*2 + 1] : this->graph->linknodes[li*2];
+					int ri = (this->connector->linknodes[li*2] == i) ? this->connector->linknodes[li*2 + 1] : this->connector->linknodes[li*2];
 					if(this->topography[i] > this->topography[ri])
 					{
 						reclink[nr] = li;
@@ -2950,7 +2943,7 @@ public:
 		std::vector<std::pair<int,float_t> > neighbours(8);
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
 				int NN = this->connector->get_neighbour_idx_distance(i, neighbours);
 				int steepest_i = i;
@@ -2971,7 +2964,7 @@ public:
 
 				}
 				
-				if(this->graph->Sreceivers[i] != steepest_i)
+				if(this->connector->Sreceivers[i] != steepest_i)
 					throw std::runtime_error("QQQQWAGYNIARD");
 
 			}
@@ -3008,7 +3001,7 @@ public:
 		// FIrst checking if the Qlinks has been initialised
 		if(this->Qlink.size() == 0)
 		{
-			this->Qlink = std::vector<float_t>(this->graph->links.size(),0.);
+			this->Qlink = std::vector<float_t>(this->connector->links.size(),0.);
 		}
 
 		// Initializing the dhw
@@ -3032,11 +3025,11 @@ public:
 		for(size_t i=0; i < this->Qlink.size(); ++i)
 		{
 			// valid link??
-			if(this->graph->linknodes[i*2] == -1)
+			if(this->connector->linknodes[i*2] == -1)
 				continue;
 
 			// by convention n1 and n2 are in the arbitrary order of the linknode array (not really important)
-			int n1 = this->graph->linknodes[i*2], n2 = this->graph->linknodes[i*2 + 1];
+			int n1 = this->connector->linknodes[i*2], n2 = this->connector->linknodes[i*2 + 1];
 
 			// if both hw are below 0 I do not compute and qlink is null
 			if(this->hw[n1] <= 0 && this->hw[n2] <= 0)
@@ -3081,11 +3074,11 @@ public:
 		for(size_t i=0; i < this->Qlink.size(); ++i)
 		{
 			// valid link??
-			if(this->graph->linknodes[i*2] == -1)
+			if(this->connector->linknodes[i*2] == -1)
 				continue;
 
 			// by convention n1 and n2 are in the arbitrary order of the linknode array (not really important)
-			int n1 = this->graph->linknodes[i*2], n2 = this->graph->linknodes[i*2 + 1];
+			int n1 = this->connector->linknodes[i*2], n2 = this->connector->linknodes[i*2 + 1];
 			dhw[n1] += dt * this->Qlink[i];
 			dhw[n2] -= dt * this->Qlink[i];
 		}	
@@ -3093,7 +3086,7 @@ public:
 		
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector))
+			if(!this->connector->flow_out_model(i))
 			{
 				this->hw[i] += (dhw[i])/this->connector->get_area_at_node(i);
 				if (this->hw[i] < 0)
@@ -3104,7 +3097,7 @@ public:
 		
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			if(!this->graph->flow_out_model(i,*this->connector))
+			if(!this->connector->flow_out_model(i))
 				this->hw[i] += (this->Qbase[i] * dt)/this->connector->get_area_at_node(i);
 		}
 

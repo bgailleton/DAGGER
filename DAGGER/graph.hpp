@@ -49,7 +49,7 @@ namespace DAGGER
 {
 
 
-template<class float_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
+template<class float_t, class Connector_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
 class graph
 {
 
@@ -58,33 +58,48 @@ public:
 
 	// Number of nodes in the graph
 	int nnodes;
-	
-	// Number of neighbours by nodes
-	int n_neighbours;
-	
-	// uint8_t vector for each link indicating its directionality: 
-	// - 0 is inverse (linknode 2 --> linknode 1)
-	// - 1 is normal (linknode 1 --> linknode 2)
-	// - 3 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) ) or temporarily invalid due to dynamic boundary conditions
-	// The index itself is calculated from a connector
-	std::vector<std::uint8_t> links;
-	
-	// integer vector of 2*links size with the node indices of each link
-	// for example, the nodes of link #42 would be indices 84 and 85
-	std::vector<int> linknodes;
-	
-	// Single graph receivers
-	// -> Sreceivers: steepest recervers (nnodes size), 
-	// -> number of donors (nnodes size),
-	// -> Steepest donors (nnodes * n_neighbours size)
-	// --> Sdonors of node i are located from index i*n_neighbours to index i*n_neighbours + nSdonors[i] not included
-	std::vector<int> Sreceivers,nSdonors,Sdonors;
 
-	// Single graph distance to receivers
-	std::vector<float_t> Sdistance2receivers;
 
-	// Steepest slope
-	std::vector<float_t> SS;
+
+	Connector_t* connector;
+
+	//======================================================================
+	//======================================================================
+	//======================================================================
+	//======================================================================
+	// MOVED TO THE CONNECTOR OBJECT
+	// refactored 02/2023
+	// Keeping that in for a few commits in case
+	//=====================================================================
+	// // uint8_t vector for each link indicating its directionality: 
+	// // - 0 is inverse (linknode 2 --> linknode 1)
+	// // - 1 is normal (linknode 1 --> linknode 2)
+	// // - 3 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) ) or temporarily invalid due to dynamic boundary conditions
+	// // The index itself is calculated from a connector
+	// std::vector<std::uint8_t> links;
+	
+	// // Single graph receivers
+	// // -> Sreceivers: steepest recervers (nnodes size), 
+	// // -> number of donors (nnodes size),
+	// // -> Steepest donors (nnodes * n_neighbours size)
+	// // --> Sdonors of node i are located from index i*n_neighbours to index i*n_neighbours + nSdonors[i] not included
+	// std::vector<int> Sreceivers,nSdonors,Sdonors;
+
+	// // Single graph distance to receivers
+	// std::vector<float_t> Sdistance2receivers;
+
+	// // Steepest slope
+	// std::vector<float_t> SS;
+
+
+	// // integer vector of 2*links size with the node indices of each link
+	// // for example, the nodes of link #42 would be indices 84 and 85
+	// std::vector<int> linknodes;
+	//======================================================================
+	//======================================================================
+	//======================================================================
+	//======================================================================
+	
 	
 	// Topological order and Single graph topological order
 	// While the MD stack can be used for single flow topology, 
@@ -99,9 +114,6 @@ public:
 	// hte minimum slope to impose on the fake topography
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
-
-	float_t stochaticiy_for_SFD = 0; // (0 -> deactivates)
-	void set_stochaticiy_for_SFD(float_t val){this->stochaticiy_for_SFD = (val>0)?val:0;}
 
 
 	// Solving large number of local minima with cordonnier can be expensive and this optimises
@@ -122,8 +134,13 @@ public:
 	graph(){};
 
 	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
-	graph(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
-	void init(int nnodes, int n_neighbours){this->nnodes = nnodes; this->n_neighbours = n_neighbours;}
+	graph(Connector_t& con){this->init(con);}
+	void init(Connector_t& con)
+	{
+		this->connector = &con;
+		this->nnodes = this->connector->nnodes;
+		this->init_graph();
+	}
 
 
 	/*
@@ -152,18 +169,18 @@ public:
 
 	// Initialisation of the graph structure
 	// Uses the nnodes, n_neighbours and connector to alloate the single vectors and the irec/linknodes attribute
-	template<class Connector_t>
-	void init_graph(Connector_t& connector)
+	// template<class Connector_t>
+	void init_graph()
 	{
 		// Allocate vectors to node size
 		this->_allocate_vectors();
 		// Calling the cionnector to allocate the linknodes to the right size
-		connector.fill_linknodes(this->linknodes);
+		this->connector->fill_linknodes();
 	}
 
 	// used to reinitialise the the vectors
-	template<class Connector_t>
-	void reinit_graph(Connector_t& connector)
+	// template<class Connector_t>
+	void reinit_graph()
 	{
 		// reinitialise the vector without reallocating the full memory
 		this->_reallocate_vectors();
@@ -171,10 +188,9 @@ public:
 
 	// Compute the graph using the cordonnier metod to solve the depressions
 	// template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
-	template<class Connector_t,class topo_t, class out_t>
+	template<class topo_t, class out_t>
 	out_t compute_graph(
 	  topo_t& ttopography, // the input topography
-	  Connector_t& connector, // the input connector to use (e.g. D8connector)
 	  bool only_SD, // only computes the single flow graph if true
 	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
 	  )
@@ -189,7 +205,7 @@ public:
 			faketopo[i] = topography[i];
 		}
 
-		this->_compute_graph(faketopo,connector,only_SD,quicksort);
+		this->_compute_graph(faketopo,only_SD,quicksort);
 
 
 		// Finally I format the output topography to the right wrapper
@@ -197,10 +213,9 @@ public:
 	}
 
 
-	template<class Connector_t>
+	// template<class Connector_t>
 	void _compute_graph(
 		std::vector<float_t>& faketopo,
-	  Connector_t& connector, // the input connector to use (e.g. D8connector)
 	  bool only_SD, // only computes the single flow graph if true
 	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
 
@@ -217,21 +232,21 @@ public:
 		// {
 		// 	// filling the topography with a minimal slope using Wei et al., 2018
 		// 	// if(this->depression_resolver == DEPRES::priority_flood)
-		// 	faketopo = PriorityFlood(faketopo, connector, *(this));
+		// 	faketopo = PriorityFlood(faketopo,  *(this));
 		// 	// else
-		// 	// 	faketopo = connector.PriorityFlood(faketopo);
+		// 	// 	faketopo = connector->PriorityFlood(faketopo);
 		// }
 
 		// std::cout << "DEBUG::STOPOP::3" << std::endl;
 
 		// Making sure the graph is not inheriting previous values
-		this->reinit_graph(connector);
+		this->reinit_graph();
 
 		// std::cout << "DEBUG::STOPOP::4" << std::endl;
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
-		this->update_recs(faketopo, connector);
-		// std::cout << "NODE 0::" << this->Sreceivers[0] << std::endl;
+		this->connector->update_links(faketopo);
+		// std::cout << "NODE 0::" << this->connector->Sreceivers[0] << std::endl;
 
 		// std::cout << "DEBUG::STOPOP::5" << std::endl;
 		// Compute the topological sorting for single stack
@@ -254,7 +269,7 @@ public:
 			// Note that faketopo are modified in place.
 			// std::cout << "wulf" << std::endl;
 		// std::cout << "DEBUG::STOPOP::7" << std::endl;
-			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);		
+			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
 		// std::cout << "DEBUG::STOPOP::8" << std::endl;
 
 			// Right, if reomputed needs to be
@@ -262,35 +277,35 @@ public:
 			{
 				
 				// Re-inverting the Sreceivers into Sdonors
-				this->recompute_SF_donors_from_receivers();
+				this->connector->recompute_SF_donors_from_receivers();
 				
 				// Recomputing Braun and willett 2014 (modified)
 				this->topological_sorting_SF();
 
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
 				if(this->depression_resolver == DEPRES::cordonnier_carve)
-					this->carve_topo_v2(connector, faketopo);
+					this->carve_topo_v2(faketopo);
 
 
 				// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
 				if(this->opt_stst_rerouting == false)	
-					this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
+					this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
 
 				// My work here is done if only SD is needed
 				if(only_SD)
 					return;
 				
 				if(this->opt_stst_rerouting)
-					this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
+					this->connector->update_links_MFD_only(faketopo); // up to 30% faster - slightly less accurate for Sgraph
 
 
 			}
 		}
 		else if (this->depression_resolver == DEPRES::priority_flood)
 		{
-			faketopo = PriorityFlood(faketopo, connector, *(this));
-			// faketopo = connector.PriorityFlood(faketopo);
-			this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
+			faketopo = PriorityFlood(faketopo, *(this->connector));
+			// faketopo = connector->PriorityFlood(faketopo);
+			this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
 		}
 
 		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
@@ -300,402 +315,68 @@ public:
 			if(quicksort)
 					this->topological_sorting_quicksort(faketopo);
 				else
-					this->topological_sorting_dag(connector);
+					this->topological_sorting_dag();
 		}
 
 	}
 
 	
-
-	// Compute the graph using the cordonnier metod to solve the depressions
-	// template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
-	template<class Connector_t,class topo_t, class out_t>
-	out_t compute_graph_timer(
-	  topo_t& ttopography, // the input topography
-	  Connector_t& connector, // the input connector to use (e.g. D8connector)
-	  bool only_SD, // only computes the single flow graph if true
-	  bool quicksort, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
-	  int NN // N iteration of the process
-	  )
-	{
-		ocarina timer;
-		std::map<std::string, std::pair<int,double> > timer_by_stuff;
-		timer_by_stuff["initialising_data"] = {0,0.};
-		timer_by_stuff["reinit_graph"] = {0,0.};
-		timer_by_stuff["local_minima"] = {0,0.};
-		timer_by_stuff["update_recs"] = {0,0.};
-		timer_by_stuff["TS_SF"] = {0,0.};
-		timer_by_stuff["TS_MF"] = {0,0.};
-		auto topography = format_input<topo_t>(ttopography);
-		std::vector<float_t> faketopo(this->nnodes,0);
-
-
-		for (int tn = 0; tn<NN ; ++tn)
-		{
-			// updating the timer increment 
-			for(auto& kv:timer_by_stuff)
-				++kv.second.first;
-
-			// Formatting the input to match all the wrappers
-			timer.tik();
-			topography = format_input<topo_t>(ttopography);
-			// Formatting the output topo
-			faketopo = std::vector<float_t>(this->nnodes,0);
-
-			for(int i=0; i<this->nnodes; ++i)
-			{
-				faketopo[i] = topography[i];
-			}
-			timer_by_stuff["initialising_data"].second += timer.tok();
-
-			this->_compute_graph_timer(faketopo,connector,only_SD,quicksort,timer, timer_by_stuff);
-		}
-
-		float_t total = 0;
-		for(auto& kv:timer_by_stuff)total+=kv.second.second;
-
-
-		std::cout << "Result for the timer - mean time on " << NN << " iterations:" << std::endl;
-		for(auto& kv:timer_by_stuff)
-			std::cout << kv.first << ": " << kv.second.second/kv.second.first << " ms on average, which is " << 100*kv.second.second/total << " %% of total time" << std::endl; 
-
-		// Finally I format the output topography to the right wrapper
-		return format_output<decltype(faketopo), out_t >(faketopo);
-	}
-
-
-	template<class Connector_t>
-	void _compute_graph_timer(
-		std::vector<float_t>& faketopo,
-	  Connector_t& connector, // the input connector to use (e.g. D8connector)
-	  bool only_SD, // only computes the single flow graph if true
-	  bool quicksort, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
-	  ocarina& timer,
-	  std::map<std::string, std::pair<int,double> >& timer_by_stuff
-
-		)
-	{
-
-		throw std::runtime_error("The Timer is temporarily unavailable, wait for future update");
-
-		// // std::cout << "DEBUG::STOPOP::1" << std::endl;
-		// // Checking if the depression method is cordonnier or node
-		// bool isCordonnier = this->is_method_cordonnier();
-
-		// // std::cout << "DEBUG::STOPOP::2" << std::endl;
-		// // if the method is not Cordonnier -> apply the other first
-		// if(isCordonnier == false && this->depression_resolver != DEPRES::none)
-		// {
-		// 	// filling the topography with a minimal slope using Wei et al., 2018
-		// 	timer.tik();
-		// 	if(this->depression_resolver == DEPRES::priority_flood)
-		// 		faketopo = connector.PriorityFlood_Wei2018(faketopo);
-		// 	else
-		// 		faketopo = connector.PriorityFlood(faketopo);
-		// 	timer_by_stuff["local_minima"].second += timer.tok();
-			
-		// }
-
-		// // std::cout << "DEBUG::STOPOP::3" << std::endl;
-
-		// // Making sure the graph is not inheriting previous values
-		// timer.tik();
-		// this->reinit_graph(connector);
-		// timer_by_stuff["reinit_graph"].second += timer.tok();
-
-
-		// // std::cout << "DEBUG::STOPOP::4" << std::endl;
-
-		// // Updates the links vector and the Srecs vector by checking each link new elevation
-		// timer.tik();
-		// this->update_recs(faketopo, connector);
-		// timer_by_stuff["update_recs"].second += timer.tok();
-
-		// // std::cout << "DEBUG::STOPOP::5" << std::endl;
-		// // Compute the topological sorting for single stack
-		// // Braun and willett 2014 (modified)
-		// timer.tik();
-		// this->topological_sorting_SF();
-		// timer_by_stuff["TS_SF"].second += timer.tok();
-		// // std::cout << "DEBUG::STOPOP::6" << std::endl;
-
-		// // manages the Cordonnier method if needed
-		// if(isCordonnier)
-		// {
-			
-		// 	// LMRerouter is the class managing the different cordonnier's mthod
-		// 	LMRerouter<float_t> depsolver;
-		// 	if(this->opti_sparse_border)
-		// 		depsolver.opti_sparse_border = true;
-		// 	depsolver.minimum_slope = this->minimum_slope;
-		// 	depsolver.slope_randomness = this->slope_randomness;
-		// 	// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
-		// 	// Note that faketopo are modified in place.
-		// 	// std::cout << "wulf" << std::endl;
-		// // std::cout << "DEBUG::STOPOP::7" << std::endl;
-		// 	timer.tik();
-		// 	bool need_recompute = depsolver.run(this->depression_resolver, faketopo, connector, this->Sreceivers, this->Sdistance2receivers, this->Sstack, this->linknodes);
-		// 	timer_by_stuff["local_minima"].second += timer.tok();
-		// // std::cout << "DEBUG::STOPOP::8" << std::endl;
-
-		// 	// Right, if reomputed needs to be
-		// 	if(need_recompute)
-		// 	{
-				
-		// 		// Re-inverting the Sreceivers into Sdonors
-		// 		timer.tik();
-		// 		this->recompute_SF_donors_from_receivers();
-		// 		timer_by_stuff["update_recs"].second += timer.tok();
-				
-		// 		// Recomputing Braun and willett 2014 (modified)
-		// 		timer.tik();
-		// 		this->topological_sorting_SF();
-		// 		timer_by_stuff["TS_SF"].second += timer.tok();
-
-		// 		// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
-		// 		if(this->depression_resolver == DEPRES::cordonnier_carve)
-		// 		{
-		// 			timer.tik();
-		// 			this->carve_topo_v2(connector, faketopo);
-		// 			timer_by_stuff["local_minima"].second += timer.tok();
-		// 		}
-
-
-		// 		// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
-		// 		if(this->opt_stst_rerouting == false)	
-		// 		{
-		// 			timer.tik();
-		// 			this->update_recs(faketopo,connector); // up to 30% slower - slightly more accurate for Sgraph
-		// 			timer_by_stuff["update_recs"].second += timer.tok();
-		// 		}
-
-		// 		// My work here is done if only SD is needed
-		// 		if(only_SD)
-		// 			return;
-
-		// 		if(this->opt_stst_rerouting)
-		// 		{
-		// 			timer.tik();
-		// 			this->update_Mrecs(faketopo,connector); // up to 30% faster - slightly less accurate for Sgraph
-		// 			timer_by_stuff["update_recs"].second += timer.tok();
-		// 		}
-
-
-		// 	}
-
-		// }
-
-		// // if there is no need to recompute neighbours, then I can only calculate the topological sorting
-		// // for multiple as the toposort for SF is already done
-		// if (only_SD == false)
-		// {
-		// 	if(quicksort)
-		// 	{
-		// 		timer.tik();
-		// 		this->topological_sorting_quicksort(faketopo);
-		// 		timer_by_stuff["TS_MF"].second += timer.tok();
-		// 	}
-		// 	else
-		// 	{
-		// 		timer.tik();
-		// 		this->topological_sorting_dag(connector);
-		// 		timer_by_stuff["TS_MF"].second += timer.tok();
-		// 	}
-		// }
-
-	}
-
-
-	// Function updating ONLY the MFD receivers
-	// This is useful in the cases where SFD recs are conditionned by an other mean
-	// and cannot be touched (e.g. Cordonnier)
-	template<class Connector_t,class topo_t>
-	void update_Mrecs(topo_t& topography, Connector_t& connector)
-	{
-		// iterating though every links
-		for(size_t i = 0; i<this->links.size(); ++i)
-		{
-			// Getting hte 2 nodes of the current link
-			int from = this->linknodes[i*2];
-			int to = this->linknodes[i*2 + 1];
-			
-			if(this->linknodes[i*2] < 0)
-			{
-				this->links[i] = 2;
-				continue;
-			}
-
-			if(connector.boundaries.forcing_io(from) || connector.boundaries.forcing_io(to) )
-			{
-
-				if(connector.boundaries.force_giving(from) || connector.boundaries.force_receiving(to))
-					this->links[i] = 1;
-				else if(connector.boundaries.force_giving(to) || connector.boundaries.force_receiving(from))
-					this->links[i] = 0;
-
-				continue;
-			} 
-
-			// by convention true -> topo1 > topo2
-			if(topography[from] > topography[to] && connector.boundaries.can_give(from) && connector.boundaries.can_receive(to))
-				this->links[i] = 1;
-			else if ( connector.boundaries.can_give(to) && connector.boundaries.can_receive(from))
-				this->links[i] = 0;
-			// If the configuration cannot allow the link, it is temporarily disabled
-			else
-				this->links[i] = 2;
-		}
-		// done
-	}
-
-	// Updates all the link and the SFD info
-	template<class Connector_t,class topo_t>
-	void update_recs(topo_t& topography, Connector_t& connector)
-	{
-
-		// am I using a stochastic adjustment for deciding on the steepest slope
-		bool stochastic_slope_on = this->stochaticiy_for_SFD > 0.;
-		// iterating through all the nodes
-		for(size_t i = 0; i<this->links.size(); ++i)
-		{
-
-
-			// Checking the validity of the link
-			if(this->linknodes[i*2] < 0)
-			{
-				this->links[i] = 2;
-				continue;
-			}
-
-			// Getting ht etwo nodes of the links
-			int from = this->linknodes[i*2];
-			int to = this->linknodes[i*2 + 1];
-			// std::cout << from << "|" << to << "||";
-			
-			// getting the link infos
-			// -> dx
-			float_t dx = connector.get_dx_from_links_idx(i);
-			// -> slope
-			float_t slope = (topography[from] - topography[to])/dx;
-
-
-			if(connector.boundaries.forcing_io(from) || connector.boundaries.forcing_io(to) )
-			{
-
-				if(connector.boundaries.force_giving(from) || connector.boundaries.force_receiving(to))
-					slope = std::abs(slope);
-
-				else if(connector.boundaries.force_giving(to) || connector.boundaries.force_receiving(from))
-					slope = -std::abs(slope);					
-			} 
-
-			
-
-			if(stochastic_slope_on) 
-				slope *= (this->stochaticiy_for_SFD * connector.randu->get()) + 1e-6;
-
-
-			// if slope is positive, to is the receiver by convention
-			if(slope>0  && connector.boundaries.can_give(from) && connector.boundaries.can_receive(to))
-			{
-				// Conventional direction
-				this->links[i] = 1;
-				// if Steepest Slope is higher than the current recorded one
-				if(this->SS[from]<slope)
-				{
-					// saving the Sreceivers info as temporary best choice
-					this->Sreceivers[from] = to;
-					this->Sdistance2receivers[from] = dx;
-					this->SS[from] = slope;
-				}
-			}
-			else if (connector.boundaries.can_give(to) && connector.boundaries.can_receive(from))
-			{
-				// Otherwise the convention is inverted:
-				// isrec is falese and to is giving to from
-				this->links[i] = 0;
-				// NOte that slope is absolute values
-				slope = std::abs(slope);
-				if(this->SS[to]<slope)
-				{
-					this->Sreceivers[to] = from;
-					this->Sdistance2receivers[to] = dx;
-					this->SS[to] = slope;
-				}
-			}
-			else
-				this->links[i] = 2;
-
-		}
-
-		// Finally inverting the Sreceivers into the Sdonors info
-		// Required for several routines
-		this->compute_SF_donors_from_receivers();
-	}
-
-	// Fucntion inverting the SFD receivers into donors
-	void compute_SF_donors_from_receivers()
-	{
-		// Initialising the graph dimesions for the donors
-		// All of thenm have the graph dimension
-		this->Sdonors = std::vector<int>(this->nnodes * this->n_neighbours,-1);
-		this->nSdonors = std::vector<int>(this->nnodes,0);
-
-		// iterating through all the nodes
-		for(int i=0; i < this->nnodes; ++i)
-		{
-			// SF so rid == i cause there is only 1 rec
-			int trec = this->Sreceivers[i];
-			if(trec == i)
-				continue;
-
-			// feeding the Sdonors array at rec position with current node and...
-			this->Sdonors[trec * this->n_neighbours  + this->nSdonors[trec]] = i;
-			// ... incrementing the number of Sdonors
-			this->nSdonors[trec] += 1;
-		}
-		// done
-	}
-
-
-	// Same function than above but without reallocating the memory (can save a bit of time depending on the context)
-	void recompute_SF_donors_from_receivers()
-	{
-
-		for(int i=0; i < this->nnodes; ++i)
-		{
-			for(int j=0; j < this->n_neighbours; ++j)
-				this->Sdonors[i * this->n_neighbours + j] = -1;
-			this->nSdonors[i] = 0;
-		}
-
-		for(int i=0; i < this->nnodes; ++i)
-		{
-			// SF so rid == i cause there is only 1 rec
-			int trec = this->Sreceivers[i];
-			if(trec == i)
-				continue;
-			this->Sdonors[trec * this->n_neighbours  + this->nSdonors[trec]] = i;
-			this->nSdonors[trec] += 1;
-		}
-
-	}
-
-
-
-	// You can ignore
-	template<class out_t>
-	out_t test_Srecs()
-	{
-		std::vector<int> OUT(this->nnodes,0);
-		for(int i=0; i< this->nnodes;++i)
-		{
-			if(i !=  this->Sreceivers[i])
-				++OUT[i];
-		}
-
-		return format_output<decltype(OUT), out_t>(OUT);
-	}
+	// To adapt to the new graph structure
+	// // Compute the graph using the cordonnier metod to solve the depressions
+	// // template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
+	// template<class topo_t, class out_t>
+	// out_t compute_graph_timer(
+	//   topo_t& ttopography, // the input topography
+	//   // the input connector to use (e.g. D8connector)
+	//   bool only_SD, // only computes the single flow graph if true
+	//   bool quicksort, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
+	//   int NN // N iteration of the process
+	//   )
+	// {
+	// 	ocarina timer;
+	// 	std::map<std::string, std::pair<int,double> > timer_by_stuff;
+	// 	timer_by_stuff["initialising_data"] = {0,0.};
+	// 	timer_by_stuff["reinit_graph"] = {0,0.};
+	// 	timer_by_stuff["local_minima"] = {0,0.};
+	// 	timer_by_stuff["update_links"] = {0,0.};
+	// 	timer_by_stuff["TS_SF"] = {0,0.};
+	// 	timer_by_stuff["TS_MF"] = {0,0.};
+	// 	auto topography = format_input<topo_t>(ttopography);
+	// 	std::vector<float_t> faketopo(this->nnodes,0);
+
+
+	// 	for (int tn = 0; tn<NN ; ++tn)
+	// 	{
+	// 		// updating the timer increment 
+	// 		for(auto& kv:timer_by_stuff)
+	// 			++kv.second.first;
+
+	// 		// Formatting the input to match all the wrappers
+	// 		timer.tik();
+	// 		topography = format_input<topo_t>(ttopography);
+	// 		// Formatting the output topo
+	// 		faketopo = std::vector<float_t>(this->nnodes,0);
+
+	// 		for(int i=0; i<this->nnodes; ++i)
+	// 		{
+	// 			faketopo[i] = topography[i];
+	// 		}
+	// 		timer_by_stuff["initialising_data"].second += timer.tok();
+
+	// 		this->_compute_graph_timer(faketopo,only_SD,quicksort,timer, timer_by_stuff);
+	// 	}
+
+	// 	float_t total = 0;
+	// 	for(auto& kv:timer_by_stuff)total+=kv.second.second;
+
+
+	// 	std::cout << "Result for the timer - mean time on " << NN << " iterations:" << std::endl;
+	// 	for(auto& kv:timer_by_stuff)
+	// 		std::cout << kv.first << ": " << kv.second.second/kv.second.first << " ms on average, which is " << 100*kv.second.second/total << " %% of total time" << std::endl; 
+
+	// 	// Finally I format the output topography to the right wrapper
+	// 	return format_output<decltype(faketopo), out_t >(faketopo);
+	// }
 
 
 	void activate_opti_sparse_border_cordonnier(){this->opti_sparse_border = true;}
@@ -723,31 +404,21 @@ public:
 	Admin functions	managing attribute and variable initialisations
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	*/
+*/
 
 
 	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
 	void _allocate_vectors()
 	{
-		this->links = std::vector<std::uint8_t>(int(this->nnodes * this->n_neighbours/2), 2);
-		this->linknodes = std::vector<int>(int(this->nnodes * this->n_neighbours), -1);
-		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		this->connector->_allocate_vectors();
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
-		for(int i=0;i<this->nnodes; ++i)
-			this->Sreceivers[i] = i;
-		this->Sdistance2receivers = std::vector<float_t >(this->nnodes,-1);
-		this->SS = std::vector<float_t>(this->nnodes,0.);
 	}
 
 
 	void _reallocate_vectors()
 	{
-		for(int i=0;i<this->nnodes; ++i)
-		{
-			this->Sreceivers[i] = i;
-			this->Sdistance2receivers[i] = 0;
-			this->SS[i] = 0;
-		}
+		this->connector->_reallocate_vectors();
+		this->Sstack = std::vector<size_t>(this->nnodes,0);
 	}
 
 
@@ -807,7 +478,7 @@ public:
 		for(int i=0; i<this->nnodes; ++i)
 		{
 			// if they are base level I include them in the stack
-			if(this->Sreceivers[i] == i)
+			if(this->connector->Sreceivers[i] == i)
 			{
 				stackhelper.emplace(i);
 				// ++istack;
@@ -822,9 +493,9 @@ public:
 				++istack;
 
 				// as well as all its donors which will be processed next
-				for( int j = 0; j < this->nSdonors[nextnode]; ++j)
+				for( int j = 0; j < this->connector->nSdonors[nextnode]; ++j)
 				{
-					stackhelper.emplace(this->Sdonors[nextnode*this->n_neighbours + j]);
+					stackhelper.emplace(this->connector->Sdonors[nextnode*this->connector->nneighbours + j]);
 				}
 
 			}
@@ -839,8 +510,8 @@ public:
 	// Each time a donor pops our of the queue, it increment a visited array recording the number of time a node is visited.
 	// if the number of visits equals the number of receiver of the node, it is saved in the stack/
 	// The result is a stack of node from the most downstream to the most upstream one
-	template< class Connector_t>
-	void topological_sorting_dag(Connector_t& connector)
+	// template< class Connector_t>
+	void topological_sorting_dag()
 	{
 		// nrecs tracks the number of receivers for each nodes
 		std::vector<int> nrecs(this->nnodes,0);
@@ -853,28 +524,28 @@ public:
 
 		// Iterating through the links
 		// int debug_cpt = 0;
-		for(int i = 0; i < int( this->links.size() ) ; ++i)
+		for(int i = 0; i < int( this->connector->links.size() ) ; ++i)
 		{
 			
-			if(this->links[i] == 2)
+			if(this->connector->links[i] == 2)
 			{
 				// ++debug_cpt;
 				continue;
 			}
 
 			// checking for no data
-			// if(connector.boundaries.no_data(this->linknodes[i*2]))
+			// if(connector->boundaries.no_data(this->connector->linknodes[i*2]))
 			// {
 			// 	// if the flow cannot go there, we emplace it in the stack (ultimately it does not matter where they are in the stack)
-			// 	this->stack.emplace_back(this->linknodes[i*2]);
+			// 	this->stack.emplace_back(this->connector->linknodes[i*2]);
 			// 	continue;
 			// }
 
 			// Otherwise incrementing the number of receivers for the right link
-			if(this->links[i] == 1)
-				++nrecs[this->linknodes[i*2+1]];
-			else if (this->links[i] == 0)
-				++nrecs[this->linknodes[i*2]];
+			if(this->connector->links[i] == 1)
+				++nrecs[this->connector->linknodes[i*2+1]];
+			else if (this->connector->links[i] == 0)
+				++nrecs[this->connector->linknodes[i*2]];
 		}
 
 
@@ -888,7 +559,7 @@ public:
 
 
 		// then as lon g as there are nodes in the queue:
-		auto donors = connector.get_empty_neighbour();
+		auto donors = connector->get_empty_neighbour();
 		while(toproc.empty() == false)
 		{
 			// getting the next node
@@ -900,7 +571,7 @@ public:
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
 			// getting the idx of the donors
-			int nn = this->get_receivers_idx(next, connector, donors);
+			int nn = this->connector->get_receivers_idx(next, donors);
 			for(int td=0;td<nn;++td)
 			{
 				int d = donors[td];
@@ -959,8 +630,8 @@ public:
 	/// this function enforces minimal slope 
 	/// It starts from the most upstream part of the landscapes and goes down following the Sreceiver route
 	/// it carve on the go, making sure the topography of a receiver is lower
-	template<class Connector_t, class topo_t>
-	void carve_topo_v2(Connector_t& connector, topo_t& topography)
+	template<class topo_t>
+	void carve_topo_v2(topo_t& topography)
 	{
 
 		// Traversing the (SFD) stack on the reverse direction
@@ -969,17 +640,17 @@ public:
 			// Getting the node
 			int node  = this->Sstack[i];
 			// Checking its validiyt AND if it is not a base level
-			if(this->flow_out_model(node,connector))
+			if(this->connector->flow_out_model(node))
 				continue;
 			// Getting the single receiver info
-			int rec = this->Sreceivers[node];
+			int rec = this->connector->Sreceivers[node];
 			// Checking the difference in elevation
 			float_t dz = topography[node] - topography[rec];
 			// if the difference in elevation is bellow 0 I need to carve
 			if(dz <= 0)
 			{
 				// And I do ! Note that I add some very low-grade randomness to avoid flat links
-				topography[rec] = topography[node] - this->minimum_slope + connector.randu->get() * this->slope_randomness;// * d2rec;
+				topography[rec] = topography[node] - this->minimum_slope + connector->randu->get() * this->slope_randomness;// * d2rec;
 			}
 		}
 	}
@@ -987,22 +658,22 @@ public:
 	/// Opposite of the above function
 	/// It starts from the most dowstream nodes and climb its way up.
 	/// when a node is bellow its receiver, we correct the slope
-	template<class Connector_t, class topo_t>
-	std::vector<int> fill_topo_v2(float_t slope, Connector_t& connector, topo_t& topography)
+	template<class topo_t>
+	std::vector<int> fill_topo_v2(float_t slope, topo_t& topography)
 	{
 		std::vector<int> to_recompute;
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			int node  = this->Sstack[i];
-			if(this->flow_out_model(node,connector))
+			if(this->connector->flow_out_model(node))
 				continue;
 
-			int rec = this->Sreceivers[node];
+			int rec = this->connector->Sreceivers[node];
 			float_t dz = topography[node] - topography[rec];
 
 			if(dz <= 0)
 			{
-				topography[node] = topography[rec] + slope + connector.randu->get() * 1e-6;// * d2rec;
+				topography[node] = topography[rec] + slope + this->connector->randu->get() * 1e-6;// * d2rec;
 				to_recompute.emplace_back(node);
 			}
 		}
@@ -1032,326 +703,7 @@ public:
 */
 
 
-	// get receivers of node i and put them in the recs vector fed in
-	// It returns the number of receivers in the recs vector
-	// THis whole process optimises repeated receiver fetching, by never reallocating/initialising the vector recs
-	template<class Connector_t>
-	int get_receivers_idx(int i, Connector_t& connector, std::vector<int>& recs)
-	{
-		// getting the related links stroing them temporarily in the rec vec
-		int nli = connector.get_neighbour_idx_links(i,recs);
-
-		// going through the linksß
-		// The idx is the idx of insertion in the recs vectors
-		// the idx of insertion is always <= of the index of reading (both receivers and links-to-assess are stored in the recs vector)	
-		int idx = 0;
-		// counter used to keep track of the number of receivers: starts at the number of links related to the given node and get decremented at each donor link 
-		int newli = nli;
-
-		// Iterating through the links
-		for(int ti=0;ti<nli;++ti)
-		{
-			// current link index
-			int li = recs[ti];
-
-			// this link is a rec if the node is the first of the linknode and links is true
-			if(i == this->linknodes[li*2] && this->links[li] == 1)
-			{
-				// in which case the receiver of the current node is the +  1
-				recs[idx] = this->linknodes[li*2 + 1];
-				++idx;
-			}
-			// OR if the current node is the +1 and the links false
-			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
-			{
-				// in which case the receivers is the 0 node
-				recs[idx] = this->linknodes[li*2];
-				++idx;
-			}
-			else
-			{
-				// otherwise, it's not a rec and we decrease the newli
-				--newli;
-			}
-		}
-		// recs is changed in place, and we return the number of recs newli
-		return newli;
-	}
-
-
-	// Getting the id of the receivers in the links array
-	// see get_receivers_idx for full comments about the section
-	template<class Connector_t>
-	int get_receivers_idx_links(int i, Connector_t& connector, std::vector<int>& recs)
-	{
-		// getting the related links
-		int nli = connector.get_neighbour_idx_links(i,recs);
-
-		// going through the linksß
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = recs[ti];
-			if(i == this->linknodes[li*2] && this->links[li])
-			{
-				recs[idx] = li;
-				++idx;
-			}
-			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
-			{
-				recs[idx] = li;
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
-
-	// Getting donor indicies
-	// see get_receivers_idx for full comments about the section
-	template<class Connector_t>
-	int get_donors_idx(int i, Connector_t& connector, std::vector<int>& dons)
-	{
-		// getting the related links
-		int nli = connector.get_neighbour_idx_links(i,dons);
-
-		// going through the links
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == 0)
-			{
-				dons[idx] = this->linknodes[li*2 + 1];
-				++idx;
-			}
-			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
-			{
-				dons[idx] = this->linknodes[li*2];
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
-	// getting links indices of hte donors (in the links array)
-	// see get_receivers_idx for full comments about the section
-	template<class Connector_t>
-	int get_donors_idx_links(int i, Connector_t& connector, std::vector<int> & dons)
-	{
-		// getting the related links
-		int nli = connector.get_neighbour_idx_links(i,dons);
-
-		// going through the linksß
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == 0)
-			{
-				dons[idx] = li;
-				++idx;
-			}
-			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
-			{
-				dons[idx] = li;
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
-
-	// Deprecated???
-	template<class Connector_t, class topo_t, class out_t>
-	out_t get_DA_proposlope(Connector_t& connector, topo_t& ttopography)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-
-		std::vector<float_t> DA(connector.nnodes,0.);
-		auto reclinks = connector.get_empty_neighbour();
-		std::vector<float_t> slopes(reclinks.size(),0);
-
-		for(int i = connector.nnodes - 1; i>=0; --i)
-		{
-			int node = this->stack[i];
-			DA[node] += connector.get_area_at_node(node);
-
-			if(this->flow_out_or_pit(node,connector))
-			{
-				int nn = this->get_receivers_idx_links(node, connector,reclinks);
-
-				float_t sumslopes = 0;
-
-				for(int j = 0; j < nn; ++j)
-				{
-					int li = reclinks[j];
-					int rec = this->get_to_links(li);
-					slopes[j] = (topography[node] - topography[rec])/connector.get_dx_from_links_idx(li);
-					if(slopes[j] <= 0)
-						slopes[j] = 1e-5;
-					sumslopes += slopes[j];
-				}
-
-				for(int j = 0;j < nn; ++j)
-				{
-					int li = reclinks[j];
-					int rec = this->get_to_links(li);
-					DA[rec] += DA[node] * slopes[j]/sumslopes;
-				}
-
-			}
-
-		}
-
-		return format_output<decltype(DA), out_t>(DA);
-	}
-
-
-	// Deprecated???
-	template<class Connector_t, class topo_t, class out_t>
-	out_t get_DA_SS(Connector_t& connector, topo_t& ttopography)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-
-		std::vector<float_t> DA(connector.nnodes,0.);
-		for(int i = connector.nnodes - 1; i>=0; --i)
-		{
-			int node = this->Sstack[i];
-			DA[node] += connector.get_area_at_node(node);
-
-			if(!connector.boundaries.no_data(node) && node != this->Sreceivers[node])
-			{
-				int Srec = this->Sreceivers[node];
-				DA[Srec] += DA[node];
-			}
-		}
-
-		return format_output<decltype(DA), out_t>(DA);
-	}
-
-	// Debug function printing to the prompt the single receiver of a node
-	// WIll probably get deprecated
-	template<class Connector_t>
-	std::vector<int> get_rowcol_Sreceivers(int row, int col,  Connector_t& connector)
-	{
-		int node = connector.nodeid_from_row_col(row,col);
-		std::vector<int> out_receivers;
-		int trow,tcol;
-		connector.rowcol_from_node_id(this->Sreceivers[node],trow,tcol);
-		out_receivers = std::vector<int>{trow,tcol};
-		
-		std::cout << "Srec is " << this->Sreceivers[node] << " node was " << node << std::endl;
-		return out_receivers;
-	}
-
-
-	template<class Connector_t, class topo_t>
-	void print_receivers(int i,Connector_t& connector, topo_t& ttopography)
-	{
-		std::cout << std::setprecision(12);
-		auto topography = format_input<topo_t>(ttopography);
-		
-		auto receivers = connector.get_empty_neighbour();
-		int nn = this->get_receivers_idx(i, connector, receivers);
-
-		std::cout << "Topography is " << topography[i] << "# receivers: " << nn << std::endl;
-		for(int tr = 0; tr<nn; ++tr)
-		{
-			int r = receivers[tr];
-			int row,col;
-			connector.rowcol_from_node_id(r,row,col);
-			std::cout << "Rec " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
-
-		}
-
-
-		auto neighbours = connector.get_empty_neighbour();
-		nn = connector.get_neighbour_idx(i, neighbours);
-		std::cout << "Neighbours are :" << std::endl;
-
-		for(int tr = 0; tr<nn; ++tr)
-		{
-			int r = neighbours[tr];
-			int row,col;
-			connector.rowcol_from_node_id(r,row,col);
-			std::cout << "Neighbour " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
-		}
-	}
-
-	// Returns the number of links stored in the graph 
-	// Note that it comprises some unvalid linked!
-	int get_rec_array_size(){return int(this->links.size());}
-
-
-	/// Takes an array of nnodes size and sum the values at the outlets
-	/// This can be useful for checking mass balances for example
-	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
-	template<class Connector_t,class array_t, class T>
-	T sum_at_outlets(Connector_t& connector, array_t& tarray, bool include_internal_pits = true)
-	{
-		auto array = format_input<array_t>(tarray);
-		T out = 0;
-		for(int i=0; i<this->nnodes; ++i)
-		{
-			if (this->Sreceivers[i] == i)
-			{
-				if(include_internal_pits)
-				{
-					out += array[i];
-				}
-				else if(this->flow_out_model(i,connector))
-				{
-					out += array[i];
-				}
-			}
-		}
-		return out;
-
-	}
-
-	/// Takes an array of nnodes size and sum the values at the outlets
-	/// This can be useful for checking mass balances for example
-	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
-	template<class Connector_t,class array_t, class out_t>
-	out_t keep_only_at_outlets(Connector_t& connector, array_t& tarray, bool include_internal_pits = true)
-	{
-		auto array = format_input<array_t>(tarray);
-		std::vector<float_t> out = std::vector<float_t> (this->nnodes,0);
-		for(int i=0; i<this->nnodes; ++i)
-		{
-			if (this->Sreceivers[i] == i)
-			{
-				if(include_internal_pits)
-					out[i] = array[i];
-				else if(this->flow_out_model(i,connector))
-					out[i] = array[i];
-			}
-		}
-		return format_output<decltype(out), out_t>(out);
-
-	}
+	
 
 
 	// DEbugging function checking the validity of the single flow stack 
@@ -1394,9 +746,9 @@ public:
 		{
 			auto v = this->Sstack[i];
 			isdone[v] = true;
-			if(int(v) !=  this->Sreceivers[v])
+			if(int(v) !=  this->connector->Sreceivers[v])
 			{
-				if(isdone[this->Sreceivers[v]])
+				if(isdone[this->connector->Sreceivers[v]])
 				{
 					std::cout << "Receiver processed before node stack is fucked" << std::endl;
 					return false;
@@ -1414,7 +766,7 @@ public:
 		std::vector<bool> haSrecs(this->nnodes,true);
 		for(int i=0;i<this->nnodes;++i)
 		{
-			if(this->Sreceivers[i] == i)
+			if(this->connector->Sreceivers[i] == i)
 				haSrecs[i] = false;
 		}
 		return haSrecs;
@@ -1455,13 +807,13 @@ public:
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 */
 
-	template<class Connector_t,class out_t>
-	out_t get_all_nodes_upstream_of(Connector_t& connector, int node, bool use_Sgraph = true, bool only_SD = false)
+	template<class out_t>
+	out_t get_all_nodes_upstream_of(int node, bool use_Sgraph = true, bool only_SD = false)
 	{
 		std::vector<int> out;
 		if(use_Sgraph)
 		{
-			out = this->_get_all_nodes_upstream_of_using_graph(connector ,node, only_SD);
+			out = this->_get_all_nodes_upstream_of_using_graph(node, only_SD);
 		}
 		else
 			throw std::runtime_error("graph::get_all_nodes_upstream_of::error not implemented yet without graph");
@@ -1469,8 +821,7 @@ public:
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template< class Connector_t>
-	std::vector<int> _get_all_nodes_upstream_of_using_graph(Connector_t& connector,int node, bool only_SD)
+	std::vector<int> _get_all_nodes_upstream_of_using_graph(int node, bool only_SD)
 	{
 
 		// Formatting the output vector
@@ -1484,10 +835,10 @@ public:
 		for(auto tnode:this->Sstack)
 		{
 			// ignoring the not ode and outlets
-			if(this->flow_out_or_pit(tnode,connector) == false)
+			if(this->connector->flow_out_or_pit(tnode) == false)
 			{
 				// Getting the receiver
-				int rec = this->Sreceivers[tnode];
+				int rec = this->connector->Sreceivers[tnode];
 				// checkng if receiver is visited but not node
 				if(vis[rec] && rec != node)
 				{
@@ -1507,11 +858,11 @@ public:
 		std::queue<int> toproc;
 
 		// first checking if all the steepest descent nodes I already have there have a not-SD donor
-		auto donors = connector.get_empty_neighbour();
+		auto donors = connector->get_empty_neighbour();
 		for(auto v:out)
 		{
 			// gettign the donors
-			int nn = this->get_donors_idx(v,connector, donors);
+			int nn = this->connector->get_donors_idx(v, donors);
 			// for all donors of dat nod
 			for(int td=0; td<nn;++td)
 			{
@@ -1536,7 +887,7 @@ public:
 			// recording it as draining to the original node
 			out.emplace_back(next);
 			// getting all its donors
-			int nn = this->get_donors_idx(next,connector, donors);
+			int nn = this->connector->get_donors_idx(next, donors);
 			// for all donors of dat nod
 			for(int td=0; td<nn;++td)
 			{
@@ -1556,13 +907,13 @@ public:
 		return out;
 	}
 
-	template<class Connector_t,class out_t>
-	out_t get_all_nodes_downstream_of(Connector_t& connector, int node, bool use_Sgraph = true, bool only_SD = false)
+	template<class out_t>
+	out_t get_all_nodes_downstream_of(int node, bool use_Sgraph = true, bool only_SD = false)
 	{
 		std::vector<int> out;
 		if(use_Sgraph)
 		{
-			out = this->_get_all_nodes_downstream_of_using_graph(connector ,node, only_SD);
+			out = this->_get_all_nodes_downstream_of_using_graph(node, only_SD);
 		}
 		else
 			throw std::runtime_error("graph::get_all_nodes_downstream_of::error not implemented yet without graph");
@@ -1570,8 +921,7 @@ public:
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template< class Connector_t>
-	std::vector<int> _get_all_nodes_downstream_of_using_graph(Connector_t& connector,int node, bool only_SD)
+	std::vector<int> _get_all_nodes_downstream_of_using_graph(int node, bool only_SD)
 	{
 
 		// Formatting the output vector
@@ -1586,10 +936,10 @@ public:
 		{
 			int tnode = this->Sstack[i];
 			// ignoring the not ode and outlets
-			if(this->flow_out_or_pit(tnode,connector) == false)
+			if(this->connector->flow_out_or_pit(tnode) == false)
 			{
 				// Getting the receiver
-				int rec = this->Sreceivers[tnode];
+				int rec = this->connector->Sreceivers[tnode];
 				// checkng if receiver is visited but not node
 				if(vis[node] && rec != node && tnode != node)
 				{
@@ -1608,13 +958,13 @@ public:
 		// else, we have to use a queue to add all the receivers
 		std::queue<int> toproc;
 
-		auto receivers = connector.get_empty_neighbour();
+		auto receivers = this->connector->get_empty_neighbour();
 
 		// first checking if all the steepest descent nodes I already have there have a not-SD rec
 		for(auto v:out)
 		{
 			// gettign the receivers
-			int nn = this->get_receivers_idx(v,connector, receivers);
+			int nn = this->connector->get_receivers_idx(v, receivers);
 			// for all receivers of dat nod
 			for(int tr = 0; tr < nn; ++tr)
 			{
@@ -1639,7 +989,7 @@ public:
 			// recording it as draining to the original node
 			out.emplace_back(next);
 			// getting all its receivers
-			int nn = this->get_receivers_idx(next,connector, receivers);
+			int nn = this->connector->get_receivers_idx(next, receivers);
 			for(int tr = 0; tr < nn; ++tr)
 			{
 				int r = receivers[tr];
@@ -1660,18 +1010,17 @@ public:
 
 
 
-	template< class Connector_t>
-	std::vector<int> _get_flow_acc(Connector_t& connector)
+	std::vector<int> _get_flow_acc()
 	{
 		std::vector<int> flowacc(this->nnodes,0);
 		for(int i = this->nnodes-1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			if(connector.boundaries.no_data(node) == false)
+			if(this->connector->boundaries.no_data(node) == false)
 				continue;
 
-			int rec = this->Sreceivers[node];
-			if(this->flow_out_or_pit(node,connector) == false)
+			int rec = this->connector->Sreceivers[node];
+			if(this->connector->flow_out_or_pit(node) == false)
 			{
 				flowacc[rec] += flowacc[node] + 1;
 			}
@@ -1703,38 +1052,6 @@ public:
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 */
 
-
-	template<class out_t>
-	out_t get_SFD_receivers()
-	{return format_output<std::vector<int>, out_t>(this->Sreceivers);}
-
-	template<class out_t>
-	out_t get_SFD_dx()
-	{return format_output<std::vector<float_t>, out_t>(this->Sdistance2receivers);}
-
-	template<class out_t>
-	out_t get_SFD_ndonors()
-	{return format_output<std::vector<int>, out_t>(this->nSdonors);}
-
-	template<class out_t>
-	out_t get_SFD_donors_flat()
-	{return format_output<std::vector<int>, out_t>(this->Sdonors);}
-
-	template<class out_t>
-	out_t get_SFD_donors_list()
-	{
-		std::vector<std::vector<int> > out(this->nnodes);
-		for(int i=0; i < this->nnodes; ++i)
-		{
-			std::vector<int> tvec;
-			for (int j=0; j<this->nSdonors[i]; ++j)
-				tvec.emplace_back(this->Sdonors[i * this->n_neighbours +j]);
-			out[i] = tvec;
-		}
-
-		return out;
-	}
-
 	template<class out_t>
 	out_t get_SFD_stack()
 	{return format_output<std::vector<size_t>, out_t>(this->Sstack);}
@@ -1745,260 +1062,17 @@ public:
 	out_t get_MFD_stack()
 	{return format_output<std::vector<size_t>, out_t>(this->stack);}
 
-	template<class out_t>
-	out_t get_links()
-	{return this->links;}
-
-	template<class out_t>
-	out_t get_linknodes_flat()
-	{return format_output<std::vector<int>, out_t>(this->linknodes);}
-
-	template<class out_t>
-	out_t get_linknodes_flat_D4()
-	{
-		std::vector<int> temp(int(this->linknodes.size()/2),-1);
-		int j = 0;
-		int counter = -1;
-		for(int i=0; i< int(this->linknodes.size()); i += 2)
-		{
-			++counter;
-			if(counter == 0 || counter == 2)
-			{
-				temp[j] = this->linknodes[i];
-				++j;
-				temp[j] = this->linknodes[i+1];
-				++j;
-			}
-
-			if(counter == 3)
-				counter = -1;
-		}
-
-		return format_output<std::vector<int>, out_t>(temp);
-
-	}
-
-	template<class out_t, class Connector_t>
-	out_t get_linkdx_flat_D4(Connector_t& connector)
-	{
-		std::vector<float_t> temp(int(this->links.size()/2),-1);
-		int j = 0;
-		int counter = -1;
-		for(int i=0; i< int(this->links.size()); ++i)
-		{
-			++counter;
-
-			if(counter == 0 || counter == 2)
-			{
-				float_t dx = connector.get_dx_from_links_idx(i);
-				temp[j] = dx;
-				++j;
-			}
-
-			if(counter == 3)
-				counter = -1;
-		}
-
-		return format_output<std::vector<float_t>, out_t>(temp);
-
-	}
-
-	template<class out_t>
-	out_t get_linknodes_list()
-	{
-		std::vector<std::vector<int> > out(this->links.size());
-		for(size_t i=0; i<this->links.size();++i)
-		{
-			out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
-		}
-		return out;
-	}
-
-	template<class out_t>
-	out_t get_linknodes_list_oriented()
-	{
-		std::vector<std::vector<int> > out(this->links.size());
-		for(size_t i=0; i<this->links.size();++i)
-		{
-			out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
-		}
-		return out;
-	}
-
-
-
-
-
-
-	int get_SFD_receivers_at_node(int i)
-	{return this->Sreceivers[i];}
-
-	int get_SFD_dx_at_node(int i)
-	{return this->Sdistance2receivers[i];}
-
-	int get_SFD_ndonors_at_node(int i)
-	{return this->nSdonors[i];}
-
-	template<class out_t>
-	out_t get_SFD_donors_at_node(int i)
-	{
-		std::vector<int> out(this->n_neighbours);
-		for (int j=0; j<this->nSdonors[i]; ++j)
-			out.emplace_back(this->Sdonors[i * this->n_neighbours +j]);
-		return out;
-	}
-
-
-/*
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	                      . - ~ ~ ~ - .
-      ..     _      .-~               ~-.
-     //|     \ `..~                      `.
-    || |      }  }              /       \  \
-(\   \\ \~^..'                 |         }  \
- \`.-~  o      /       }       |        /    \
- (__          |       /        |       /      `.
-  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-              |     /          |     /     ~-.     ~- _
-              |_____|          |_____|         ~ - . _ _~_-_
-
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	Functions computing gradients
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-*/
-
-	template<class out_t, class topo_t>
-	out_t get_SFD_gradient(topo_t& ttopography)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-		auto gradient = this->_get_SFD_gradient(topography);
-		return format_output<decltype(gradient), out_t>(gradient);
-	}
-
-	template<class topo_t>
-	std::vector<float_t> _get_SFD_gradient(topo_t& topography)
-	{
-		std::vector<float_t> gradient(this->nnodes,0.);
-		for(int i=0; i<this->nnodes;++i)
-		{
-			if(this->Sreceivers[i] != i)
-				gradient[i] = (topography[i] - topography[this->Sreceivers[i]])/this->Sdistance2receivers[i];
-		}
-		return gradient;
-	}
-
-	template<class Connector_t,class out_t, class topo_t>
-	out_t get_links_gradient(Connector_t& connector, topo_t& ttopography, float_t min_slope)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-		std::vector<float_t> gradient = this->_get_links_gradient(connector, topography, min_slope);
-		return format_output<decltype(gradient), out_t>(gradient);
-	}
-
-
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _get_links_gradient(Connector_t& connector, topo_t& topography, float_t min_slope)
-	{
-
-		std::vector<float_t> gradient = std::vector<float_t>(this->links.size(), 0);
-
-		for(size_t i = 0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				gradient[i] = std::max((topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i), min_slope);
-			}
-		}
-
-		return gradient;
-	}
-
-	template<class Connector_t,class out_t, class topo_t>
-	out_t get_MFD_mean_gradient(Connector_t& connector,topo_t& ttopography)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-		auto gradient = this->_get_MFD_mean_gradient(connector,topography);
-		return format_output<decltype(gradient), out_t>(gradient);
-	}
-
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _get_MFD_mean_gradient(Connector_t& connector, topo_t& topography)
-	{
-
-		std::vector<float_t> gradient = std::vector<float_t>(this->nnodes,0);
-		std::vector<int> ngradient = std::vector<int>(this->nnodes,0);
-
-		for(size_t i = 0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				float_t this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
-				auto frto = this->get_from_to_links(i);
-				gradient[frto.first] += this_gradient;
-				++ngradient[frto.first];
-			}
-		}
-
-		for(int i=0; i< this->nnodes; ++i)
-		{
-			if(ngradient[i] > 0)
-				gradient[i] = gradient[i]/ngradient[i];
-		}
-
-		return gradient;
-	}
-
-
-	template<class Connector_t,class out_t, class topo_t>
-	out_t get_MFD_weighted_gradient(Connector_t& connector,topo_t& ttopography, topo_t& tweights)
-	{
-		auto topography = format_input<topo_t>(ttopography);
-		auto weights = format_input<topo_t>(tweights);
-		auto gradient = this->_get_MFD_weighted_gradient(connector,topography, weights);
-		return format_output<decltype(gradient), out_t>(gradient);
-	}
-
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _get_MFD_weighted_gradient(Connector_t& connector, topo_t& topography, topo_t& weights)
-	{
-
-		std::vector<float_t> gradient = std::vector<float_t>(this->nnodes,0);
-		std::vector<float_t> wgradient = std::vector<float_t>(this->nnodes,0.);
-
-		for(size_t i = 0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				float_t this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/connector.get_dx_from_links_idx(i);
-				auto frto = this->get_from_to_links(i);
-				gradient[frto.first] += this_gradient * weights[i];
-				wgradient[frto.first] += weights[i];
-			}
-		}
-
-		for(int i=0; i< this->nnodes; ++i)
-		{
-			if(wgradient[i] > 0)
-				gradient[i] = gradient[i]/wgradient[i];
-		}
-
-		return gradient;
-	}
 
 
 	template<class topo_t>
 	std::vector<float_t> _get_max_val_link_array(topo_t& array)
 	{
 		std::vector<float_t> tmax(this->nnodes,0);
-		for(size_t i=0; i < this->links.size(); ++i)
+		for(size_t i=0; i < this->connector->links.size(); ++i)
 		{
-			if(this->is_link_valid(i) ==false)
+			if(this->connector->is_link_valid(i) ==false)
 				continue;
-			int go = this->get_from_links(i);
+			int go = this->connector->get_from_links(i);
 			if(tmax[go]<array[i]) tmax[go] = array[i];
 		}
 		return tmax;
@@ -2007,108 +1081,6 @@ public:
 
 
 
-	/*
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	                      . - ~ ~ ~ - .
-      ..     _      .-~               ~-.
-     //|     \ `..~                      `.
-    || |      }  }              /       \  \
-(\   \\ \~^..'                 |         }  \
- \`.-~  o      /       }       |        /    \
- (__          |       /        |       /      `.
-  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-              |     /          |     /     ~-.     ~- _
-              |_____|          |_____|         ~ - . _ _~_-_
-
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	Functions to calculate weights
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-	*/	
-
-	template<class out_t, class topo_t>
-	out_t get_link_weights(topo_t& tgradient, float_t exp)
-	{
-		std::vector<float_t> weights(this->links.size(),0.);
-		auto gradient = format_input<topo_t>(tgradient);
-
-		if(exp <= 0)
-		{
-			this->_get_link_weights_f_nrecs(weights);
-		}
-		else if(exp == 1)
-		{
-			this->_get_link_weights_proposlope(weights, gradient);
-		}
-		else
-		{
-			this->_get_link_weights_exp(weights, gradient, exp);
-		}
-
-		return format_output<decltype(weights), out_t>(weights);
-	}
-
-	void _get_link_weights_f_nrecs(std::vector<float_t>& weights)
-	{
-		auto nrecs = this->get_n_receivers();
-		for(size_t i=0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				int nr = nrecs[this->get_from_links(i)];
-				if(nr > 0)
-				{
-					weights[i] = 1./nr;
-				}
-				else
-					weights[i] = 1.;
-			}
-		}
-
-	}
-
-	template<class topo_t>
-	void _get_link_weights_proposlope(std::vector<float_t>& weights, topo_t& gradient)
-	{
-		std::vector<float_t> sumgrad(this->nnodes,0.);
-		for(size_t i=0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				sumgrad[this->get_from_links(i)] += gradient[i];
-			}
-		}
-
-		for(size_t i=0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-				weights[i] = gradient[i]/sumgrad[this->get_from_links(i)];
-		}
-
-
-	}
-
-	template<class topo_t>
-	void _get_link_weights_exp(std::vector<float_t>& weights, topo_t& gradient, float_t exp)
-	{
-		std::vector<float_t> sumgrad(this->nnodes,0.);
-		for(size_t i=0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				sumgrad[this->get_from_links(i)] += std::pow(gradient[i],exp);
-			}
-		}
-
-		for(size_t i=0; i< this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-				weights[i] = std::pow(gradient[i],exp)/sumgrad[this->get_from_links(i)];
-		}
-	}
 
 
 	/*
@@ -2133,29 +1105,28 @@ public:
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	*/
 
-	template<class Connector_t,class out_t>
-	out_t accumulate_constant_downstream_SFD(Connector_t& connector,float_t var)
+	template<class out_t>
+	out_t accumulate_constant_downstream_SFD(float_t var)
 	{
-		std::vector<float_t> out = this->_accumulate_constant_downstream_SFD(connector,var);
+		std::vector<float_t> out = this->_accumulate_constant_downstream_SFD(var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template<class Connector_t>
-	std::vector<float_t> _accumulate_constant_downstream_SFD(Connector_t& connector, float_t var)
+	std::vector<float_t> _accumulate_constant_downstream_SFD(float_t var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
-			if(connector.boundaries.no_data(node))
+			if(this->connector->boundaries.no_data(node))
 				continue;
 
 			out[node] += var;
 
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 
-			out[this->Sreceivers[node]] += out[node];
+			out[this->connector->Sreceivers[node]] += out[node];
 			
 		}
 
@@ -2163,31 +1134,31 @@ public:
 	}
 
 
-	template<class Connector_t,class out_t, class topo_t>
-	out_t accumulate_variable_downstream_SFD(Connector_t& connector,topo_t& tvar)
+	template<class out_t, class topo_t>
+	out_t accumulate_variable_downstream_SFD(topo_t& tvar)
 	{
 		auto var = format_input<topo_t>(tvar);
-		std::vector<float_t> out = this->_accumulate_variable_downstream_SFD(connector,var);
+		std::vector<float_t> out = this->_accumulate_variable_downstream_SFD(var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _accumulate_variable_downstream_SFD(Connector_t& connector, topo_t& var)
+	template< class topo_t>
+	std::vector<float_t> _accumulate_variable_downstream_SFD(topo_t& var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
 
-			if(connector.boundaries.no_data(node))
+			if(this->connector->boundaries.no_data(node))
 				continue;
 
 			out[node] += var[node];
 
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 
-			out[this->Sreceivers[node]] += out[node];
+			out[this->connector->Sreceivers[node]] += out[node];
 			
 		}
 
@@ -2195,37 +1166,37 @@ public:
 	}
 
 
-	template<class Connector_t, class topo_t, class out_t>
-	out_t accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& tweights,float_t var)
+	template< class topo_t, class out_t>
+	out_t accumulate_constant_downstream_MFD(topo_t& tweights,float_t var)
 	{
 		auto weights = format_input<topo_t>(tweights);
-		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(connector, weights ,var);
+		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(weights ,var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _accumulate_constant_downstream_MFD(Connector_t& connector, topo_t& weights, float_t var)
+	template< class topo_t>
+	std::vector<float_t> _accumulate_constant_downstream_MFD(topo_t& weights, float_t var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
-		auto reclinks = connector.get_empty_neighbour();
+		auto reclinks = this->connector->get_empty_neighbour();
  		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 
 			int node = this->stack[i];
-			if(connector.boundaries.no_data(node))
+			if(this->connector->boundaries.no_data(node))
 				continue;
 
 			out[node] += var;
 
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 
-			int nn = this->get_receivers_idx_links(node,connector, reclinks);
+			int nn = this->connector->get_receivers_idx_links(node, reclinks);
 			for (int ttl = 0; ttl< nn; ++ttl)
 			{
 				int ti = reclinks[ttl];
-				int rec = this->get_to_links(ti);
-				if(connector.is_in_bound(rec))
+				int rec = this->connector->get_to_links(ti);
+				if(this->connector->is_in_bound(rec))
 					out[rec] += out[node] * weights[ti];
 			}
 			
@@ -2234,37 +1205,37 @@ public:
 		return out;
 	}
 
-	template<class Connector_t, class topo_t, class out_t>
-	out_t accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& tweights, topo_t& tvar)
+	template< class topo_t, class out_t>
+	out_t accumulate_variable_downstream_MFD(topo_t& tweights, topo_t& tvar)
 	{
 		auto weights = format_input<topo_t>(tweights);
 		auto var = format_input<topo_t>(tvar);
-		std::vector<float_t> out = this->_accumulate_variable_downstream_MFD(connector, weights ,var);
+		std::vector<float_t> out = this->_accumulate_variable_downstream_MFD(weights ,var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	template<class Connector_t, class topo_t>
-	std::vector<float_t> _accumulate_variable_downstream_MFD(Connector_t& connector, topo_t& weights, topo_t& var)
+	template< class topo_t>
+	std::vector<float_t> _accumulate_variable_downstream_MFD(topo_t& weights, topo_t& var)
 	{
 		std::vector<float_t> out(this->nnodes, 0);
-		auto reclinks = connector.get_empty_neighbour();
+		auto reclinks = this->connector->get_empty_neighbour();
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->stack[i];
-			if(connector.boundaries.no_data(node))
+			if(this->connector->boundaries.no_data(node))
 				continue;
 
 			out[node] += var[node];
 
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 
-			int nn = this->get_receivers_idx_links(node,connector,reclinks);
+			int nn = this->connector->get_receivers_idx_links(node,reclinks);
 			for (int tr=0; tr<nn;++tr)
 			{
 				int ti = reclinks[tr];
-				int rec = this->get_to_links(ti);
-				if(connector.is_in_bound(rec))
+				int rec = this->connector->get_to_links(ti);
+				if(connector->is_in_bound(rec))
 					out[rec] += out[node] * weights[ti];
 			}
 			
@@ -2297,180 +1268,7 @@ public:
 */
 
 
-	// Checks the validity of a link
-	// Invalid links have a linknode value of -1
-	template<class ti_t>
-	bool is_link_valid(ti_t i){return (this->links[i]==2)?false:true; }
-
-
-	// return true is the node is active: i.e. flow transfer through it
-	// reflects the connector version of the function, but adds extra graph specific checks.
-	// For example a node with permissive outletting border will be active in the connector sense, but can be inactive in the graph if it has no downstream neighbours.
-	template<class ti_t, class Connector_t>
-	bool flow_out_model(ti_t node, Connector_t& connector)
-	{
-		
-		bool con_val = connector.boundaries.can_out(node);
-		if(con_val && this->Sreceivers[node] == int(node))
-			return true;
-		return false;
-	}
-
-	template<class ti_t, class Connector_t>
-	bool is_pit(ti_t node, Connector_t& connector)
-	{
-		
-		bool con_val = connector.boundaries.can_out(node);
-		if(!con_val && this->Sreceivers[node] == int(node))
-			return true;
-		return false;
-	}
-
-	template<class ti_t, class Connector_t>
-	bool flow_out_or_pit(ti_t node, Connector_t& connector)
-	{
-		if(this->Sreceivers[node] == int(node))
-			return true;
-		return false;
-	}
-
-	// Returns the pair of node making a link, starting from the donor to the receiver
-	template<class ti_t>
-	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
-	{
-		if(this->links[i] == 1)
-			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
-		else if (this->links[i] == 0)
-			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
-		else
-			return {-1,-1};
-
-	}
-
-
-	template<class ti_t>
-	void get_from_to_links(ti_t i, std::pair<ti_t,ti_t>& fromto)
-	{
-		if(this->links[i] == 1)
-		{
-			fromto.first = this->linknodes[i*2]; fromto.second = this->linknodes[i*2 + 1];
-		}
-		else if (this->links[i] == 2)
-		{
-			fromto.first = this->linknodes[i*2 + 1]; fromto.second =  this->linknodes[i*2];
-		}
-		else
-			fromto = {-1,-1};
-
-	}
-
-	template<class ti_t>
-	ti_t get_from_links(ti_t i)
-	{
-		if(this->links[i] == 1)
-			return this->linknodes[i*2];
-		else if (this->links[i] == 0)
-			return this->linknodes[i*2 + 1];
-		else return -1;
-	}
-
-	template<class ti_t>
-	ti_t get_to_links(ti_t i)
-	{
-		if(this->links[i] == 0)
-			return this->linknodes[i*2];
-		else if (this->links[i] == 1)
-			return this->linknodes[i*2 + 1];
-		else return -1;
-	}
-
-	template<class ti_t>
-	ti_t get_other_node_from_links(ti_t li, ti_t ni)
-	{
-		if(this->linknodes[li*2 + 1] == ni)
-			return this->linknodes[li*2];
-		else if (this->linknodes[li*2] == ni)
-			return this->linknodes[li*2 + 1];
-		else
-			return -1;
-	}
-
-	std::vector<int> get_n_receivers()
-	{
-		std::vector<int> nrecs(this->nnodes,0);
-		for(size_t i = 0; i<this->links.size(); ++i)
-		{
-			if(this->is_link_valid(i))
-			{
-				auto frto = this->get_from_to_links(i);
-				++nrecs[frto.first];
-			}
-		}
-		return nrecs;
-	}
-
-	template<class Connector_t>
-	void speed_test_links(Connector_t& connector)
-	{
-		ocarina epona;
-		epona.tik();
-		int nrecs = 0;
-		// for(int i =0; i < this->nnodes; ++i)
-		// {
-		// 	auto alllinks = this->get_receivers_idx_links(i, connector);
-		// 	nrecs += alllinks.size();
-		// }
-		// epona.tok("Getting recs");
-		// std::cout << "I have " << nrecs << std::endl;
-		
-		// nrecs = 0;
-
-		// epona.tik();
-		// for(int i =0; i < this->nnodes; ++i)
-		// {
-		// 	auto alllinks = connector.get_ilinknodes_from_node(i);
-		// 	nrecs += alllinks.size();
-		// }
-		// epona.tok("Getting links");
-		// std::cout << "I have " << nrecs << std::endl;
-
-		nrecs = 0;
-
-		epona.tik();
-		for(int i =0; i < this->nnodes; ++i)
-		{
-			auto alllinks = connector.get_ilinknodes_from_nodev2(i);
-			nrecs += alllinks.size();
-		}
-
-		epona.tok("Getting linksv2");
-		std::cout << "I have " << nrecs << std::endl;
-
-		nrecs = 0;
-
-		epona.tik();
-		std::vector<std::pair<int,bool> > these = {std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false),std::make_pair(0,false)};
-		for(int i =0; i < this->nnodes; ++i)
-		{
-			connector.get_ilinknodes_from_nodev3(i,these);
-			nrecs += these.size();
-		}
-		epona.tok("Getting linksv3");
-		std::cout << "I have " << nrecs << std::endl;
-
-		// epona.tik();
-		// std::vector<int> these2 = {0,0,0,0,0,0,0,0};
-		// for(int i =0; i < this->nnodes; ++i)
-		// {
-		// 	auto nn = connector.get_ilinknodes_from_nodev3_light(i,these2);
-		// 	nrecs += nn;
-		// }
-		// epona.tok("Getting linksv3.2");
-		// std::cout << "I have " << nrecs << std::endl;
-		
-	}
-
-
+	
 
 	/*
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -2496,16 +1294,15 @@ public:
 
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_SFD_distance_from_outlets(Connector_t& connector)
+	template< class out_t>
+	out_t get_SFD_distance_from_outlets()
 	{
 		std::vector<float_t> distfromoutlet(this->nnodes,0.);
-		this->_get_SFD_distance_from_outlets(connector,distfromoutlet);
+		this->_get_SFD_distance_from_outlets(distfromoutlet);
 		return format_output<decltype(distfromoutlet), out_t >(distfromoutlet);
 	}
 
-	template<class Connector_t>
-	void _get_SFD_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlet)
+	void _get_SFD_distance_from_outlets(std::vector<float_t>& distfromoutlet)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=0; i<this->nnodes; ++i)
@@ -2513,27 +1310,26 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 			// Getting the receiver
-			int rec = this->Sreceivers[node];
+			int rec = this->connector->Sreceivers[node];
 			// And integrating the distance from outlets
-			distfromoutlet[node] = distfromoutlet[rec] + this->Sdistance2receivers[node];
+			distfromoutlet[node] = distfromoutlet[rec] + this->connector->Sdistance2receivers[node];
 		}
 
 	}
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_SFD_min_distance_from_sources(Connector_t& connector)
+	template< class out_t>
+	out_t get_SFD_min_distance_from_sources()
 	{
 		std::vector<float_t> distfromsources(this->nnodes,0.);
-		this->_get_SFD_min_distance_from_sources(connector,distfromsources);
+		this->_get_SFD_min_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	template<class Connector_t>
-	void _get_SFD_min_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	void _get_SFD_min_distance_from_sources(std::vector<float_t>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=this->nnodes - 1; i>=0; --i)
@@ -2541,27 +1337,26 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
-			int rec = this->Sreceivers[node];
-			if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + this->Sdistance2receivers[node])
-				distfromsources[rec] = distfromsources[node] + this->Sdistance2receivers[node];
+			int rec = this->connector->Sreceivers[node];
+			if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + this->connector->Sdistance2receivers[node])
+				distfromsources[rec] = distfromsources[node] + this->connector->Sdistance2receivers[node];
 		}
 
 	}
 
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_SFD_max_distance_from_sources(Connector_t& connector)
+	template< class out_t>
+	out_t get_SFD_max_distance_from_sources()
 	{
 		std::vector<float_t> distfromsources(this->nnodes,0.);
-		this->_get_SFD_max_distance_from_sources(connector,distfromsources);
+		this->_get_SFD_max_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	template<class Connector_t>
-	void _get_SFD_max_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	void _get_SFD_max_distance_from_sources(std::vector<float_t>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=this->nnodes - 1; i>=0; --i)
@@ -2569,43 +1364,42 @@ public:
 			// next node in the stack
 			int node = this->Sstack[i];
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
-			int rec = this->Sreceivers[node];
-			if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + this->Sdistance2receivers[node])
-				distfromsources[rec] = distfromsources[node] + this->Sdistance2receivers[node];
+			int rec = this->connector->Sreceivers[node];
+			if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + this->connector->Sdistance2receivers[node])
+				distfromsources[rec] = distfromsources[node] + this->connector->Sdistance2receivers[node];
 		}
 
 	}
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_MFD_max_distance_from_sources(Connector_t& connector)
+	template< class out_t>
+	out_t get_MFD_max_distance_from_sources()
 	{
 		std::vector<float_t> distfromsources(this->nnodes,0.);
-		this->_get_MFD_max_distance_from_sources(connector,distfromsources);
+		this->_get_MFD_max_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	template<class Connector_t>
-	void _get_MFD_max_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	void _get_MFD_max_distance_from_sources(std::vector<float_t>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
-		auto receilink = connector.get_empty_neighbour();
+		auto receilink = this->connector->get_empty_neighbour();
 		for(int i=this->nnodes - 1; i>=0; --i)
 		{
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 			
-			int nl = this->get_receivers_idx_links(node, connector, receilink);
+			int nl = this->connector->get_receivers_idx_links(node, receilink);
 
 			for(int tl =0; tl<nl; ++tl)
 			{
-				int rec = this->get_to_links(receilink[tl]);
-				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				int rec = this->connector->get_to_links(receilink[tl]);
+				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + dx)
 					distfromsources[rec] = distfromsources[node] + dx;
 			}
@@ -2616,33 +1410,32 @@ public:
 	}
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_MFD_min_distance_from_sources(Connector_t& connector)
+	template< class out_t>
+	out_t get_MFD_min_distance_from_sources()
 	{
 		std::vector<float_t> distfromsources(this->nnodes,0.);
-		this->_get_MFD_min_distance_from_sources(connector,distfromsources);
+		this->_get_MFD_min_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	template<class Connector_t>
-	void _get_MFD_min_distance_from_sources(Connector_t& connector, std::vector<float_t>& distfromsources)
+	void _get_MFD_min_distance_from_sources(std::vector<float_t>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
-		auto receilink = connector.get_empty_neighbour();
+		auto receilink = this->connector->get_empty_neighbour();
 		for(int i=this->nnodes - 1; i>=0; --i)
 		{
 			// next node in the stack
 			int node = this->stack[i];
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 			
-			int nl = this->get_receivers_idx_links(node, connector, receilink);
+			int nl = this->connector->get_receivers_idx_links(node, receilink);
 
 			for(int tl =0; tl<nl; ++tl)
 			{
-				int rec = this->get_to_links(receilink[tl]);
-				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				int rec = this->connector->get_to_links(receilink[tl]);
+				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + dx)
 					distfromsources[rec] = distfromsources[node] + dx;
 			}
@@ -2653,19 +1446,18 @@ public:
 	}
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_MFD_max_distance_from_outlets(Connector_t& connector)
+	template< class out_t>
+	out_t get_MFD_max_distance_from_outlets()
 	{
 		std::vector<float_t> distfromoutlets(this->nnodes,0.);
-		this->_get_MFD_max_distance_from_outlets(connector,distfromoutlets);
+		this->_get_MFD_max_distance_from_outlets(distfromoutlets);
 		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
 	}
 
-	template<class Connector_t>
-	void _get_MFD_max_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlets)
+	void _get_MFD_max_distance_from_outlets(std::vector<float_t>& distfromoutlets)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
-		auto receilink = connector.get_empty_neighbour();
+		auto receilink = this->connector->get_empty_neighbour();
 		for(int i = 0; i < this->nnodes; ++i)
 		{
 
@@ -2673,15 +1465,15 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 			
-			int nl = this->get_receivers_idx_links(node, connector, receilink);
+			int nl = this->connector->get_receivers_idx_links(node,  receilink);
 
 			for(int tl =0; tl<nl; ++tl)
 			{
-				int rec = this->get_to_links(receilink[tl]);
-				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				int rec = this->connector->get_to_links(receilink[tl]);
+				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromoutlets[node] == 0 || distfromoutlets[node] < distfromoutlets[rec] + dx)
 					distfromoutlets[node] = distfromoutlets[rec] + dx;
 			}
@@ -2692,19 +1484,18 @@ public:
 	}
 
 	/// this function computes the flow distance from model outlets using the siungle direction graph
-	template<class Connector_t, class out_t>
-	out_t get_MFD_min_distance_from_outlets(Connector_t& connector)
+	template< class out_t>
+	out_t get_MFD_min_distance_from_outlets()
 	{
 		std::vector<float_t> distfromoutlets(this->nnodes,0.);
-		this->_get_MFD_min_distance_from_outlets(connector,distfromoutlets);
+		this->_get_MFD_min_distance_from_outlets(distfromoutlets);
 		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
 	}
 
-	template<class Connector_t>
-	void _get_MFD_min_distance_from_outlets(Connector_t& connector, std::vector<float_t>& distfromoutlets)
+	void _get_MFD_min_distance_from_outlets(std::vector<float_t>& distfromoutlets)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
-		auto receilink = connector.get_empty_neighbour();
+		auto receilink = this->connector->get_empty_neighbour();
 		for(int i = 0; i < this->nnodes; ++i)
 		{
 
@@ -2712,15 +1503,15 @@ public:
 			int node = this->stack[i];
 
 			// checking if active
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				continue;
 			
-			int nl = this->get_receivers_idx_links(node, connector, receilink);
+			int nl = this->connector->get_receivers_idx_links(node,  receilink);
 
 			for(int tl =0; tl<nl; ++tl)
 			{
-				int rec = this->get_to_links(receilink[tl]);
-				float_t dx = connector.get_dx_from_links_idx(receilink[tl]);
+				int rec = this->connector->get_to_links(receilink[tl]);
+				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromoutlets[node] == 0 || distfromoutlets[node] > distfromoutlets[rec] + dx)
 					distfromoutlets[node] = distfromoutlets[rec] + dx;
 			}
@@ -2754,26 +1545,25 @@ public:
 */
 
 
-	template<class out_t, class Connector_t>
-	out_t get_SFD_basin_labels(Connector_t& connector, int nobasin_value = -1)
+	template<class out_t>
+	out_t get_SFD_basin_labels(int nobasin_value = -1)
 	{
 
-		std::vector<int> baslab = this->_get_SFD_basin_labels(connector, nobasin_value);
+		std::vector<int> baslab = this->_get_SFD_basin_labels( nobasin_value);
 		return format_output<decltype(baslab), out_t>(baslab);
 
 	}
 
-	template<class Connector_t>
-	std::vector<int> _get_SFD_basin_labels(Connector_t& connector, int nobasin_value = -1)
+	std::vector<int> _get_SFD_basin_labels(int nobasin_value = -1)
 	{
 		std::vector<int> baslab(this->nnodes,nobasin_value);
 		int label = -1;
 		for(int i=0; i< this->nnodes; ++i)
 		{
 			int node = this->Sstack[i];
-			if(connector.no_data(node))
+			if(this->connector->no_data(node))
 				continue;
-			if(this->flow_out_or_pit(node,connector))
+			if(this->connector->flow_out_or_pit(node))
 				++label;
 			baslab[node] = label;
 		}

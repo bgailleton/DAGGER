@@ -186,7 +186,7 @@ public:
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
-		this->graph.init_graph(this->connector);
+		// this->graph.init_graph(this->connector);
 		
 		// init random noise
 		if(noisetype == RANDNOISE::WHITE)
@@ -500,7 +500,7 @@ public:
 	{
 		this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_fill;
 		// std::vector<bool> testlinkchange(this->graph.links), nnodes2change(this->graph.nnodes,false);
-		this->graph._compute_graph(this->z_surf, this->connector, true, false);
+		this->graph._compute_graph(this->z_surf, true, false);
 	}
 
 
@@ -539,7 +539,7 @@ public:
 		this->init_vectors();
 		this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
 		// std::vector<bool> testlinkchange(this->graph.links), nnodes2change(this->graph.nnodes,false);
-		this->graph._compute_graph(this->z_surf, this->connector, true, false);
+		this->graph._compute_graph(this->z_surf, true, false);
 
 
 		for(int i= this->graph.nnodes -1; i>=0; --i)
@@ -548,12 +548,12 @@ public:
 			// # location
 			int node = this->graph.Sstack[i];
 			// # Aborting if outnode
-			if(!this->graph.flow_out_or_pit(node,this->connector) == false)
+			if(!this->connector.flow_out_or_pit(node) == false)
 				continue;
 			// # receiver
-			int rec = this->graph.Sreceivers[node];
+			int rec = this->connector.Sreceivers[node];
 			// # distance to receiver
-			float_t dx = this->graph.Sdistance2receivers[node];
+			float_t dx = this->connector.Sdistance2receivers[node];
 			// # cell area
 			float_t cellarea = this->connector.get_area_at_node(node);
 			// # local gradient
@@ -714,7 +714,7 @@ public:
 		this->init_vectors();
 		this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
 		// std::vector<bool> testlinkchange(this->graph.links), nnodes2change(this->graph.nnodes,false);
-		this->graph._compute_graph(this->z_surf, this->connector, true, false);
+		this->graph._compute_graph(this->z_surf, true, false);
 
 		if(this->variable_precipitations)
 		{
@@ -726,26 +726,26 @@ public:
 			}
 
 
-			this->Qw = this->graph._accumulate_variable_downstream_SFD(this->connector, tQA);
+			this->Qw = this->graph._accumulate_variable_downstream_SFD( tQA);
 			
 		}
 		else
-			this->Qw = this->graph._accumulate_constant_downstream_SFD(this->connector, this->connector.get_area_at_node(0));
+			this->Qw = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
 
 
     for (int i=0; i< this->graph.nnodes; ++i)
   	{
 
 	    int node = this->graph.Sstack[i];
-	    int rec = this->graph.Sreceivers[node];
+	    int rec = this->connector.Sreceivers[node];
 
 
-	    if (this->graph.flow_out_or_pit(node,this->connector))
+	    if (this->connector.flow_out_or_pit(node))
        continue;
 
       float_t tK = this->Kr(node);
 
-	    float_t factor = tK * dt * std::pow(this->Qw[node],this->mexp) / std::pow(this->graph.Sdistance2receivers[node],this->nexp);
+	    float_t factor = tK * dt * std::pow(this->Qw[node],this->mexp) / std::pow(this->connector.Sdistance2receivers[node],this->nexp);
 
 	    float_t ielevation = this->z_surf[node];
 	    float_t irec_elevation = this->z_surf[rec];
@@ -929,7 +929,7 @@ public:
 		if(zfQ < 0)
 			zfQ = 0;
 
-		if(!this->graph.flow_out_or_pit(ir,this->connector))
+		if(!this->connector.flow_out_or_pit(ir))
 		{
 			if(thillslopes)
 				BasePropStorer<float_t>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->TSP_Qsh[ir], zfQ, tpropr);
@@ -954,7 +954,7 @@ public:
 		std::vector<float_t> props(this->graph.nnodes, 0.);
 		for(int i=0; i<this->graph.nnodes; ++i)
 		{
-			if(!this->graph.flow_out_or_pit(i,this->connector) == false)
+			if(!this->connector.flow_out_or_pit(i) == false)
 				continue;
 
 			if(this->TSP_store.pile[i].size() > 0)
@@ -1093,7 +1093,7 @@ public:
 		if(zfQ < 0)
 			zfQ = 0;
 
-		if(!this->graph.flow_out_or_pit(ir,this->connector))
+		if(!this->connector.flow_out_or_pit(ir))
 		{
 			if(thillslopes)
 				BasePropStorer<float_t>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->Ch_MTSI_Qsh[ir], zfQ, tpropr);
@@ -1123,7 +1123,7 @@ public:
 		std::vector<float_t> timeryolo(this->graph.nnodes, 0.);
 		for(int i=0; i<this->graph.nnodes; ++i)
 		{
-			if(!this->graph.flow_out_or_pit(i,this->connector) == false)
+			if(!this->connector.flow_out_or_pit(i) == false)
 				continue;
 
 			if(this->Ch_MTSI_store.pile[i].size() > 0)

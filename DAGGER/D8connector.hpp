@@ -13,12 +13,13 @@
 #include <queue>
 #include <stack>
 #include <iostream>
+#include <iomanip>
 #include <numeric>
 #include <cmath>
 #include <initializer_list>
 #include <thread>
-#include<stdlib.h>
-#include<ctime>
+#include <stdlib.h>
+#include <ctime>
 
 
 // local includes 
@@ -78,6 +79,10 @@ public:
 	int not_a_node;
 
 
+	T stochaticiy_for_SFD = 0; // (0 -> deactivates)
+	void set_stochaticiy_for_SFD(T val){this->stochaticiy_for_SFD = (val>0)?val:0;}
+
+
 	// DEPRECATED BOUNDARY SYSTEM
 	// // Bearer of values
 	// // #->boundary: index: node index, value: boundary value
@@ -96,7 +101,32 @@ public:
 	// -> neighbourer holdsthe indices to loop through for each boundary condition
 	std::vector<std::vector<int> > neighbourer;
 	// -> lengthener is the dx on each directions
-	std::vector<T > lengthener;
+	std::vector<T> lengthener;
+
+	// uint8_t vector for each link indicating its directionality: 
+	// - 0 is inverse (linknode 2 --> linknode 1)
+	// - 1 is normal (linknode 1 --> linknode 2)
+	// - 3 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) ) or temporarily invalid due to dynamic boundary conditions
+	// The index itself is calculated from a connector
+	std::vector<std::uint8_t> links;
+	
+	// integer vector of 2*links size with the node indices of each link
+	// for example, the nodes of link #42 would be indices 84 and 85
+	std::vector<int> linknodes;
+
+
+	// Single graph receivers
+	// -> Sreceivers: steepest recervers (nnodes size), 
+	// -> number of donors (nnodes size),
+	// -> Steepest donors (nnodes * nneighbours size)
+	// --> Sdonors of node i are located from index i*nneighbours to index i*nneighbours + nSdonors[i] not included
+	std::vector<int> Sreceivers,nSdonors,Sdonors;
+
+	// Single graph distance to receivers
+	std::vector<T> Sdistance2receivers;
+
+	// Steepest slope
+	std::vector<T> SS;
 
 	// Coordinate stuff
 	// Xs and Ys are vectors of nx and ny size converting row to y and col to X
@@ -114,6 +144,15 @@ public:
 	{
 		// initialisation is offset to dedicated function because some languages like Julia are complicating non default constructor initialisation.
 		this->init_dimensions(nx,ny,dx,dy,xmin,ymin);
+		this->_allocate_vectors();
+		this->fill_linknodes();
+	}
+
+	template<class topo_t>
+	void update_links_from_topo(topo_t& ttopo)
+	{
+		auto topo = format_input(ttopo);
+		this->update_links(topo);
 	}
 
 	// initialise with dimension
@@ -240,6 +279,9 @@ public:
 		{
 			throw std::runtime_error("invalid periodic boundaries");
 		}
+
+		// Recomputing fillnodes
+		// this->fill_linknodes();
 	}
 
 	// Set all the out boundaries to 3, meaning they can now give to lower elevation neighbours
@@ -277,7 +319,7 @@ public:
 
 	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
 
-	void fill_linknodes(std::vector<int>& linknodes)
+	void fill_linknodes()
 	{
 		for(int i=0; i<this->nnodes; ++i)
 		{
@@ -291,8 +333,8 @@ public:
 			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
 						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
 				linkvalid = false;
-			linknodes[i*8] = (linkvalid) ? i:-1;
-			linknodes[i*8 + 1] = (linkvalid) ? o:-1;
+			this->linknodes[i*8] = (linkvalid) ? i:-1;
+			this->linknodes[i*8 + 1] = (linkvalid) ? o:-1;
 
 
 
@@ -302,8 +344,8 @@ public:
 			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
 						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
 				linkvalid = false;
-			linknodes[i*8 + 2] = (linkvalid) ? i:-1;
-			linknodes[i*8 + 3] = (linkvalid) ? o:-1;
+			this->linknodes[i*8 + 2] = (linkvalid) ? i:-1;
+			this->linknodes[i*8 + 3] = (linkvalid) ? o:-1;
 
 			o = this->get_bottom_idx(i); 
 			linkvalid = (NDT &&  this->is_in_bound_and_can_create_link(o));
@@ -311,8 +353,8 @@ public:
 			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
 						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
 				linkvalid = false;
-			linknodes[i*8 + 4] = (linkvalid) ? i:-1;
-			linknodes[i*8 + 5] = (linkvalid) ? o:-1;
+			this->linknodes[i*8 + 4] = (linkvalid) ? i:-1;
+			this->linknodes[i*8 + 5] = (linkvalid) ? o:-1;
 
 
 
@@ -322,10 +364,8 @@ public:
 			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
 						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
 				linkvalid = false;
-			linknodes[i*8 + 6] = (linkvalid) ? i:-1;
-			linknodes[i*8 + 7] = (linkvalid) ? o:-1;
-
-
+			this->linknodes[i*8 + 6] = (linkvalid) ? i:-1;
+			this->linknodes[i*8 + 7] = (linkvalid) ? o:-1;
 
 		}
 	}
@@ -354,6 +394,208 @@ public:
 			n2 = -1;
 		}
 	}
+
+
+	// Function updating ONLY the MFD receivers
+	// This is useful in the cases where SFD recs are conditionned by an other mean
+	// and cannot be touched (e.g. Cordonnier)
+	template<class topo_t>
+	void update_links_MFD_only(topo_t& topography)
+	{
+		// iterating though every links
+		for(size_t i = 0; i<this->links.size(); ++i)
+		{
+			// Getting hte 2 nodes of the current link
+			int from = this->linknodes[i*2];
+			int to = this->linknodes[i*2 + 1];
+			
+			if(this->linknodes[i*2] < 0)
+			{
+				this->links[i] = 2;
+				continue;
+			}
+
+			if(this->boundaries.forcing_io(from) || this->boundaries.forcing_io(to) )
+			{
+
+				if(this->boundaries.force_giving(from) || this->boundaries.force_receiving(to))
+					this->links[i] = 1;
+				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
+					this->links[i] = 0;
+
+				continue;
+			} 
+
+			// by convention true -> topo1 > topo2
+			if(topography[from] > topography[to] && this->boundaries.can_give(from) && this->boundaries.can_receive(to))
+				this->links[i] = 1;
+			else if ( this->boundaries.can_give(to) && this->boundaries.can_receive(from))
+				this->links[i] = 0;
+			// If the configuration cannot allow the link, it is temporarily disabled
+			else
+				this->links[i] = 2;
+		}
+		// done
+	}
+
+	// Updates all the link and the SFD info
+	template<class topo_t>
+	void update_links(topo_t& topography)
+	{
+
+		// am I using a stochastic adjustment for deciding on the steepest slope
+		bool stochastic_slope_on = this->stochaticiy_for_SFD > 0.;
+		// iterating through all the nodes
+		for(size_t i = 0; i<this->links.size(); ++i)
+		{
+
+			// Checking the validity of the link
+			if(this->linknodes[i*2] < 0)
+			{
+				this->links[i] = 2;
+				continue;
+			}
+
+			// Getting ht etwo nodes of the links
+			int from = this->linknodes[i*2];
+			int to = this->linknodes[i*2 + 1];
+			// std::cout << from << "|" << to << "||";
+			
+			// getting the link infos
+			// -> dx
+			T dx = this->get_dx_from_links_idx(i);
+			// -> slope
+			T slope = (topography[from] - topography[to])/dx;
+
+
+			if(this->boundaries.forcing_io(from) || this->boundaries.forcing_io(to) )
+			{
+
+				if(this->boundaries.force_giving(from) || this->boundaries.force_receiving(to))
+					slope = std::abs(slope);
+
+				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
+					slope = -std::abs(slope);					
+			} 
+
+			
+
+			if(stochastic_slope_on) 
+				slope *= (this->stochaticiy_for_SFD * this->randu->get()) + 1e-6;
+
+
+			// if slope is positive, to is the receiver by convention
+			if(slope>0  && this->boundaries.can_give(from) && this->boundaries.can_receive(to))
+			{
+				// Conventional direction
+				this->links[i] = 1;
+				// if Steepest Slope is higher than the current recorded one
+				if(this->SS[from]<slope)
+				{
+					// saving the Sreceivers info as temporary best choice
+					this->Sreceivers[from] = to;
+					this->Sdistance2receivers[from] = dx;
+					this->SS[from] = slope;
+				}
+			}
+			else if (this->boundaries.can_give(to) && this->boundaries.can_receive(from))
+			{
+				// Otherwise the convention is inverted:
+				// isrec is falese and to is giving to from
+				this->links[i] = 0;
+				// NOte that slope is absolute values
+				slope = std::abs(slope);
+				if(this->SS[to]<slope)
+				{
+					this->Sreceivers[to] = from;
+					this->Sdistance2receivers[to] = dx;
+					this->SS[to] = slope;
+				}
+			}
+			else
+				this->links[i] = 2;
+
+		}
+
+		// Finally inverting the Sreceivers into the Sdonors info
+		// Required for several routines
+		this->compute_SF_donors_from_receivers();
+	}
+
+
+
+	// Fucntion inverting the SFD receivers into donors
+	void compute_SF_donors_from_receivers()
+	{
+		// Initialising the graph dimesions for the donors
+		// All of thenm have the graph dimension
+		this->Sdonors = std::vector<int>(this->nnodes * this->nneighbours,-1);
+		this->nSdonors = std::vector<int>(this->nnodes,0);
+
+		// iterating through all the nodes
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			// SF so rid == i cause there is only 1 rec
+			int trec = this->Sreceivers[i];
+			if(trec == i)
+				continue;
+
+			// feeding the Sdonors array at rec position with current node and...
+			this->Sdonors[trec * this->nneighbours  + this->nSdonors[trec]] = i;
+			// ... incrementing the number of Sdonors
+			this->nSdonors[trec] += 1;
+		}
+		// done
+	}
+
+
+	// Same function than above but without reallocating the memory (can save a bit of time depending on the context)
+	void recompute_SF_donors_from_receivers()
+	{
+
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			for(int j=0; j < this->nneighbours; ++j)
+				this->Sdonors[i * this->nneighbours + j] = -1;
+			this->nSdonors[i] = 0;
+		}
+
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			// SF so rid == i cause there is only 1 rec
+			int trec = this->Sreceivers[i];
+			if(trec == i)
+				continue;
+			this->Sdonors[trec * this->nneighbours  + this->nSdonors[trec]] = i;
+			this->nSdonors[trec] += 1;
+		}
+
+	}
+
+
+	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
+	void _allocate_vectors()
+	{
+		this->links = std::vector<std::uint8_t>(int(this->nnodes * this->nneighbours/2), 2);
+		this->linknodes = std::vector<int>(int(this->nnodes * this->nneighbours), -1);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<T >(this->nnodes,-1);
+		this->SS = std::vector<T>(this->nnodes,0.);
+	}
+
+
+	void _reallocate_vectors()
+	{
+		for(int i=0;i<this->nnodes; ++i)
+		{
+			this->Sreceivers[i] = i;
+			this->Sdistance2receivers[i] = 0;
+			this->SS[i] = 0;
+		}
+	}
+
 
 
 
@@ -744,7 +986,7 @@ public:
 	// Takes a node index as input and a normalised displacement in the X and Y direction (between -1 and 1)
 	// Returns the neighbouring node in the given direction
 	template<class ii_t>
-	ii_t get_neighbour_idx_from_normalised_dxdy(ii_t node, float_t normdx, float_t normdy)
+	ii_t get_neighbour_idx_from_normalised_dxdy(ii_t node, T normdx, T normdy)
 	{
 		if(normdx >= 0.5)
 		{
@@ -775,6 +1017,746 @@ public:
 	}
 
 
+	// get receivers of node i and put them in the recs vector fed in
+	// It returns the number of receivers in the recs vector
+	// THis whole process optimises repeated receiver fetching, by never reallocating/initialising the vector recs
+	int get_receivers_idx(int i, std::vector<int>& recs)
+	{
+		// getting the related links stroing them temporarily in the rec vec
+		int nli = this->get_neighbour_idx_links(i,recs);
+
+		// going through the linksß
+		// The idx is the idx of insertion in the recs vectors
+		// the idx of insertion is always <= of the index of reading (both receivers and links-to-assess are stored in the recs vector)	
+		int idx = 0;
+		// counter used to keep track of the number of receivers: starts at the number of links related to the given node and get decremented at each donor link 
+		int newli = nli;
+
+		// Iterating through the links
+		for(int ti=0;ti<nli;++ti)
+		{
+			// current link index
+			int li = recs[ti];
+
+			// this link is a rec if the node is the first of the linknode and links is true
+			if(i == this->linknodes[li*2] && this->links[li] == 1)
+			{
+				// in which case the receiver of the current node is the +  1
+				recs[idx] = this->linknodes[li*2 + 1];
+				++idx;
+			}
+			// OR if the current node is the +1 and the links false
+			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
+			{
+				// in which case the receivers is the 0 node
+				recs[idx] = this->linknodes[li*2];
+				++idx;
+			}
+			else
+			{
+				// otherwise, it's not a rec and we decrease the newli
+				--newli;
+			}
+		}
+		// recs is changed in place, and we return the number of recs newli
+		return newli;
+	}
+
+	// Getting the id of the receivers in the links array
+	// see get_receivers_idx for full comments about the section
+	int get_receivers_idx_links(int i, std::vector<int>& recs)
+	{
+		// getting the related links
+		int nli = this->get_neighbour_idx_links(i,recs);
+
+		// going through the linksß
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
+		{
+			// checking the orientation
+			int li = recs[ti];
+			if(i == this->linknodes[li*2] && this->links[li])
+			{
+				recs[idx] = li;
+				++idx;
+			}
+			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
+			{
+				recs[idx] = li;
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
+		}
+		return newli;
+	}
+
+
+	// Getting donor indicies
+	// see get_receivers_idx for full comments about the section
+	int get_donors_idx(int i, std::vector<int>& dons)
+	{
+		// getting the related links
+		int nli = this->get_neighbour_idx_links(i,dons);
+
+		// going through the links
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
+		{
+			// checking the orientation
+			int li = dons[ti];
+			if(i == this->linknodes[li*2] && this->links[li] == 0)
+			{
+				dons[idx] = this->linknodes[li*2 + 1];
+				++idx;
+			}
+			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
+			{
+				dons[idx] = this->linknodes[li*2];
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
+		}
+		return newli;
+	}
+
+	// getting links indices of hte donors (in the links array)
+	// see get_receivers_idx for full comments about the section
+	int get_donors_idx_links(int i, std::vector<int> & dons)
+	{
+		// getting the related links
+		int nli = this->get_neighbour_idx_links(i,dons);
+
+		// going through the linksß
+		int idx = 0;
+		int newli = nli;
+
+		for(int ti=0;ti<nli;++ti)
+		{
+			// checking the orientation
+			int li = dons[ti];
+			if(i == this->linknodes[li*2] && this->links[li] == 0)
+			{
+				dons[idx] = li;
+				++idx;
+			}
+			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
+			{
+				dons[idx] = li;
+				++idx;
+			}
+			else
+			{
+				--newli;
+			}
+		}
+		return newli;
+	}
+
+
+	// Debug function printing to the prompt the single receiver of a node
+	// Will probably get deprecated
+	std::vector<int> get_rowcol_Sreceivers(int row, int col)
+	{
+		int node = this->nodeid_from_row_col(row,col);
+		std::vector<int> out_receivers;
+		int trow,tcol;
+		this->rowcol_from_node_id(this->Sreceivers[node],trow,tcol);
+		out_receivers = std::vector<int>{trow,tcol};
+		
+		std::cout << "Srec is " << this->Sreceivers[node] << " node was " << node << std::endl;
+		return out_receivers;
+	}
+
+
+	template<class topo_t>
+	void print_receivers(int i, topo_t& ttopography)
+	{
+		std::cout << std::setprecision(12);
+		auto topography = format_input<topo_t>(ttopography);
+		
+		auto receivers = this->get_empty_neighbour();
+		int nn = this->get_receivers_idx(i, receivers);
+
+		std::cout << "Topography is " << topography[i] << "# receivers: " << nn << std::endl;
+		for(int tr = 0; tr<nn; ++tr)
+		{
+			int r = receivers[tr];
+			int row,col;
+			this->rowcol_from_node_id(r,row,col);
+			std::cout << "Rec " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
+
+		}
+
+
+		auto neighbours = this->get_empty_neighbour();
+		nn = this->get_neighbour_idx(i, neighbours);
+		std::cout << "Neighbours are :" << std::endl;
+
+		for(int tr = 0; tr<nn; ++tr)
+		{
+			int r = neighbours[tr];
+			int row,col;
+			this->rowcol_from_node_id(r,row,col);
+			std::cout << "Neighbour " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
+		}
+	}
+
+	// Returns the number of links stored in the graph 
+	// Note that it comprises some unvalid linked!
+	int get_rec_array_size(){return int(this->links.size());}
+
+
+	/// Takes an array of nnodes size and sum the values at the outlets
+	/// This can be useful for checking mass balances for example
+	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
+	template<class array_t, class U>
+	U sum_at_outlets(array_t& tarray, bool include_internal_pits = true)
+	{
+		std::cout << "sum_at_outlets::should be moved as a standalone algorithm" << std::endl; 
+		auto array = format_input<array_t>(tarray);
+		U out = 0;
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if (this->Sreceivers[i] == i)
+			{
+				if(include_internal_pits)
+				{
+					out += array[i];
+				}
+				else if(this->flow_out_model(i))
+				{
+					out += array[i];
+				}
+			}
+		}
+		return out;
+
+	}
+
+	/// Takes an array of nnodes size and sum the values at the outlets
+	/// This can be useful for checking mass balances for example
+	/// if true, include_internal_pits allow the code to add internal unprocessed pits, wether they are on purpose or not
+	template<class array_t, class out_t>
+	out_t keep_only_at_outlets(array_t& tarray, bool include_internal_pits = true)
+	{
+		auto array = format_input<array_t>(tarray);
+		std::vector<T> out = std::vector<T> (this->nnodes,0);
+		for(int i=0; i<this->nnodes; ++i)
+		{
+			if (this->Sreceivers[i] == i)
+			{
+				if(include_internal_pits)
+					out[i] = array[i];
+				else if(this->flow_out_model(i))
+					out[i] = array[i];
+			}
+		}
+		return format_output<decltype(out), out_t>(out);
+
+	}
+
+	// Checks the validity of a link
+	// Invalid links have a linknode value of -1
+	template<class ti_t>
+	bool is_link_valid(ti_t i){return (this->links[i]==2)?false:true; }
+
+
+	// return true is the node is active: i.e. flow transfer through it
+	// reflects the connector version of the function, but adds extra graph specific checks.
+	// For example a node with permissive outletting border will be active in the connector sense, but can be inactive in the graph if it has no downstream neighbours.
+	template<class ti_t>
+	bool flow_out_model(ti_t node)
+	{
+		
+		bool con_val = this->boundaries.can_out(node);
+		if(con_val && this->Sreceivers[node] == int(node))
+			return true;
+		return false;
+	}
+
+	template<class ti_t>
+	bool is_pit(ti_t node)
+	{
+		
+		bool con_val = this->boundaries.can_out(node);
+		if(!con_val && this->Sreceivers[node] == int(node))
+			return true;
+		return false;
+	}
+
+	template<class ti_t>
+	bool flow_out_or_pit(ti_t node)
+	{
+		if(this->Sreceivers[node] == int(node))
+			return true;
+		return false;
+	}
+
+	// Returns the pair of node making a link, starting from the donor to the receiver
+	template<class ti_t>
+	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
+	{
+		if(this->links[i] == 1)
+			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
+		else if (this->links[i] == 0)
+			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
+		else
+			return {-1,-1};
+
+	}
+
+
+	template<class ti_t>
+	void get_from_to_links(ti_t i, std::pair<ti_t,ti_t>& fromto)
+	{
+		if(this->links[i] == 1)
+		{
+			fromto.first = this->linknodes[i*2]; fromto.second = this->linknodes[i*2 + 1];
+		}
+		else if (this->links[i] == 2)
+		{
+			fromto.first = this->linknodes[i*2 + 1]; fromto.second =  this->linknodes[i*2];
+		}
+		else
+			fromto = {-1,-1};
+
+	}
+
+	template<class ti_t>
+	ti_t get_from_links(ti_t i)
+	{
+		if(this->links[i] == 1)
+			return this->linknodes[i*2];
+		else if (this->links[i] == 0)
+			return this->linknodes[i*2 + 1];
+		else return -1;
+	}
+
+	template<class ti_t>
+	ti_t get_to_links(ti_t i)
+	{
+		if(this->links[i] == 0)
+			return this->linknodes[i*2];
+		else if (this->links[i] == 1)
+			return this->linknodes[i*2 + 1];
+		else return -1;
+	}
+
+	template<class ti_t>
+	ti_t get_other_node_from_links(ti_t li, ti_t ni)
+	{
+		if(this->linknodes[li*2 + 1] == ni)
+			return this->linknodes[li*2];
+		else if (this->linknodes[li*2] == ni)
+			return this->linknodes[li*2 + 1];
+		else
+			return -1;
+	}
+
+	std::vector<int> get_n_receivers()
+	{
+		std::vector<int> nrecs(this->nnodes,0);
+		for(size_t i = 0; i<this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				auto frto = this->get_from_to_links(i);
+				++nrecs[frto.first];
+			}
+		}
+		return nrecs;
+	}
+
+
+	template<class out_t>
+	out_t get_SFD_receivers()
+	{return format_output<std::vector<int>, out_t>(this->Sreceivers);}
+
+	template<class out_t>
+	out_t get_SFD_dx()
+	{return format_output<std::vector<T>, out_t>(this->Sdistance2receivers);}
+
+	template<class out_t>
+	out_t get_SFD_ndonors()
+	{return format_output<std::vector<int>, out_t>(this->nSdonors);}
+
+	template<class out_t>
+	out_t get_SFD_donors_flat()
+	{return format_output<std::vector<int>, out_t>(this->Sdonors);}
+
+	template<class out_t>
+	out_t get_SFD_donors_list()
+	{
+		std::vector<std::vector<int> > out(this->nnodes);
+		for(int i=0; i < this->nnodes; ++i)
+		{
+			std::vector<int> tvec;
+			for (int j=0; j<this->nSdonors[i]; ++j)
+				tvec.emplace_back(this->Sdonors[i * this->nneighbours +j]);
+			out[i] = tvec;
+		}
+
+		return out;
+	}
+
+	template<class out_t>
+	out_t get_links()
+	{return this->links;}
+
+	template<class out_t>
+	out_t get_linknodes_flat()
+	{return format_output<std::vector<int>, out_t>(this->linknodes);}
+
+	template<class out_t>
+	out_t get_linknodes_flat_D4()
+	{
+		std::vector<int> temp(int(this->linknodes.size()/2),-1);
+		int j = 0;
+		int counter = -1;
+		for(int i=0; i< int(this->linknodes.size()); i += 2)
+		{
+			++counter;
+			if(counter == 0 || counter == 2)
+			{
+				temp[j] = this->linknodes[i];
+				++j;
+				temp[j] = this->linknodes[i+1];
+				++j;
+			}
+
+			if(counter == 3)
+				counter = -1;
+		}
+
+		return format_output<std::vector<int>, out_t>(temp);
+
+	}
+
+	template<class out_t>
+	out_t get_linkdx_flat_D4()
+	{
+		std::vector<T> temp(int(this->links.size()/2),-1);
+		int j = 0;
+		int counter = -1;
+		for(int i=0; i< int(this->links.size()); ++i)
+		{
+			++counter;
+
+			if(counter == 0 || counter == 2)
+			{
+				T dx = this->get_dx_from_links_idx(i);
+				temp[j] = dx;
+				++j;
+			}
+
+			if(counter == 3)
+				counter = -1;
+		}
+
+		return format_output<std::vector<T>, out_t>(temp);
+
+	}
+
+	template<class out_t>
+	out_t get_linknodes_list()
+	{
+		std::vector<std::vector<int> > out(this->links.size());
+		for(size_t i=0; i<this->links.size();++i)
+		{
+			out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
+		}
+		return out;
+	}
+
+	template<class out_t>
+	out_t get_linknodes_list_oriented()
+	{
+		std::vector<std::vector<int> > out(this->links.size());
+		for(size_t i=0; i<this->links.size();++i)
+		{
+			out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
+		}
+		return out;
+	}
+
+
+
+
+
+
+	int get_SFD_receivers_at_node(int i)
+	{return this->Sreceivers[i];}
+
+	int get_SFD_dx_at_node(int i)
+	{return this->Sdistance2receivers[i];}
+
+	int get_SFD_ndonors_at_node(int i)
+	{return this->nSdonors[i];}
+
+	template<class out_t>
+	out_t get_SFD_donors_at_node(int i)
+	{
+		std::vector<int> out(this->nneighbours);
+		for (int j=0; j<this->nSdonors[i]; ++j)
+			out.emplace_back(this->Sdonors[i * this->nneighbours +j]);
+		return out;
+	}
+
+
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions computing gradients
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+	template<class out_t, class topo_t>
+	out_t get_SFD_gradient(topo_t& ttopography)
+	{
+		auto topography = format_input<topo_t>(ttopography);
+		auto gradient = this->_get_SFD_gradient(topography);
+		return format_output<decltype(gradient), out_t>(gradient);
+	}
+
+	template<class topo_t>
+	std::vector<T> _get_SFD_gradient(topo_t& topography)
+	{
+		std::vector<T> gradient(this->nnodes,0.);
+		for(int i=0; i<this->nnodes;++i)
+		{
+			if(this->Sreceivers[i] != i)
+				gradient[i] = (topography[i] - topography[this->Sreceivers[i]])/this->Sdistance2receivers[i];
+		}
+		return gradient;
+	}
+
+	template<class out_t, class topo_t>
+	out_t get_links_gradient(topo_t& ttopography, T min_slope)
+	{
+		auto topography = format_input<topo_t>(ttopography);
+		std::vector<T> gradient = this->_get_links_gradient(topography, min_slope);
+		return format_output<decltype(gradient), out_t>(gradient);
+	}
+
+
+	template<class topo_t>
+	std::vector<T> _get_links_gradient(topo_t& topography, T min_slope)
+	{
+
+		std::vector<T> gradient = std::vector<T>(this->links.size(), 0);
+
+		for(size_t i = 0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				gradient[i] = std::max((topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i), min_slope);
+			}
+		}
+
+		return gradient;
+	}
+
+	template<class out_t, class topo_t>
+	out_t get_MFD_mean_gradient(topo_t& ttopography)
+	{
+		auto topography = format_input<topo_t>(ttopography);
+		auto gradient = this->_get_MFD_mean_gradient(topography);
+		return format_output<decltype(gradient), out_t>(gradient);
+	}
+
+	template<class topo_t>
+	std::vector<T> _get_MFD_mean_gradient(topo_t& topography)
+	{
+
+		std::vector<T> gradient = std::vector<T>(this->nnodes,0);
+		std::vector<int> ngradient = std::vector<int>(this->nnodes,0);
+
+		for(size_t i = 0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				T this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i);
+				auto frto = this->get_from_to_links(i);
+				gradient[frto.first] += this_gradient;
+				++ngradient[frto.first];
+			}
+		}
+
+		for(int i=0; i< this->nnodes; ++i)
+		{
+			if(ngradient[i] > 0)
+				gradient[i] = gradient[i]/ngradient[i];
+		}
+
+		return gradient;
+	}
+
+
+	template<class out_t, class topo_t>
+	out_t get_MFD_weighted_gradient(topo_t& ttopography, topo_t& tweights)
+	{
+		auto topography = format_input<topo_t>(ttopography);
+		auto weights = format_input<topo_t>(tweights);
+		auto gradient = this->_get_MFD_weighted_gradient(topography, weights);
+		return format_output<decltype(gradient), out_t>(gradient);
+	}
+
+	template<class topo_t>
+	std::vector<T> _get_MFD_weighted_gradient(topo_t& topography, topo_t& weights)
+	{
+
+		std::vector<T> gradient = std::vector<T>(this->nnodes,0);
+		std::vector<T> wgradient = std::vector<T>(this->nnodes,0.);
+
+		for(size_t i = 0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				T this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i);
+				auto frto = this->get_from_to_links(i);
+				gradient[frto.first] += this_gradient * weights[i];
+				wgradient[frto.first] += weights[i];
+			}
+		}
+
+		for(int i=0; i< this->nnodes; ++i)
+		{
+			if(wgradient[i] > 0)
+				gradient[i] = gradient[i]/wgradient[i];
+		}
+
+		return gradient;
+	}
+
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Functions to calculate weights
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/	
+
+	template<class out_t, class topo_t>
+	out_t get_link_weights(topo_t& tgradient, T exp)
+	{
+		std::vector<T> weights(this->links.size(),0.);
+		auto gradient = format_input<topo_t>(tgradient);
+
+		if(exp <= 0)
+		{
+			this->_get_link_weights_f_nrecs(weights);
+		}
+		else if(exp == 1)
+		{
+			this->_get_link_weights_proposlope(weights, gradient);
+		}
+		else
+		{
+			this->_get_link_weights_exp(weights, gradient, exp);
+		}
+
+		return format_output<decltype(weights), out_t>(weights);
+	}
+
+	void _get_link_weights_f_nrecs(std::vector<T>& weights)
+	{
+		auto nrecs = this->get_n_receivers();
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				int nr = nrecs[this->get_from_links(i)];
+				if(nr > 0)
+				{
+					weights[i] = 1./nr;
+				}
+				else
+					weights[i] = 1.;
+			}
+		}
+
+	}
+
+	template<class topo_t>
+	void _get_link_weights_proposlope(std::vector<T>& weights, topo_t& gradient)
+	{
+		std::vector<T> sumgrad(this->nnodes,0.);
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				sumgrad[this->get_from_links(i)] += gradient[i];
+			}
+		}
+
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+				weights[i] = gradient[i]/sumgrad[this->get_from_links(i)];
+		}
+
+
+	}
+
+	template<class topo_t>
+	void _get_link_weights_exp(std::vector<T>& weights, topo_t& gradient, T exp)
+	{
+		std::vector<T> sumgrad(this->nnodes,0.);
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+			{
+				sumgrad[this->get_from_links(i)] += std::pow(gradient[i],exp);
+			}
+		}
+
+		for(size_t i=0; i< this->links.size(); ++i)
+		{
+			if(this->is_link_valid(i))
+				weights[i] = std::pow(gradient[i],exp)/sumgrad[this->get_from_links(i)];
+		}
+	}
 	
 	// ------------------------------------------------
 	//	                             	              __
@@ -1711,7 +2693,7 @@ public:
 
 
 	template<class topo_t>
-	void set_values_at_boundaries(topo_t& tarray, float_t val)
+	void set_values_at_boundaries(topo_t& tarray, T val)
 	{
 		auto array = format_input(tarray);
 		for(int i=0; i<this->nnodes; ++i)

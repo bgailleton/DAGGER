@@ -85,7 +85,6 @@ public:
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
-		this->graph.init_graph(this->connector);
 		
 		// init random noise
 		if(noisetype == RANDNOISE::WHITE)
@@ -122,21 +121,20 @@ public:
 			// std::cout << nit << "|A" << std::endl;
 
 			this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
-			this->graph._compute_graph(this->topography, this->connector,true, false);
+			this->graph._compute_graph(this->topography,true, false);
 			this->_init_vecs();
-			// std::cout << nit << "|B" << std::endl;
 
-			this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector,this->connector.get_area_at_node(0));
+			this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
 
 			// std::cout << nit << "|C" << std::endl;
 
 			for(int i = 0; i<this->graph.nnodes; ++i)
 			{
 				int node = this->graph.Sstack[i];
-				if(!this->graph.flow_out_or_pit(node,this->connector) == false)
+				if(this->connector.flow_out_or_pit(node))
 					continue;
-				int rec = this->graph.Sreceivers[node];
-				this->topography[node] = this->topography[rec] + this->graph.Sdistance2receivers[node] * std::pow(1e2,1./n)/std::pow(this->QA[node],m/n);
+				int rec = this->connector.Sreceivers[node];
+				this->topography[node] = this->topography[rec] + this->connector.Sdistance2receivers[node] * std::pow(1e2,1./n)/std::pow(this->QA[node],m/n);
 				// this->topography[node] = this->topography[rec] + 1;
 			}
 			// std::cout << nit << "|D" << std::endl;
@@ -180,7 +178,7 @@ public:
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
-		this->graph.init_graph(this->connector);
+		// this->graph.init_graph(this->connector);
 		this->topography = std::move(ntopo);
 		this->_init_vecs();
 
@@ -189,10 +187,10 @@ public:
 	void compute_graph(bool SFD_only)
 	{
 		this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
-		this->graph._compute_graph(this->topography, this->connector, SFD_only, false);
+		this->graph._compute_graph(this->topography, SFD_only, false);
 	}
 
-	void compute_DA_SFD(){this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector,this->connector.get_area_at_node(0));}
+	void compute_DA_SFD(){this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));}
 
 	void solve_SFD_SPL_imp(float_t m, float_t n, float_t K, float_t dt)
 	{
@@ -201,13 +199,13 @@ public:
   	{
 
 	    int node = this->graph.Sstack[i];
-	    int rec = this->graph.Sreceivers[node];
+	    int rec = this->connector.Sreceivers[node];
 
 
-	    if (!this->graph.flow_out_or_pit(node,this->connector) == false)
-       continue;
+	    if (!this->connector.flow_out_or_pit(node) == false)
+				continue;
 
-	    float_t factor = K * dt * std::pow(this->QA[node],m) / std::pow(this->graph.Sdistance2receivers[node],n);
+	    float_t factor = K * dt * std::pow(this->QA[node],m) / std::pow(this->connector.Sdistance2receivers[node],n);
 
 	    float_t ielevation = this->topography[node];
 	    float_t irec_elevation = this->topography[rec];
@@ -238,7 +236,7 @@ public:
 	{
 		for(int i=0; i < this->graph.nnodes;++i)
 		{
-			if(!this->graph.flow_out_or_pit(i,this->connector))
+			if(!this->connector.flow_out_or_pit(i))
 			  this->topography[i]+=U*dt;
 		}
 	}
@@ -249,7 +247,7 @@ public:
 		auto U = DAGGER::format_input(tU);
 		for(int i=0; i < this->graph.nnodes;++i)
 		{
-			if(!this->graph.flow_out_or_pit(i,this->connector))
+			if(!this->connector.flow_out_or_pit(i))
 			  this->topography[i]+=U[i]*dt;
 		}
 	}
@@ -264,45 +262,45 @@ public:
 
 		std::vector<float_t> newtopo(this->topography);
 
-		for(int tnp=0; tnp<n_particules; ++tnp)
-		{
-			// spawning the particle
-			Particle tpart(distr(gen));
-			// std::cout << tpart.pos << std::endl;
-			std::vector<int> nelinks(8,0);
-			while(true)
-			{
-				// Increment the speed
-				int NnN = this->connector.get_neighbour_idx_links(tpart.pos, nelinks);
-				int nrecs = 0;
-				for(int i =0; i<NnN ; ++i)
-				{
-					// std::cout << "A" << std::endl;
-					int li = nelinks[i];
-					int n1 = this->graph.linknodes[li*2];
-					int n2 = this->graph.linknodes[li*2 + 1];
-					// std::cout << "B" << std::endl;
-					if((n1 == tpart.pos && this->topography[n1] <= this->topography[n2]) || (n2 == tpart.pos && this->topography[n2] < this->topography[n1]))
-						continue;
-					++nrecs;
-					auto dxdy = this->connector.get_directed_dxdy_from_links_idx( li, tpart.pos, n1, n2);
-					auto grad = std::abs(this->topography[n1] + this->topography[n2])/this->connector.get_dx_from_links_idx(li);
-					// std::cout << "C" << std::endl;
-					tpart.speed_up(dxdy,grad);
-				}
-				// int col,row; this->connector.rowcol_from_node_id(tpart.pos, row, col);
-				auto dirxy = tpart.get_normalised_speed();
-				int newpos = this->connector.get_neighbour_idx_from_normalised_dxdy(tpart.pos,dirxy.first, dirxy.second);
-				// std::cout << newpos << "|" << dirxy.first << "|"  << dirxy.second << std::endl;
+		// for(int tnp=0; tnp<n_particules; ++tnp)
+		// {
+		// 	// spawning the particle
+		// 	Particle tpart(distr(gen));
+		// 	// std::cout << tpart.pos << std::endl;
+		// 	std::vector<int> nelinks(8,0);
+		// 	while(true)
+		// 	{
+		// 		// Increment the speed
+		// 		int NnN = this->connector.get_neighbour_idx_links(tpart.pos, nelinks);
+		// 		int nrecs = 0;
+		// 		for(int i =0; i<NnN ; ++i)
+		// 		{
+		// 			// std::cout << "A" << std::endl;
+		// 			int li = nelinks[i];
+		// 			int n1 = this->graph.linknodes[li*2];
+		// 			int n2 = this->graph.linknodes[li*2 + 1];
+		// 			// std::cout << "B" << std::endl;
+		// 			if((n1 == tpart.pos && this->topography[n1] <= this->topography[n2]) || (n2 == tpart.pos && this->topography[n2] < this->topography[n1]))
+		// 				continue;
+		// 			++nrecs;
+		// 			auto dxdy = this->connector.get_directed_dxdy_from_links_idx( li, tpart.pos, n1, n2);
+		// 			auto grad = std::abs(this->topography[n1] + this->topography[n2])/this->connector.get_dx_from_links_idx(li);
+		// 			// std::cout << "C" << std::endl;
+		// 			tpart.speed_up(dxdy,grad);
+		// 		}
+		// 		// int col,row; this->connector.rowcol_from_node_id(tpart.pos, row, col);
+		// 		auto dirxy = tpart.get_normalised_speed();
+		// 		int newpos = this->connector.get_neighbour_idx_from_normalised_dxdy(tpart.pos,dirxy.first, dirxy.second);
+		// 		// std::cout << newpos << "|" << dirxy.first << "|"  << dirxy.second << std::endl;
 				
-				// temp erosion
-				newtopo[tpart.pos] -= erosor;
-				if(!this->graph.flow_out_or_pit(tpart.pos,this->connector) == false || nrecs == 0 || newpos < 0 || newpos > this->graph.nnodes - 1 )
-					break;
+		// 		// temp erosion
+		// 		newtopo[tpart.pos] -= erosor;
+		// 		if(!this->graph.flow_out_or_pit(tpart.pos,this->connector) == false || nrecs == 0 || newpos < 0 || newpos > this->graph.nnodes - 1 )
+		// 			break;
 
-				tpart.pos = newpos;
-			}
-		}
+		// 		tpart.pos = newpos;
+		// 	}
+		// }
 
 		this->topography = std::move(newtopo);
 
@@ -335,31 +333,31 @@ public:
 
 	void run_SFD_exp_latmag(float_t K, float_t m, float_t n, float_t Kl, float_t dt)
 	{
-		this->compute_graph(true);
-		this->compute_DA_SFD();
-		std::vector<float_t> vmot(this->graph.nnodes,0);
+		// this->compute_graph(true);
+		// this->compute_DA_SFD();
+		// std::vector<float_t> vmot(this->graph.nnodes,0);
 
-		for(int i=this->graph.nnodes-1; i>=0; --i)
-		{
-			int node = this->graph.Sstack[i];
-			if(!this->graph.flow_out_or_pit(node, this->connector) == false) continue;
+		// for(int i=this->graph.nnodes-1; i>=0; --i)
+		// {
+		// 	int node = this->graph.Sstack[i];
+		// 	if(!this->graph.flow_out_or_pit(node, this->connector) == false) continue;
 
-			int rec = this->graph.Sreceivers[node];
+		// 	int rec = this->graph.Sreceivers[node];
 
-			float_t S = std::max((this->topography[node] - this->topography[rec])/this->graph.Sdistance2receivers[node], 1e-6);
+		// 	float_t S = std::max((this->topography[node] - this->topography[rec])/this->graph.Sdistance2receivers[node], 1e-6);
 
-			float_t E = std::pow(S,n) * std::pow(this->QA[node],m) * K;
+		// 	float_t E = std::pow(S,n) * std::pow(this->QA[node],m) * K;
 
-			auto orthonodes = this->connector.get_orthogonal_nodes(node,rec);
+		// 	auto orthonodes = this->connector.get_orthogonal_nodes(node,rec);
 
-			if(this->topography[orthonodes.first] - this->topography[node] > 0) vmot[orthonodes.first] -= Kl * E * dt;
-			if(this->topography[orthonodes.second] - this->topography[node] > 0) vmot[orthonodes.second] -= Kl * E * dt;
+		// 	if(this->topography[orthonodes.first] - this->topography[node] > 0) vmot[orthonodes.first] -= Kl * E * dt;
+		// 	if(this->topography[orthonodes.second] - this->topography[node] > 0) vmot[orthonodes.second] -= Kl * E * dt;
 
-			vmot[node] -= E * dt;
-		}
+		// 	vmot[node] -= E * dt;
+		// }
 
-		for(int i=0; i<this->graph.nnodes; ++i)
-			this->topography[i] += vmot[i];
+		// for(int i=0; i<this->graph.nnodes; ++i)
+		// 	this->topography[i] += vmot[i];
 	}
 
 	

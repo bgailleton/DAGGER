@@ -41,8 +41,8 @@ namespace DAGGER
 
 
 	// Largely adapted from RichDEM
-	template <class topo_t, class Connector_t, class Graph_t>
-	std::vector<double> PriorityFlood(topo_t& ttopography, Connector_t& connector, Graph_t& graph)
+	template <class topo_t, class Connector_t>
+	std::vector<double> PriorityFlood(topo_t& ttopography, Connector_t& connector)
 	{
 
 	  PQ_i_d open;
