@@ -31,6 +31,14 @@ print(f"{bcolors.BOLD}graphflood core:{bcolors.ENDC} {bcolors.OKGREEN }{'include
 print(f"{bcolors.BOLD}popscape core:{bcolors.ENDC} {bcolors.OKGREEN}{'included'}{bcolors.ENDC} ")
 
 
+can_run_test = False
+try:
+	import pytest
+	can_run_test = True
+except:
+	pass
+
+
 print("\n")
 
 if("-v" in sys.argv):
@@ -54,8 +62,22 @@ except:
 	run_test = False
 
 if(run_test):
-	print(f"{bcolors.BOLD}Running tests ... {bcolors.ENDC}", end = "", flush = True)
-	print(f"{bcolors.YELLOW}TODO{bcolors.ENDC}\n")
+	print(f"{bcolors.BOLD}Running tests ... {bcolors.ENDC}", end = "\n", flush = True)
+
+	if(can_run_test):
+		try:
+			# sub.run("./tests/pytest", shell = True, check = False, stdout = stttd, stderr = stttd)
+			pytest.main()
+			print(f"{bcolors.OKGREEN}\n\n\n\n\nTest ran. See report above for results{bcolors.ENDC}\n")
+
+		except:
+			print(f"{bcolors.FAIL}Failed... code compiles but some tests produce erroneous results. Rerun with -v for more info.{bcolors.ENDC}\n")
+
+
+	else:
+		print(f"{bcolors.YELLOW}Cannot run tests - you need to install pytest (pip install pytest){bcolors.ENDC}\n")
+
+	
 
 
 print(f"{bcolors.BOLD}Done!{bcolors.ENDC}")
