@@ -1,7 +1,7 @@
-Modules
-#######
-
 .. _modules:
+
+Modules Description
+###################
 
 In this sections, we present the code structure, design and philosophy as well as the different modules. It does not details all the API and the different functions but the concepts and methods of the generic modules. The structure is based on 4 distinct types of module sometimes inter-connected: the ``connector``, the ``graph``, the ``wrap_helper`` and the ``algorithms``. 
 
@@ -22,12 +22,10 @@ TODO:Add a figure explaining that here
 ``Connector``
 =============
 
-The ``connector`` modules manages the topology of the grid at a node level. This module can be used in a stand-alone way and manages everything related to one node and its immediate neighbouring. For example this is where the number of neighbour for each node is defined, or the surface area each node represents, or the grid spacing to each link, ... 
-
-The ``connector`` do not necessarily *store* explicit lists of neighbours or links, but calculate them based on the grid geometry and the given **boundary conditions**. 
+The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ... Basically if you need any information concerning a node, its location and the relationship with its neighbours, this is the module to seek for. Anything "non local" will be managed by the ``graph``. Ultimately, the ``connector`` only needs geometrical plan-view information to fetch neighbours and links for each nodes (undirected graph): for example for regular grids it would be the number of row, col or the spacing in X and Y and the boundary codes (see bellow). If directionality is important, the ``connector`` can ingest a topographic field and compute a ``directed graph``, enabling the fetching of receivers and donors. Again the connector only bares this information at a node level - *i.e* which of the immediate neighbours are donors and receivers.
 
 Boundary conditions
-^^^^^^^^^^^^^^^^^^
+--------------------
 
 ``DAGGER`` defines a number of boundary condition types in ``DAGGER/boundary_conditions.hpp``. Before reading the details, note that default sets of boundary conditions are available in ``DAGGER`` and users only need to manually set them for specific cases. Boundary conditions are ``UINT8`` integers (under the form of an enumeration for the sake of clarity) for each and every nodes and are stored in an encapsulated class in the ``connector`` (``connector.boundaries``). The latter contains a 1D array of node size of boundary codes as well as helper functions. Essentially, they will define two separate aspects of boundaries: (i) whether a link can exist between two nodes and (ii) if flux can enter/leave a cell or just in one way. The boundary codes are:
 

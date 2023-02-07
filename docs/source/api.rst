@@ -1,7 +1,10 @@
+.. _api:
+
+
 API
 ===
 
 .. autosummary::
    :toctree: generated
 
-   DAGGER
+   dagger

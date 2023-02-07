@@ -1,7 +1,7 @@
+.. _quickstart:
+
 Quick start
 ===========
-
-.. _quickstart:
 
 ``c++``
 --------

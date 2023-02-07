@@ -1,25 +1,35 @@
 DAGGER's documentation
 ===================================
 
-**DAGGER** is a ``c++`` header-only topographic graph library specifically designed for geomorphological applications (e.g. topographic analysis, LEMs, surface flow, ...), with bindings available for higher-level languages: ``python`` (full bindings), ``Julia`` (good coverage), ``R`` (WIP), ``JS/Wasm``(WIP) and MATLAB (limited). The goal of this library is to provide a generic and versatile engine for manipulating numerical surface topographic data as a **Directed Acyclic Graph**. The code has several **modules** connected *via* **standardised interfaces** allowing easy extendability:
+**DAGGER** is a ``c++`` header-only topographic graph library specifically designed for geomorphological applications (e.g. topographic analysis, LEMs, surface flow, ...). One of the key aspect of ``DAGGER`` is its modularity: its components are designed from scratch to follow given **standadised interfaces** allowing easy development of alternative module (e.g. replacing a regular grid ``connector`` with an irregular grid ``connector``). We provide and maintain extensive bindings for ``python``, but provide examples on how to use it with, ``Julia``, ``R`` (WIP), ``JS/Wasm``(WIP) and MATLAB (limited). ``DAG - ger`` stands for **Directed Acyclic Graph**, the base numerical principle to process flow on numerical topography where the *vertices* are the discretised elevations and the *arcs* direction is dictated by topographic gradient. The different modules are:
 
-- the ``connector`` module deals with the grid topology (e.g. location of nodes, area of cells, neighbouring patterns, boundary conditions ...)
-- the ``graph`` module connects the nodes beyond immediate vicinity (e.g. topological ordering, local minima sorting, watershed labelling, receivers/donors computation)
-- the ``wrap_helper`` module manages ``I/O`` operations with the targetted platform (e.g. on python it contains the conversion functions from ``std:vector`` to  ``numpy`` arrays)
-- the ``algorithms`` module(s) which contains standalone functions and classes calling the above modules for specific applications
-
-This library is primarily develloped and packaged for use in ``c++`` and ``python``, however it is specifically designed to be as generic as possible and its decoupled ``I/O`` interface and provide example to compile/use it from ``Julia`` (good coverage), ``R`` (WIP), ``JS/Wasm`` (WIP) and MATLAB (limited) as well as guidance to develop new bindings. 
+- the ``connector`` module deals with the grid topology (e.g. location of nodes, area of cells, neighbouring patterns, boundary conditions, receivers/donors computation ...),
+- the ``graph`` module connects the nodes beyond immediate vicinity (e.g. topological ordering, local minima resolution, watershed labelling, flow accumulation, multiple vs single flow, ...),
+- the ``wrap_helper`` module manages ``I/O`` operations with the targetted platform (e.g. on ``python`` it contains the conversion functions from ``std:vector`` to  ``numpy`` arrays),
+- the ``algorithms`` module(s), implementing examples of standalone algorithms taking ``graph`` and/or ``connectors`` as input.
 
 .. note::
 
    This project is under active development.
 
+
+
+Where to go from here ?
+-----------------------
+
+- Want to learn by example, see what's available or just try stuff? Go to :ref:`quickstart`
+- Want to know the concepts and details behind ``DAGGER``'s structure's? Go to :ref:`modules`
+- Want to develop a new module/binding? Go to :ref:`developer`
+- Want details about functions, types, classes and to which language they are available? Go to :ref:`api`
+
+
 Contents
---------
+----------
 
 .. toctree::
    
    quickstart
    modules
-   usage
+   developer
    api
+

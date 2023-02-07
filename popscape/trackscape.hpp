@@ -893,6 +893,16 @@ public:
 
 	}
 
+	template<class in_t>
+	void update_TSP_source(in_t& tconcent)
+	{
+		if(this->TSP_module == false)
+			throw std::runtime_error("DAGGER::trackscape::update_TSP_source -> cannot update the source area if TSP is not set. Run DAGGER::TRACKSCAPE::init_TSP_module function first.");
+		// Updating the concentration field
+		auto concent = DAGGER::format_input(tconcent);
+		this->TSP_concentrations = DAGGER::to_vec(concent);
+	}
+
 
 	// Function reinitialising the trackers for the TSP module
 	void init_Qs_TSP()
