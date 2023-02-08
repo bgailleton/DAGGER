@@ -30,7 +30,7 @@ templates_path = ['_templates']
 
 
 
-autosummary_generate = True
+autosummary_generate = False
 
 # -- Options for HTML output
 

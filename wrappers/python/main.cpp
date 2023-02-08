@@ -274,19 +274,52 @@ PYBIND11_MODULE(dagger, m) {
     .value("none", DEPRES::none)
   ;
 
-  py::class_<D8connector<double> >(m, "D8N", R"pbdoc(Connector for regular grids)pbdoc")
-    .def(
-      py::init<int,int,double,double,double,double>(),
-      py::arg("nx"),py::arg("ny"),py::arg("dx"),py::arg("dy"),py::arg("x_min"), py::arg("x_max"),
-      R"pbdoc(
-Constructor for the D8 regular grid connector D8N
+  py::class_<D8connector<double> >(
+m, "D8N", R"pbdoc(
+D8 regular grid connector D8N
 
 Description:
 ------------
 
-Instanciate the D8N class: the built-in connector for regular grids. D8N regular grids are the most used type of grids, like most global DEMs for example.
+D8N class: the built-in connector for regular grids. D8N regular grids are the most used type of grids, like most global DEMs for example.
 They are defined by a number of rows (ny) and a number of columns (nx) with associated spacing between nodes in both directions (dy,dx).
-The D8N constructor defaults to ``4edges`` boundary preset and precompiles neighbouring.
+The D8N constructor defaults to ``4edges`` boundary preset and precompiles neighbouring. Neighbouring and indexing is optimised by geometrical relationships:
+Node index is simply a flat index in the row major direction (idx = row_id * nx + col_id) and the link ID for the top-right, right, bottomright and bottom neighbours are respectiveley idx *4, idx*4 +1, idx * 4+2 and idx*4 + 3
+
+The constructor only needs basics geometrical information.
+
+Parameters:
+-----------
+
+    * nx (int): number of nodes in the X direction (columns)
+    * ny (int): number of nodes in the Y direction (rows)
+    * dx (float64): distance between nodes in the x directions
+    * dy (float64): distance between nodes in the y directions
+    * x_min (float64): X coordinates of the bottom left corner
+    * y_min (float64): Y coordinates of the top left corner
+
+
+Authors:
+--------
+B.G. (08/2022)
+
+)pbdoc")
+
+    .def(
+      py::init<int,int,double,double,double,double>(),
+      py::arg("nx"),py::arg("ny"),py::arg("dx"),py::arg("dy"),py::arg("x_min"), py::arg("x_max"),
+      R"pbdoc(
+D8 regular grid connector D8N
+
+Description:
+------------
+
+D8N class: the built-in connector for regular grids. D8N regular grids are the most used type of grids, like most global DEMs for example.
+They are defined by a number of rows (ny) and a number of columns (nx) with associated spacing between nodes in both directions (dy,dx).
+The D8N constructor defaults to ``4edges`` boundary preset and precompiles neighbouring. Neighbouring and indexing is optimised by geometrical relationships:
+Node index is simply a flat index in the row major direction (idx = row_id * nx + col_id) and the link ID for the top-right, right, bottomright and bottom neighbours are respectiveley idx *4, idx*4 +1, idx * 4+2 and idx*4 + 3
+
+The constructor only needs basics geometrical information.
 
 Parameters:
 -----------
@@ -307,25 +340,24 @@ B.G. (08/2022)
       )
     .def(
       "set_default_boundaries", &D8connector<double>::set_default_boundaries,
+      py::arg("boundary_preset"),
       R"pbdoc(
-Constructor for the D8 regular grid connector D8N
+
+Automatically sets the default boundary system based on predefined presets.
 
 Description:
 ------------
 
-Instanciate the D8N class: the built-in connector for regular grids. D8N regular grids are the most used type of grids, like most global DEMs for example.
-They are defined by a number of rows (ny) and a number of columns (nx) with associated spacing between nodes in both directions (dy,dx).
-The D8N constructor defaults to ``4edges`` boundary preset and precompiles neighbouring.
+Boundary conditions can be tricky to set. Luckily, most use cases needs 
+classical opened bounary at the edge of the dem, or periodic (sometimes called 
+cyclic) bounaries at EW or NS edges. This functions automate these (i.e. set the
+right boundary codes and recompute the linknode array) 
 
 Parameters:
 -----------
 
-    * nx (int): number of nodes in the X direction (columns)
-    * ny (int): number of nodes in the Y direction (rows)
-    * dx (float64): distance between nodes in the x directions
-    * dy (float64): distance between nodes in the y directions
-    * x_min (float64): X coordinates of the bottom left corner
-    * y_min (float64): Y coordinates of the top left corner
+    * boundary_preset (str): the preset. Can be "4edges", "periodic_EW" or 
+      "periodic_NS"
 
 
 Authors:
@@ -334,39 +366,148 @@ B.G. (08/2022)
 
 )pbdoc"
       )
-    .def("set_custom_boundaries", &D8connector<double>::set_custom_boundaries<py::array_t<int,1> >)
-    .def("print_dim", &D8connector<double>::print_dim)
-    .def("get_HS", &D8connector<double>::get_HS<std::vector<double>, py::array >)
-    .def("get_mask_array",&D8connector<double>::get_mask_array)
-    .def("set_values_at_boundaries", &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
-    .def("set_out_boundaries_to_permissive", &D8connector<double>::set_out_boundaries_to_permissive)
-    .def("get_boundary_at_node", &D8connector<double>::get_boundary_at_node)
-    .def("get_rowcol_Sreceivers",&D8connector<double>:: get_rowcol_Sreceivers)
+
+    .def(
+      "set_custom_boundaries", 
+      &D8connector<double>::set_custom_boundaries<py::array_t<int,1> >,
+      py::arg("boundary_codes"),
+      R"pbdoc(
+
+Manually sets the boundary codes as uint8 1D array (see doc for options).
+
+Description:
+------------
+
+Function to manually specify boundary conditions, for cases where the classic 
+presets are not providing the desired option. For example if one needs specific
+outlets/inlets location or deactivate some nodes. This is a good function to 
+automate the ingestion of nodata, isolating a watershed, or defining entry
+points to the landscape.
+
+Parameters:
+-----------
+
+    * boundary_codes (1D Array): the uint8 array of node size containing the
+      boundary codes (see section :ref:`boundary`)
+
+
+Authors:
+--------
+B.G. (08/2022)
+
+)pbdoc"
+
+
+      )
+    .def("print_dim", &D8connector<double>::print_dim, R"pdoc(Debugging function)pdoc")
+    .def("get_HS", &D8connector<double>::get_HS<std::vector<double>, py::array >, R"pdoc(Deprecated, kept for legacy (see hillshade function outside of ``connector``))pdoc")
+    .def("get_mask_array",&D8connector<double>::get_mask_array, R"pdoc(Returns a 1D array of bool where false are nodata)pdoc")
+
+    .def(
+      "set_values_at_boundaries", 
+      &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >,
+      py::arg("array_to_modify"), py::arg("value"),
+      R"pdoc(
+Modify an array in place with given value where connector can out flux
+
+Description:
+------------
+
+Every nodes on the input array where the connector satisfy the coundary condition 
+``can_out`` will be set to a given value. It modify the array in place (i.e. 
+does not return anything but modify the input).
+
+Useful to impose boundary condition in LEMs in a versatile way.
+
+Parameters:
+-----------
+
+    * array_to_modify (1D Array): flot64 array to be modified in place
+    * value (float64): value to impose
+
+
+Authors:
+--------
+B.G. (08/2022)
+
+)pdoc"
+      )
+
+    .def(
+      "set_out_boundaries_to_permissive",
+      &D8connector<double>::set_out_boundaries_to_permissive,
+      R"pdoc(
+Converts OUT boundaries to CAN_OUT.
+
+Description:
+------------
+
+Converts OUT boundaries, where flow entering this cell has to out the model to 
+CAN_OUT, where flow leaves the model if the cell has no downslope receivers.
+
+Authors:
+--------
+B.G. (08/2022)
+
+)pdoc"
+      )
+    
+    .def(
+      "get_boundary_at_node", &D8connector<double>::get_boundary_at_node,py::arg("node_idx"), R"pdoc(Returns the boundary code at node index)pdoc"
+    )
+    
+    .def("get_rowcol_Sreceivers",&D8connector<double>:: get_rowcol_Sreceivers,py::arg("row_index"), py::arg("col_index"), R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
+    
     .def("print_receivers", &D8connector<double>::template print_receivers<std::vector<double> >)
+    
     .def("get_rec_array_size",&D8connector<double>::get_rec_array_size)
+    
     .def("update_links_MFD_only", &D8connector<double>::template update_links_MFD_only<std::vector<double> >)
+    
     .def("update_links", &D8connector<double>::template update_links<std::vector<double> >)
+    
     .def("update_links_from_topo", &D8connector<double>::template update_links_from_topo<py::array_t<double,1> >)
+    
     .def("sum_at_outlets", &D8connector<double>::template sum_at_outlets<py::array_t<double,1>, double >)
+    
     .def("keep_only_at_outlets", &D8connector<double>::template keep_only_at_outlets<py::array_t<double,1>, py::array >)
+    
     .def("get_SFD_receivers",&D8connector<double>::template get_SFD_receivers<py::array_t<int,1>>)
+    
     .def("get_SFD_dx",&D8connector<double>::template get_SFD_dx<py::array_t<double,1>>)
+    
     .def("get_SFD_ndonors",&D8connector<double>::template get_SFD_ndonors<py::array_t<int,1>>)
+    
     .def("get_SFD_donors_flat",&D8connector<double>::template get_SFD_donors_flat<py::array_t<int,1>>)
+    
     .def("get_SFD_donors_list",&D8connector<double>::template get_SFD_donors_list<std::vector<std::vector<int> > >)
+    
     .def("get_links",&D8connector<double>::template get_links<std::vector<std::uint8_t> >)
+    
     .def("get_linknodes_flat",&D8connector<double>::template get_linknodes_flat<py::array_t<int,1>>)
+    
     .def("get_linknodes_list",&D8connector<double>::template get_linknodes_list<std::vector<std::vector<int> > >)
+    
     .def("get_linknodes_list_oriented",&D8connector<double>::template get_linknodes_list_oriented<std::vector<std::vector<int> > >)
+    
     .def("get_SFD_receivers_at_node", &D8connector<double>:: get_SFD_receivers_at_node)
+    
     .def("get_SFD_dx_at_node", &D8connector<double>:: get_SFD_dx_at_node)
+    
     .def("get_SFD_ndonors_at_node", &D8connector<double>:: get_SFD_ndonors_at_node)
+    
     .def("get_SFD_donors_at_node", &D8connector<double>::template get_SFD_donors_at_node<std::vector<int> >)
+    
     .def("get_SFD_gradient", &D8connector<double>::template get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >)
+    
     .def("get_links_gradient", &D8connector<double>::template get_links_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    
     .def("get_MFD_mean_gradient", &D8connector<double>::template get_MFD_mean_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    
     .def("get_MFD_weighted_gradient", &D8connector<double>::template get_MFD_weighted_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    
     .def("get_link_weights", &D8connector<double>::template get_link_weights< py::array_t<double,1>, py::array_t<double,1> >)
+    
     .def("set_stochaticiy_for_SFD", &D8connector<double>::set_stochaticiy_for_SFD)
   ;
 

@@ -24,6 +24,7 @@ TODO:Add a figure explaining that here
 
 The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ... Basically if you need any information concerning a node, its location and the relationship with its neighbours, this is the module to seek for. Anything "non local" will be managed by the ``graph``. Ultimately, the ``connector`` only needs geometrical plan-view information to fetch neighbours and links for each nodes (undirected graph): for example for regular grids it would be the number of row, col or the spacing in X and Y and the boundary codes (see bellow). If directionality is important, the ``connector`` can ingest a topographic field and compute a ``directed graph``, enabling the fetching of receivers and donors. Again the connector only bares this information at a node level - *i.e* which of the immediate neighbours are donors and receivers.
 
+.. _boundary:
 Boundary conditions
 --------------------
 

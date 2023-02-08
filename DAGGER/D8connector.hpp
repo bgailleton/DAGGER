@@ -305,6 +305,7 @@ public:
 			ubound[i] = static_cast<BC>(bound[i]);
 
 		this->boundaries.set_codes(ubound);
+		// this->fill_linknodes();
 
 		// std::cout << "Temporarily refactoring the boundary condition system and custom boundaries are not ready" << std::endl;
 		// auto bound = format_input(tbound);
@@ -2677,6 +2678,9 @@ public:
 		return nn;
 	}
 
+
+
+	// returns a 1D bool array, false where no data
 	std::vector<bool> get_mask_array()
 	{
 		std::vector<bool> mask(this->nnodes,true);
