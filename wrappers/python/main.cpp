@@ -19,35 +19,159 @@ template<typename CONNECTOR_T>
 void declare_graph(py::module &m, std::string typestr)
 {
 
-  py::class_<graph<double, CONNECTOR_T > >(m, typestr.c_str())
-    .def(py::init<CONNECTOR_T&>())
-    .def("init_graph", &graph<double,CONNECTOR_T>::init_graph)
-    .def("set_opt_stst_rerouting", &graph<double,CONNECTOR_T>:: set_opt_stst_rerouting)
-    .def("compute_graph", &graph<double,CONNECTOR_T>::template compute_graph<py::array_t<double,1>, py::array >)
-    // .def("compute_graph_timer", &graph<double,CONNECTOR_T>::template compute_graph_timer<CONNECTOR_T, py::array_t<double,1>, py::array >)
-    .def("is_Sstack_full", &graph<double,CONNECTOR_T>:: is_Sstack_full)
-    .def("activate_opti_sparse_border_cordonnier", &graph<double,CONNECTOR_T>:: activate_opti_sparse_border_cordonnier)
-    .def("get_all_nodes_upstream_of", &graph<double,CONNECTOR_T>::template get_all_nodes_upstream_of< py::array_t<int,1> > )
-    .def("get_all_nodes_downstream_of", &graph<double,CONNECTOR_T>::template get_all_nodes_downstream_of< py::array_t<int,1> > )
-    .def("get_SFD_stack",&graph<double,CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t,1>>)
-    .def("get_MFD_stack",&graph<double,CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t,1>>)
+  py::class_<graph<double, CONNECTOR_T > >(m, typestr.c_str(), R"pdoc(
+Full Graph module, to plug on a connector to unlock non-local topological operations.
 
-    .def("accumulate_constant_downstream_SFD", &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_SFD< py::array_t<double, 1> > )
-    .def("accumulate_variable_downstream_SFD", &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_SFD< py::array_t<double, 1>, py::array_t<double, 1> > )
-    .def("accumulate_constant_downstream_MFD", &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > )
-    .def("accumulate_variable_downstream_MFD", &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > )
-    .def("set_LMR_method", &graph<double,CONNECTOR_T>:: set_LMR_method)
-    .def("set_minimum_slope_for_LMR", &graph<double,CONNECTOR_T>:: set_minimum_slope_for_LMR)
-    .def("set_slope_randomness_for_LMR", &graph<double,CONNECTOR_T>:: set_slope_randomness_for_LMR)
+Description:
+------------
+
+The graph manages all non local connectivity and ensures the graph is acyclic. 
+It contains all the routines for topological ordering, local minima resolving 
+(multiple methods), or accumulating values in the upstream/downstream directions
+
+
+Authors:
+--------
+B.G.)pdoc")
+
+    .def(py::init<CONNECTOR_T&>())
+    .def(
+      "init_graph",
+       &graph<double,CONNECTOR_T>::init_graph,
+       R"pdoc(Initialise the data structure and allocate memory (mostly used internally).)pdoc"
+       )
+    .def(
+      "set_opt_stst_rerouting",
+       &graph<double,CONNECTOR_T>:: set_opt_stst_rerouting,
+       py::arg("onoff"),
+       R"pdoc(Activate (true) or deactivate (false) an optimiser. Most of the time does not make a difference but can _eventually_ approximate a few link a bit more precisely when rerouting local minimas.)pdoc"
+       )
+    .def(
+      "compute_graph",
+       &graph<double,CONNECTOR_T>::template compute_graph<py::array_t<double,1>, py::array >,
+        py::arg("topography"),py::arg("no_MFD"),py::arg("quicksort_on"),
+        R"pdoc(
+Full computation of the graph (connector updates of links included).
+
+Description
+-------------
+
+COmpute the graph by (i) updating receivers/donors, (ii) resolving local minimas
+with the method and (iii) computing topological sortings. Can be set to SFD only
+to save time.
+
+Parameters
+-----------
+
+- topography (1D array): topographic field (of node size)
+- no_MFD: if true, no MFD info are computed (especially the toposort MFD and the
+recomputing after local minima solver that can be time consuming 
+if done repeteadly - e.g. for LEMs)
+- quicksort: if true, the toposort MFD is done by sorting "filled" topography by 
+elevation using the std::sort algorithm (aka quicksort), otherwise it uses an 
+homemade  topological sorting algorithm. Quicksort is O(nlogn) and toposort 
+O(n+l) so the most efficient is case dependent.
+
+
+returns:
+--------
+
+PP_topography (1D array): a preprocessed topography where LM have been filled or 
+carved or processed in the wanted way.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+
+       )
+    .def(
+      "is_Sstack_full",
+       &graph<double,CONNECTOR_T>:: is_Sstack_full,
+       R"pdoc(Debugging function, to ignore)pdoc"
+       )
+    .def(
+      "activate_opti_sparse_border_cordonnier",
+       &graph<double,CONNECTOR_T>:: activate_opti_sparse_border_cordonnier,
+       R"pdoc(Debugging function, to ignore)pdoc"
+       )
+    .def(
+      "get_all_nodes_upstream_of",
+       &graph<double,CONNECTOR_T>::template get_all_nodes_upstream_of< py::array_t<int,1> >
+
+       )
+    .def(
+      "get_all_nodes_downstream_of",
+       &graph<double,CONNECTOR_T>::template get_all_nodes_downstream_of< py::array_t<int,1> > 
+       )
+    .def(
+      "get_SFD_stack",
+      &graph<double,CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t,1>>
+      )
+    .def(
+      "get_MFD_stack",
+      &graph<double,CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t,1>>
+      )
+
+    .def(
+      "accumulate_constant_downstream_SFD",
+       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_SFD< py::array_t<double, 1> > 
+       )
+    .def(
+      "accumulate_variable_downstream_SFD",
+       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_SFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       )
+    .def(
+      "accumulate_constant_downstream_MFD",
+       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       )
+    .def(
+      "accumulate_variable_downstream_MFD",
+       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       )
+    .def(
+      "set_LMR_method",
+       &graph<double,CONNECTOR_T>:: set_LMR_method
+       )
+    .def(
+      "set_minimum_slope_for_LMR",
+       &graph<double,CONNECTOR_T>:: set_minimum_slope_for_LMR
+       )
+    .def(
+      "set_slope_randomness_for_LMR",
+       &graph<double,CONNECTOR_T>:: set_slope_randomness_for_LMR
+       )
 
     // Distance functions
-    .def("get_SFD_distance_from_outlets", &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets< py::array_t<double,1> >)
-    .def("get_SFD_min_distance_from_sources", &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources< py::array_t<double,1> >)
-    .def("get_SFD_max_distance_from_sources", &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources< py::array_t<double,1> >)
-    .def("get_MFD_max_distance_from_sources", &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_sources< py::array_t<double,1> >)
-    .def("get_MFD_min_distance_from_sources", &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_sources< py::array_t<double,1> >)
-    .def("get_MFD_max_distance_from_outlets", &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_outlets< py::array_t<double,1> >)
-    .def("get_MFD_min_distance_from_outlets", &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<double,1> >)
+    .def(
+      "get_SFD_distance_from_outlets",
+       &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets< py::array_t<double,1> >
+       )
+    .def(
+      "get_SFD_min_distance_from_sources",
+       &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources< py::array_t<double,1> >
+       )
+    .def(
+      "get_SFD_max_distance_from_sources",
+       &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources< py::array_t<double,1> >
+       )
+    .def(
+      "get_MFD_max_distance_from_sources",
+       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_sources< py::array_t<double,1> >
+       )
+    .def(
+      "get_MFD_min_distance_from_sources",
+       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_sources< py::array_t<double,1> >
+       )
+    .def(
+      "get_MFD_max_distance_from_outlets",
+       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_outlets< py::array_t<double,1> >
+       )
+    .def(
+      "get_MFD_min_distance_from_outlets",
+       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<double,1> >
+       )
     
     // Watershed labelling
     .def("get_SFD_basin_labels",  &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<int,1> >)
@@ -155,6 +279,7 @@ void declare_ff(py::module &m, std::string typestr)
     // .def("run_MFD_erosion", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion)
     // .def("run_MFD_erosion_B", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion_B)
     .def("run_MFD_static", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static)
+    .def("run_MFD_static_SPL", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static_SPL)
     // .def("run_MFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD)
     // .def("run_MFD_dynamic", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_dynamic)
     // .def("run_MFD_exp", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_exp)
@@ -301,7 +426,7 @@ Parameters:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pbdoc")
 
@@ -334,7 +459,7 @@ Parameters:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pbdoc"
       )
@@ -362,7 +487,7 @@ Parameters:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pbdoc"
       )
@@ -393,7 +518,7 @@ Parameters:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pbdoc"
 
@@ -428,7 +553,7 @@ Parameters:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pdoc"
       )
@@ -447,7 +572,7 @@ CAN_OUT, where flow leaves the model if the cell has no downslope receivers.
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pdoc"
       )
@@ -458,60 +583,556 @@ B.G. (08/2022)
     
     .def("get_rowcol_Sreceivers",&D8connector<double>:: get_rowcol_Sreceivers,py::arg("row_index"), py::arg("col_index"), R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
     
-    .def("print_receivers", &D8connector<double>::template print_receivers<std::vector<double> >)
+    .def("print_receivers", &D8connector<double>::template print_receivers<std::vector<double> >,py::arg("node_index"), py::arg("topography"), R"pdoc(Debuggin function printing to the terminal the receivers of a node index and their topography (post graph computation! so the topographic field may not be the one used for the receivers/LM computations))pdoc")
     
-    .def("get_rec_array_size",&D8connector<double>::get_rec_array_size)
+    .def("get_rec_array_size",&D8connector<double>::get_rec_array_size, R"pdoc(Debug function - ignore)pdoc")
     
-    .def("update_links_MFD_only", &D8connector<double>::template update_links_MFD_only<std::vector<double> >)
+    .def(
+      "update_links_MFD_only", &D8connector<double>::template update_links_MFD_only<std::vector<double> >,
+      py::arg("topography"),
+      R"pdoc(
+Updates all the link directionalities - but not the SFD receiver/donors.
+
+Description:
+------------
+
+Updates all the link directionalities based on a given topography. Note that it
+does not process the SFD receiver/donors and is (paradoxally) faster. However,
+the use of this function is reserved to experienced user who seek tuning perform
+ances as many routines are speed up by SFD info behind the scene -  even in MFD.
+
+Parameters
+----------
+
+- topography (1D array): the flat topography
+
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("update_links", &D8connector<double>::template update_links<std::vector<double> >)
+    .def(
+      "update_links_from_topo", 
+      &D8connector<double>::template update_links_from_topo<std::vector<double> >,
+      py::arg("topography"),
+      R"pdoc(
+Updates all the link directionalities - but not the SFD receiver/donors.
+
+Description:
+------------
+
+Updates all the link directionalities based on a given topography. This is the 
+full updating function computing MFD/SFD links/receivers/donors/... .
+
+Parameters
+----------
+
+- topography (1D array): the flat topography
+
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
     
-    .def("update_links_from_topo", &D8connector<double>::template update_links_from_topo<py::array_t<double,1> >)
+    .def(
+      "sum_at_outlets", 
+      &D8connector<double>::template sum_at_outlets<py::array_t<double,1>, double >,
+      py::arg("array"),py::arg("include_pits"),
+      R"pdoc(
+Sum the values contains in the input array where flux out the model.
+
+Description:
+------------
+
+Sum the values contains in the input array where flux out the model. It can also
+include the internal pit if needed. Internal pits are only referring to nodes
+where local minimas have not been resolved
+
+DEPRECATION WARNING: Will be detached to a standalone algorithm in a future
+update.
+
+Parameters
+----------
+
+- array (1D array): the array to sum (of node size)
+- include_pits (bool): if true, internal pits (receiverless nodes) are sumed too
+
+Returns
+----------
+
+The sum.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("sum_at_outlets", &D8connector<double>::template sum_at_outlets<py::array_t<double,1>, double >)
+    .def(
+      "keep_only_at_outlets", 
+      &D8connector<double>::template keep_only_at_outlets<py::array_t<double,1>, py::array >,
+      py::arg("array"),py::arg("include_pits"),
+      R"pdoc(
+return a copy of the input array where all the non-outting nodes are set to 0.
+
+Description:
+------------
+
+returns a copy of the input array where all the outting nodes are set to 0. 
+It can also include the internal pit if needed. Internal pits are only referring 
+to nodes where local minimas have not been resolved.
+
+DEPRECATION WARNING: Will be detached to a standalone algorithm in a future
+update.
+
+Parameters
+----------
+
+- array (1D array): the array to sum (of node size)
+- include_pits (bool): if true, internal pits (receiverless nodes) are sumed too
+
+Returns
+----------
+
+The modified array
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("keep_only_at_outlets", &D8connector<double>::template keep_only_at_outlets<py::array_t<double,1>, py::array >)
+    .def(
+      "get_SFD_receivers",
+      &D8connector<double>::template get_SFD_receivers<py::array_t<int,1>>,
+      R"pdoc(
+returns the array of SFD receivers.
+
+Description:
+------------
+
+returns the array of SFD receivers according to the current state of the \
+connector. These can be obtained after computing links from a topography, but 
+can also be modified when a graph resolves local minimas.
+
+Returns
+----------
+
+array of node size containing the node index of the SFD receivers
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
     
-    .def("get_SFD_receivers",&D8connector<double>::template get_SFD_receivers<py::array_t<int,1>>)
+    .def(
+      "get_SFD_dx",
+      &D8connector<double>::template get_SFD_dx<py::array_t<double,1>>,
+      R"pdoc(
+returns the array of SFD distance to receivers.
+
+Description:
+------------
+
+returns the array of SFD dist. to receivers according to the current state of
+the connector. These can be obtained after computing links from a topography,  
+but can also be modified when a graph resolves local minimas.
+
+Returns
+----------
+
+array of floating point distance to the SFD receiver
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_SFD_dx",&D8connector<double>::template get_SFD_dx<py::array_t<double,1>>)
+    .def(
+      "get_SFD_ndonors",
+      &D8connector<double>::template get_SFD_ndonors<py::array_t<int,1>>,
+      R"pdoc(
+returns the array of SFD number of donors.
+
+Description:
+------------
+
+returns the array of number of SFD donors for every nodes.
+
+Returns
+----------
+
+array of integer of node size with the number of SFD donors for each nodes
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_SFD_ndonors",&D8connector<double>::template get_SFD_ndonors<py::array_t<int,1>>)
+    .def(
+      "get_SFD_donors_flat",
+      &D8connector<double>::template get_SFD_donors_flat<py::array_t<int,1>>,
+      R"pdoc(
+returns a flat array of SFD donors(read description for indexing!).
+
+Description:
+------------
+
+returns a flat array of SFD donors. It is a sparse array for the sake of simplicity:
+the Donors for a node are every >=0 nodes from the index node_index * 8 to 
+node_index * 8 + nSdonors[node_index].
+
+Returns
+----------
+
+The flat array of donor indices
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_SFD_donors_flat",&D8connector<double>::template get_SFD_donors_flat<py::array_t<int,1>>)
+    .def(
+      "get_SFD_donors_list",
+      &D8connector<double>::template get_SFD_donors_list<std::vector<std::vector<int> > >,
+      R"pdoc(
+returns a list (not an array!) of irregular size with donor indices.
+
+Description:
+------------
+
+returns a list (not an array!) of irregular size with donor indices. The first 
+index is the node index and it points to a list of ndonors size with all the
+SFD donors of the given node.
+
+Returns
+----------
+
+THe 2D irregular list of node size
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
     
-    .def("get_SFD_donors_list",&D8connector<double>::template get_SFD_donors_list<std::vector<std::vector<int> > >)
+    .def(
+      "get_links",
+      &D8connector<double>::template get_links<std::vector<std::uint8_t> >,
+      R"pdoc(
+returns an array of link size with link type.
+
+Description:
+------------
+
+returns an array of link size with link type. See the documentation for the 
+relationships between nodes and links. the node indices for a link index can be
+found in the linknode array, at link_index*2 and link_index*2 + 1. The link type
+is an uint8 number: 0 for inverse (node 2 give to node 1), 1 for normal (node 1
+fives to node 2) or 3 invalid/inactive link.
+
+Returns
+----------
+
+the array of link size with link code (uint8)
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
     
-    .def("get_links",&D8connector<double>::template get_links<std::vector<std::uint8_t> >)
+    .def(
+      "get_linknodes_flat",
+      &D8connector<double>::template get_linknodes_flat<py::array_t<int,1>>,
+      R"pdoc(
+returns a flat array of linknodes (node indices pair for each links).
+
+Description:
+------------
+
+1D flat array of linknodes. The node corresponding to link index li can be found 
+at linknodes[li*2] and linknodes[li*2 + 1]. Non-existing or invalid links have 
+node indices of -1.
+
+Returns
+----------
+
+the array of 2 * link size with node indicies for each links
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
     
-    .def("get_linknodes_flat",&D8connector<double>::template get_linknodes_flat<py::array_t<int,1>>)
     
-    .def("get_linknodes_list",&D8connector<double>::template get_linknodes_list<std::vector<std::vector<int> > >)
+    .def(
+      "get_linknodes_list",
+      &D8connector<double>::template get_linknodes_list<std::vector<std::vector<int> > >,
+      R"pdoc(
+returns a list (not an array!) of link nodes.
+
+Description:
+------------
+
+2D link of link nodes. index is link index and it provides a list of nodes
+composing the link.
+
+Returns
+----------
+
+List of link size.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_linknodes_list_oriented",&D8connector<double>::template get_linknodes_list_oriented<std::vector<std::vector<int> > >)
+    .def(
+      "get_linknodes_list_oriented",
+      &D8connector<double>::template get_linknodes_list_oriented<std::vector<std::vector<int> > >,
+      R"pdoc(
+returns a list (not an array!) of link nodes, donor first, rec second.
+
+Description:
+------------
+
+2D link of link nodes. index is link index and it provides a list of nodes
+composing the link. This version orients the list with the donor always first 
+(and the receiver always second).
+
+Returns
+----------
+
+List of link size.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_SFD_receivers_at_node", &D8connector<double>:: get_SFD_receivers_at_node)
+    .def(
+      "get_SFD_receivers_at_node", 
+      &D8connector<double>:: get_SFD_receivers_at_node,
+      R"pdoc(Returns the node index of the SFD receivers for a given node index)pdoc"
+      )
     
-    .def("get_SFD_dx_at_node", &D8connector<double>:: get_SFD_dx_at_node)
+    .def(
+      "get_SFD_dx_at_node", 
+      &D8connector<double>:: get_SFD_dx_at_node,
+      R"pdoc(Returns the distance to the SFD receivers for a given node index)pdoc"
+      )
     
-    .def("get_SFD_ndonors_at_node", &D8connector<double>:: get_SFD_ndonors_at_node)
+    .def(
+      "get_SFD_ndonors_at_node", 
+      &D8connector<double>:: get_SFD_ndonors_at_node
+
+      )
     
-    .def("get_SFD_donors_at_node", &D8connector<double>::template get_SFD_donors_at_node<std::vector<int> >)
+    .def(
+      "get_SFD_donors_at_node", 
+      &D8connector<double>::template get_SFD_donors_at_node<std::vector<int> >,
+      R"pdoc(Returns a list of SFD donors for a given node index)pdoc"
+      )
     
-    .def("get_SFD_gradient", &D8connector<double>::template get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >)
+    .def(
+      "get_SFD_gradient", 
+      &D8connector<double>::template get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >,
+      py::arg("topography"),
+      R"pdoc(
+returns an array of node size with the topographic gradient
+
+Description:
+------------
+
+Takes a topography and returns the steepest descent gradient using precomputed
+SFD receivers informations. Note that if you feed the function with a different 
+topography than the one the graph has been computed with - or if local minimas 
+have been resolved, you may obtain local negative values.
+
+Parameters
+-----------
+
+- Topography (array 1D): the topography to use for the gradient computation
+
+Returns
+----------
+
+Array of node size fo topographic gradient
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_links_gradient", &D8connector<double>::template get_links_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    .def(
+      "get_links_gradient", 
+      &D8connector<double>::template get_links_gradient< py::array_t<double,1>, py::array_t<double,1> >,
+      py::arg("topography"), py::arg("minimum_slope"),
+      R"pdoc(
+returns an array of link size with the topographic gradient for each of them.
+
+Description:
+------------
+
+Takes a topography and returns the gradient for each topographic link. It can 
+recast teh negative/small gradients to a minimum value if needed.
+
+Parameters
+-----------
+
+- Topography (array 1D): the topography to use for the gradient computation
+- min_slope (float): the minimum slope - set to very negative value if not 
+needed.
+
+Returns
+----------
+
+Array of link size of topographic gradient
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_MFD_mean_gradient", &D8connector<double>::template get_MFD_mean_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    .def(
+      "get_MFD_mean_gradient", 
+      &D8connector<double>::template get_MFD_mean_gradient< py::array_t<double,1>, py::array_t<double,1> >,
+      py::arg("topography"),
+      R"pdoc(
+returns an array of node size with the mean topographic gradient for each nodes.
+
+Description:
+------------
+
+returns an array of node size with the mean topographic gradient for each nodes.
+The gradient is computed for all receivers and averaged.
+
+Parameters
+-----------
+
+- Topography (array 1D): the topography to use for the gradient computation
+
+
+Returns
+----------
+
+Array of node size of mean topographic gradient
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+
+      )
     
-    .def("get_MFD_weighted_gradient", &D8connector<double>::template get_MFD_weighted_gradient< py::array_t<double,1>, py::array_t<double,1> >)
+    .def(
+      "get_MFD_weighted_gradient", 
+      &D8connector<double>::template get_MFD_weighted_gradient< py::array_t<double,1>, py::array_t<double,1> >,
+      py::arg("topography"), py::arg("weights"),
+      R"pdoc(
+returns an array of node size with the weighted mean gradient for each nodes.
+
+Description:
+------------
+
+returns an array of node size with the weighted mean gradient for each nodes.
+It requires a weight for each links which can be obtained using the 
+``get_link_weights`` function.
+
+Parameters
+-----------
+
+- Topography (array 1D): the topography to use for the gradient computation
+- weight (array 1D): link size array obtained with ``get_link_weights`` function
+
+
+Returns
+----------
+
+Array of node size of weighted topographic gradient
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
-    .def("get_link_weights", &D8connector<double>::template get_link_weights< py::array_t<double,1>, py::array_t<double,1> >)
+    .def(
+      "get_link_weights", 
+      &D8connector<double>::template get_link_weights< py::array_t<double,1>, py::array_t<double,1> >,
+      py::arg("gradients"),py::arg("exponent"),
+      R"pdoc(
+Computes partition weights for each link function of rec slopes per node basis.
+
+Description:
+------------
+
+Assign a [0,1] weight to each link to partition flow in MFD from every nodes to
+their receivers. The partition uses an exponent to set the sensitivity to slope
+differences. in a general manner, the higher the value, the more weight would 
+go toward the steepest receiver. There are three particular cases (numerically 
+and conceptually):
+
+- exp = 0: equally parted towards all receivers regardless of their slopes
+- exp = 0.5: proportional to the squareroot of the slopes
+- exp = 1: perfectly proportional to the slopes
+
+Parameters
+-----------
+
+- link_gradients (1D array): gradients per links (``get_link_gradients``)
+- exponent (float): a positive exponent setting the sensitivity to slope
+
+Returns
+----------
+
+Array of link size of partition weights
+
+Authors:
+--------
+B.G.)pdoc"
+      )
     
-    .def("set_stochaticiy_for_SFD", &D8connector<double>::set_stochaticiy_for_SFD)
+    .def(
+      "set_stochaticiy_for_SFD", 
+      &D8connector<double>::set_stochaticiy_for_SFD,
+      py::arg("magnitude"),
+      R"pdoc(EXPERIMENTAL: adds stochasticity to the SFD receivers calculation. Best to ignore.)pdoc"
+      )
   ;
 
-  py::class_<D4connector<double> >(m, "D4N")
+  py::class_<D4connector<double> >(m, "D4N", R"pdoc(DEPRECATED - will be back at some points, keeping for legacy)pdoc")
     .def(py::init<int,int,double,double,double,double>())
     .def("set_default_boundaries", &D4connector<double>::set_default_boundaries)
     .def("set_custom_boundaries", &D4connector<double>::set_custom_boundaries<py::array_t<int,1> >)
@@ -564,7 +1185,7 @@ Returns:
 
 Authors:
 --------
-B.G. (08/2022)
+B.G.
 
 )pbdoc"
      );

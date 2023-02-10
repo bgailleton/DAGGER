@@ -1717,6 +1717,9 @@ public:
 	{
 		bool erosion = false;
 		this->stochaslope = 0;
+
+		float_t vmottot = 0;
+
 		for(int nit = 1; nit<=n_erosion;++nit)
 		{
 
@@ -1917,8 +1920,11 @@ public:
 
 					// if(thflow < this->hw[i]/2) tau * thflow/this
 
-
-					if(erosion && this->hw[node] > 0)
+					if(this->connector->boundaries.forcing_io(node))
+					{
+						this->Qsin[to] += this->Qsin[node] * recweight[j];
+					}
+					else if(erosion && this->hw[node] > 0)
 					{
 
 						float_t thw = (this->hflow)?thflow:this->hw[node];
@@ -1983,7 +1989,7 @@ public:
 						float_t fac = 1.;
 						// float endQ = tQin/cA + edot + latedotA + latedotB - d_dot - latddotA - latddotB;
 						// if(endQ < 0 && (abs(endQ) + tQin/cA) > 0) fac = tQin/(cA * abs(endQ) + tQin);
-						float_t endQ = (d_dot + latddotA + latddotB) * tdx;
+						float_t endQ = (d_dot * tdx + latddotA * tdl + latddotB * tdl);
 						if(endQ > tQin) fac = tQin/endQ;
 
 						d_dot *= fac;
@@ -2048,8 +2054,13 @@ public:
 						}
 
 						this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
-						if(this->Qsin[to] < 0) this->Qsin[to] = 0;
+						if(this->Qsin[to] < 0) 
+						{
+							std::cout << "happens" << std::endl;
+							this->Qsin[to] = 0;
+						}
 
+						vmottot -=  (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * dt_erosion;
 
 						if(this->rec.edot2record) this->rec.edot[node] += edot;
 						if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;
@@ -2083,12 +2094,411 @@ public:
 
 			if(erosion)
 			{
+				float_t sumvm = 0;
+				float_t vmottot_o = vmottot;
 				for(int i = 0; i<this->graph->nnodes; ++i)
 				{
 					if(this->connector->boundaries.forcing_io(i)) continue;
 					this->topography[i] += vmot[i];
 					if(this->rec.vmot2record) this->rec.vmot[i] = vmot[i];
+					vmottot -= vmot[i];
+					sumvm += vmot[i];
 				}
+				// std::cout << "vmottot theoretical = " << vmottot_o << " vmotot applied = " << sumvm << std::endl;;
+			}
+
+		// this->softbound(true,true);
+		}
+
+	}
+
+
+	void run_MFD_static_SPL(float_t Ker, float_t Kerl, float_t Kdepl, float_t mexp, float_t nexp, float_t transport_length, float_t dt_hydro, int n_erosion, float_t dt_erosion, bool stochastic_slope, bool no_erosion_at_all)
+	{
+		std::cout << "JUST FOR TESTING PURPOSES" << std::endl;
+		bool erosion = false;
+		this->stochaslope = 0;
+
+		float_t vmottot = 0;
+
+		for(int nit = 1; nit<=n_erosion;++nit)
+		{
+
+			if(nit==n_erosion && !no_erosion_at_all)
+			{
+				if(stochastic_slope)	this->stochaslope = 1.;
+				erosion = true;
+			}
+
+			// Reinit the sediment fluxes
+			this->init_erosion();
+			if(erosion)
+				this->rec.init_geo();
+			this->rec.init_water();
+
+			// This vector records and apply the vertical motions at the end of the time step
+			// THis reduce the stochasticity but ensure consistency in the sediment flux
+			std::vector<float_t>vmot(this->connector->nnodes,0.);
+
+			// Getting the filled topo and processing the graph in MFD (only_SS = false)
+			this->graph_automator(false);
+
+
+			// reinitialising the Qw in and out
+			for(auto& v: this->Qwin)
+				v=0;
+			for(auto& v: this->Qwout)
+				v=0;
+
+			// pre-caching the receivers links
+			std::vector<int> reclink = this->connector->get_empty_neighbour();
+			// pre-caching the receivers weights
+			std::vector<float> recweight(reclink.size(),0.);
+			// pre-caching the receivers slopes
+			std::vector<float> recslope(reclink.size(),0.);
+
+			// debugging variables recording the factors regulating sediment fluxes
+			float_t max_fac = 0;
+			float_t min_fac = 1;
+
+
+			// MAIN LOOP
+			for(int i = this->graph->nnodes-1; i>=0; --i)
+			{
+				// Getting ht enext upstreamest non processed node
+				int node = this->graph->stack[i];
+
+				// If the current node is not active: ignore
+				if(this->connector->flow_out_or_pit(node)) continue;
+
+				// No water? no flow
+				// if(this->hw[i] == 0) continue;
+
+				// getting the receiving links
+				int nr = this->connector->get_receivers_idx_links(node, reclink);
+
+				//## (Rare) no receivers?? then I skip
+				if(nr == 0)
+				{
+					continue;
+				}
+
+				//## Accumulating local discharge
+				this->Qwin[node] += this->Qbase[node];
+
+				// SECTION OF THE CODE MANAGING WHO GIVES TO THE BOUNDARY
+				// bool is_to_boundary = false;
+				// for(int j = 0; j< nr; ++j)
+				// {
+				// 	int to = this->graph->get_to_links(reclink[j]);
+				// 	if(!this->graph->flow_out_or_pit(to,*this->connector) && this->connector->boundary[to] != 3)
+				// 		is_to_boundary = true;
+				// }
+
+				// if(is_to_boundary)
+				// {
+				// 	int nj = 0;
+				// 	for(int j = 0; j< nr; ++j)
+				// 	{
+				// 		int to = this->graph->get_to_links(reclink[j]);
+
+				// 		if(!this->graph->flow_out_model(this->graph->get_to_links(reclink[j]),*this->connector)  && this->connector->boundary[to] != 3)
+				// 		{
+				// 			reclink[nj] = reclink[j];
+				// 			++nj;
+				// 		}
+						
+				// 	}
+				// 	nr = nj;
+				// 	//## (Rare) no receivers?? then I skip
+				// 	if(nr == 0)
+				// 	{
+				// 		continue;
+				// 	}
+
+				// }
+
+
+				// First calculating the weights and slope
+				// # sumslopes sums the real slopes and wsumslopes is the weighted equivalent (the parting coeff is not always one)
+				float_t wsumslopes = 0., sumslopes = 0., maxslope = 0.;
+				float_t facgrad = 0;
+
+				for(int j = 0; j<nr; ++j)
+				{
+
+					//#getting the link ID
+					int lix = reclink[j];
+
+					if(this->connector->is_link_valid(lix) == false)
+						continue;
+
+					//#getting the slope and casting it to a minimum numeraicla value
+					// float_t tsw = (is_to_boundary)? this->boundary_slope : std::max(this->get_Sw_at_link(lix), 1e-6);
+					float_t tsw = std::max(this->get_Sw_at_link(lix), 1e-6);
+
+					// float_t tsw = std::max(this->get_Sw_at_link_custom_dx(lix, this->connector->dx), 1e-6);
+					// if(!this->graph->flow_out_model(this->graph->get_to_links(lix),*this->connector) == false) tsw = 1e-6;
+
+					recslope[j] = tsw;
+
+					if(tsw > maxslope) maxslope = tsw;
+
+					//# Registering and summing the slopes
+					float_t weisw = (this->parting_coeff == 1) ? tsw : std::pow(tsw,parting_coeff);
+
+					if(this->stochaslope > 0) weisw *= this->randu.get() + 1e-6;
+
+					wsumslopes += weisw;
+					recweight[j] = weisw;
+					sumslopes += tsw;
+				}
+
+				// normalising weights
+				float_t sumsum = 0;
+				for(int j = 0; j<nr; ++j)
+				{
+					if(this->connector->is_link_valid(reclink[j]) == false)
+						continue;
+
+					int to = this->connector->get_to_links(reclink[j]);
+					float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
+					
+					recweight[j] = recweight[j]/wsumslopes;
+					
+					sumsum += recweight[j];
+
+					//### accumulating the equation factor
+					if(this->hflow)
+					{
+						facgrad += std::pow(this->get_hflow_at_link(reclink[j]), FIVETHIRD) * recslope[j]/tdx;
+					}
+					else
+						facgrad += recslope[j]/tdx;
+
+					this->Qwin[to] += this->Qwin[node] * recweight[j];
+				}
+				float_t cA = this->connector->get_area_at_node(node);
+
+
+				//## Finally calculating Qout
+				if(this->hflow)
+					this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+				else
+					this->Qwout[node] = this->topological_number * facgrad/std::sqrt(maxslope) * std::pow(this->hw[node],FIVETHIRD) * cA/this->mannings;// * (1/(4 * this->connector->dxy )+ 1/ (2*this->connector->dx) + 1/(2 * this->connector->dy));
+
+				//## Divergence of Q to apply changes to water height
+				float_t tdhw = (this->Qwin[node] - this->Qwout[node]) * dt_hydro / this->connector->get_area_at_node(node);
+				if(this->rec.dhw2record) this->rec.dhw[node] = tdhw;
+				this->hw[node] += tdhw;
+
+				//## water height cannot be 0
+				if(this->hw[node] < 0) this->hw[node] = 0;
+
+
+
+
+				// Dealing with the divergence of sediments
+				this->Qsout[node] = this->Qsin[node];
+
+
+				for(int j=0; j<nr;++j)
+				{
+					//### Not valid 4 some reasons? skip
+					if(this->connector->is_link_valid(reclink[j]) == false)
+						continue;
+
+					int to = this->connector->get_to_links(reclink[j]);
+
+					// bool is_to_boundary = !!this->graph->flow_out_model(to,*this->connector);
+
+
+					float_t tdl = this->connector->get_traverse_dx_from_links_idx(reclink[j]);
+
+					float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
+					// float_t tdx = (is_to_boundary)? this->connector->dx : this->connector->get_dx_from_links_idx(reclink[j]);
+					// float_t tdx = this->connector->dx;
+
+
+					// float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
+					float_t tQin = this->Qsin[node] * recweight[j];
+
+					float_t thflow = this->get_hflow_at_link(reclink[j]);
+
+
+					
+
+
+					// // EXPERIMENTAL!!!!!!!!!!
+					float_t regulator = 1.;
+					// if(thflow < this->hw[node])
+					// {
+					// 	regulator=std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth);
+					// 	// throw std::runtime_error("exp RAN");	
+					// 	tau = tau * regulator;
+					// 	// if(std::pow(thflow/this->hw[node], this->sensibility_to_flowdepth) > 1)
+					// 	// 	throw std::runtime_error("!");
+					// }
+
+					// first deposition:
+					// float_t d_dot = (regulator>0) ? recweight[j]/regulator * tQin/(tdl * transport_length):tQin/cA;
+
+					// if(thflow < this->hw[i]/2) tau * thflow/this
+
+
+					if(erosion && this->hw[node] > 0 && this->connector->boundaries.forcing_io(node) == false)
+					{
+
+						float_t d_dot = tQin/(transport_length);
+						
+						float_t edot = 0.;
+
+						float_t latedotA = 0;
+						float_t latddotA = 0;
+						float_t latedotB = 0;
+						float_t latddotB = 0;
+
+						auto orthonodes = this->connector->get_orthogonal_nodes(node, to);					
+						
+						
+						edot = Ker * std::pow(recslope[j],nexp) * std::pow(this->Qwout[node] * recweight[j], mexp);
+
+						if(orthonodes.first >= 0)
+						{
+							if(this->connector->flow_out_model(orthonodes.first) == false)
+							{
+								if(this->topography[orthonodes.first] > this->topography[node])
+								{
+									latedotA = regulator * (this->topography[orthonodes.first] - this->topography[node])/tdl * edot * Kerl;
+								}
+								else if(tQin > 0 && Kdepl > 0)
+								{
+									latddotA = ((this->topography[node] - this->topography[orthonodes.first])/tdl) * Kdepl * d_dot ;
+								}
+							}
+						}
+						
+						if(orthonodes.second >= 0)
+						{
+							if(this->connector->flow_out_model(orthonodes.second) == false)
+							{
+								if(this->topography[orthonodes.second] > this->topography[node])
+								{
+									latedotB = regulator * (this->topography[orthonodes.second] - this->topography[node])/tdl * edot * Kerl;
+								}
+								else if(tQin > 0 && Kdepl > 0)
+								{
+									latddotB = ((this->topography[node] - this->topography[orthonodes.second])/tdl) * Kdepl * d_dot ; ;
+								}
+							}
+						}
+
+						float_t fac = 1.;
+						// float endQ = tQin/cA + edot + latedotA + latedotB - d_dot - latddotA - latddotB;
+						// if(endQ < 0 && (abs(endQ) + tQin/cA) > 0) fac = tQin/(cA * abs(endQ) + tQin);
+						float_t endQ = (d_dot * tdx + latddotA * tdl + latddotB * tdl);
+						if(endQ > tQin) fac = tQin/endQ;
+
+						d_dot *= fac;
+						latddotA *= fac;
+						latddotB *= fac;
+
+						bool quit = false;
+
+						if(std::isfinite(fac) == false)
+						{
+							std::cout << "fac" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(edot) == false)
+						{
+							std::cout << "edot" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(tQin) == false)
+						{
+							std::cout << "tQin" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(d_dot) == false)
+						{
+							std::cout << "d_dot" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(latedotA) == false)
+						{
+							std::cout << "latedotA" << std::endl;
+							quit = true;
+						}
+
+						if(std::isfinite(latedotB) == false)
+						{
+							std::cout << "latedotB" << std::endl;
+							quit = true;
+						}
+						if(quit)
+						{
+							std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
+							throw std::runtime_error("non finite erosion");
+						}
+
+						if(max_fac< fac) max_fac = fac;
+						if(min_fac>fac) min_fac = fac;
+
+						vmot[node] -= (edot - d_dot) * dt_erosion;
+						if(orthonodes.first >= 0)	vmot[orthonodes.first] -= (latedotA - latddotA) * dt_erosion;
+						if(orthonodes.second >= 0)	vmot[orthonodes.second] -= (latedotB - latddotB) * dt_erosion;
+
+						if(std::isfinite((edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin) == false)
+						{
+							std::cout << fac * (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * cA + tQin << std::endl;
+							std::cout << fac << "|" << edot << "|" << latedotA << "|" << latedotB<< "|" <<  d_dot<< "|" <<  latddotA << "|" << latddotB << "|" <<  cA << "|" << tQin << std::endl;
+							throw std::runtime_error("nonfinitestuff");
+						}
+
+						this->Qsin[to] += (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * tdx + tQin;
+						if(this->Qsin[to] < 0) 
+						{
+							std::cout << "happens" << std::endl;
+							this->Qsin[to] = 0;
+						}
+
+						vmottot -=  (edot + latedotB + latddotA - d_dot - latddotA - latddotB) * dt_erosion;
+
+						if(this->rec.edot2record) this->rec.edot[node] += edot;
+						if(this->rec.ddot2record) this->rec.ddot[node] += d_dot;
+						if(this->rec.lateral_edot2record && orthonodes.first >=0) {this->rec.lateral_edot[orthonodes.first] += latedotA;}
+						if(this->rec.lateral_edot2record && orthonodes.second >=0) {this->rec.lateral_edot[orthonodes.second] += latedotB;}
+						if(this->rec.lateral_ddot2record && orthonodes.first >=0) {this->rec.lateral_ddot[orthonodes.first] += latddotA;}
+						if(this->rec.lateral_ddot2record && orthonodes.second >=0) {this->rec.lateral_ddot[orthonodes.second] += latddotB;}
+
+					}
+
+				}
+
+				
+
+			}
+
+				// std::cout << max_fac << "<--- max fac||min fac ---->" << min_fac << std::endl;
+
+			if(erosion)
+			{
+				float_t sumvm = 0;
+				float_t vmottot_o = vmottot;
+				for(int i = 0; i<this->graph->nnodes; ++i)
+				{
+					if(this->connector->boundaries.forcing_io(i)) continue;
+					this->topography[i] += vmot[i];
+					if(this->rec.vmot2record) this->rec.vmot[i] = vmot[i];
+					vmottot -= vmot[i];
+					sumvm += vmot[i];
+				}
+				// std::cout << "vmottot theoretical = " << vmottot_o << " vmotot applied = " << sumvm << std::endl;;
 			}
 
 		// this->softbound(true,true);

@@ -1223,7 +1223,7 @@ public:
 	template<class array_t, class U>
 	U sum_at_outlets(array_t& tarray, bool include_internal_pits = true)
 	{
-		std::cout << "sum_at_outlets::should be moved as a standalone algorithm" << std::endl; 
+		std::cout << "DEPRECATION WARNING::sum_at_outlets::should be moved as a standalone algorithm" << std::endl; 
 		auto array = format_input<array_t>(tarray);
 		U out = 0;
 		for(int i=0; i<this->nnodes; ++i)
