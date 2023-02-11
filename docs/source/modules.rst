@@ -3,26 +3,28 @@
 Modules Description
 ###################
 
-In this sections, we present the code structure, design and philosophy as well as the different modules. It does not details all the API and the different functions but the concepts and methods of the generic modules. The structure is based on 4 distinct types of module sometimes inter-connected: the ``connector``, the ``graph``, the ``wrap_helper`` and the ``algorithms``. 
+| In this sections, we present the code structure, design and philosophy as well as the different modules. It does not details all the API and the different functions but the concepts and methods of the generic modules. The structure is based on 4 distinct types of module sometimes inter-connected: the ``connector``, the ``graph``, the ``wrap_helper`` and the ``algorithms``. 
 
-These modules are connected via **standardised interfaces**, *i.e.* sets of predefined functions names and signatures that need to exists in any version of each module. 
+| These modules are connected via **standardised interfaces**, *i.e.* sets of predefined functions names and signatures that need to exists in any version of each module. 
 
-The ``connector`` and the ``graph`` modules manage everything related to node connectivity, respectively at local and global level. All their functions helps user access to relationships between nodes and their geometry (e.g. getting all the downstream receivers,  getting the immediate neighbours, converting between node indices to X/Y coordinates, ...).
+| The ``connector`` and the ``graph`` modules manage everything related to node connectivity, respectively at local and global level. All their functions helps user access to relationships between nodes and their geometry (e.g. getting all the downstream receivers,  getting the immediate neighbours, converting between node indices to X/Y coordinates, ...).
 
 
 Name Convention and Indexing
 ============================
 
-``DAGGER`` uses similar name conventions than `LANDLAB <https://landlab.readthedocs.io/en/master/user_guide/grid.html#basic-grid-elements>`_. **Nodes** are "points" connected to their neighbours via **links** and are at the centre of **cells** representing the node area of influence. Data, no matter what they represents, is either related to a node via a **node index** (e.g. elevation, total water flux) or a link via a **link index** (e.g. gradient, local water flux between two cells). In graph theory terms, nodes are the *vertices* and the links the *arcs*. One node typically has multiple links connecting to its neighbourhood.
+| ``DAGGER`` uses similar name conventions than `LANDLAB <https://landlab.readthedocs.io/en/master/user_guide/grid.html#basic-grid-elements>`_. **Nodes** are "points" connected to their neighbours via **links** and are at the centre of **cells** representing the node area of influence. Data, no matter what they represents, is either related to a node via a **node index** (e.g. elevation, total water flux) or a link via a **link index** (e.g. gradient, local water flux between two cells). In graph theory terms, nodes are the *vertices* and the links the *arcs*. One node typically has multiple links connecting to its neighbourhood.
 
-Data is represented as 1D arrays, accessible *via* subsequent node indices or link indices.
+| Data is represented as 1D arrays, accessible *via* subsequent node indices or link indices.
 
-TODO:Add a figure explaining that here
+| TODO:Add a figure explaining that here
 
 ``Connector``
 =============
 
-The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ... Basically if you need any information concerning a node, its location and the relationship with its neighbours, this is the module to seek for. Anything "non local" will be managed by the ``graph``. Ultimately, the ``connector`` only needs geometrical plan-view information to fetch neighbours and links for each nodes (undirected graph): for example for regular grids it would be the number of row, col or the spacing in X and Y and the boundary codes (see bellow). If directionality is important, the ``connector`` can ingest a topographic field and compute a ``directed graph``, enabling the fetching of receivers and donors. Again the connector only bares this information at a node level - *i.e* which of the immediate neighbours are donors and receivers.
+| The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ... 
+
+| Basically if you need any information concerning a node, its location and the relationship with its neighbours, this is the module to seek for. Anything "non local" will be managed by the ``graph``. Ultimately, the ``connector`` only needs geometrical plan-view information to fetch neighbours and links for each nodes (undirected graph): for example for regular grids it would be the number of row, col or the spacing in X and Y and the boundary codes (see bellow). If directionality is important, the ``connector`` can ingest a topographic field and compute a ``directed graph``, enabling the fetching of receivers and donors. Again the connector only bares this information at a node level - *i.e* which of the immediate neighbours are donors and receivers.
 
 .. _boundary:
 Boundary conditions
@@ -59,7 +61,22 @@ Boundary conditions
 - ``normal_neighbouring_at_boundary``: returns true if the neighbouring is "normal" for a node (as opposed to periodic)
 
 
-Presets of boundary conditions are given (and detailed) for constructing the connector.
+| Presets of boundary conditions are given (and detailed) for constructing the connector.
 
-**IMPORTANT POINT**: these functions and boundary conditions defines the ability of a node to **potentially** create a link or receive/give/... data. Topography and boundary codes of neighbouring nodes determine if a link between the two is definitive.
+| **IMPORTANT POINT**: these functions and boundary conditions defines the ability of a node to **potentially** create a link or receive/give/... data. Topography and boundary codes of neighbouring nodes determine if a link between the two is definitive.
 
+
+.. _connector_implemented:
+Existing connectors
+-----------------------
+
+You can find here a list of existing and planned connectors, with their development stage:
+
+- ``D8Connetor`` [Ready]: Connecting a regular grid defined by a ``dx,dy,nx,ny`` with links in the 8 directions. THis is tby far the most common grid used (e.g. most DEMs)
+- ``D4Connector`` [Refactoring in progress]: variant of the ``D8Connetor``, but only considering cardinal directions.
+- ``ProfileNetwork`` [Early stage]: A connector for generic 1D profile-type grids, single (e.g. river long profile) or multiple connected lines (e.g. Basin-wide network)
+- ``IrregularGrid`` [Early stage]: A generic connector for irregular grid, storing all the geometrics manually (dx, cellarea, ...) where connectivity is build externally
+- I am also slowly testing solutions for grid variants with different level of low memory usage (to the cost of performances) for processing very large grids as the memory footprint for large DEMs quickly increases.
+
+If you are interested in speeding up the addition of ``connector`` types or implement your own, see :ref:`developer`.
+ 
