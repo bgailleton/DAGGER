@@ -1097,6 +1097,8 @@ public:
 	}
 
 
+	int get_nth_steepest_donors_of_node(int node, int j){return this->Sdonors[node * this->nneighbours + j];}
+
 	// Getting donor indicies
 	// see get_receivers_idx for full comments about the section
 	int get_donors_idx(int i, std::vector<int>& dons)

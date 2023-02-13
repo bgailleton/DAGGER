@@ -115,6 +115,8 @@ public:
 	float_t minimum_slope = 1e-4;
 	float_t slope_randomness = 1e-6;
 
+	std::shared_ptr<easyRand> randu;
+
 
 	// Solving large number of local minima with cordonnier can be expensive and this optimises
 	// But the Algorithm may become unstable - especially if boundary conditions are weird
@@ -139,6 +141,7 @@ public:
 	{
 		this->connector = &con;
 		this->nnodes = this->connector->nnodes;
+		this->randu = this->con->randu;
 		this->init_graph();
 	}
 
@@ -495,7 +498,7 @@ public:
 				// as well as all its donors which will be processed next
 				for( int j = 0; j < this->connector->nSdonors[nextnode]; ++j)
 				{
-					stackhelper.emplace(this->connector->Sdonors[nextnode*this->connector->nneighbours + j]);
+					stackhelper.emplace(this->connector->get_nth_steepest_donors_of_node(nextnode,j));
 				}
 
 			}
@@ -559,7 +562,7 @@ public:
 
 
 		// then as lon g as there are nodes in the queue:
-		auto donors = connector->get_empty_neighbour();
+		auto recs = connector->get_empty_neighbour();
 		while(toproc.empty() == false)
 		{
 			// getting the next node
@@ -570,11 +573,11 @@ public:
 			// if the node is poped out of the queue -> then it is ready to be in the stack
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
-			// getting the idx of the donors
-			int nn = this->connector->get_receivers_idx(next, donors);
+			// getting the idx of the recs
+			int nn = this->connector->get_receivers_idx(next, recs);
 			for(int td=0;td<nn;++td)
 			{
-				int d = donors[td];
+				int d = recs[td];
 				// Decrementing the number of receivers (I use it as a visited vector)
 				--nrecs[d];
 				// if it has reached 0, the rec is ready to be put in the FIFO
@@ -650,7 +653,7 @@ public:
 			if(dz <= 0)
 			{
 				// And I do ! Note that I add some very low-grade randomness to avoid flat links
-				topography[rec] = topography[node] - this->minimum_slope + connector->randu->get() * this->slope_randomness;// * d2rec;
+				topography[rec] = topography[node] - this->minimum_slope + this->randu->get() * this->slope_randomness;// * d2rec;
 			}
 		}
 	}
@@ -673,7 +676,7 @@ public:
 
 			if(dz <= 0)
 			{
-				topography[node] = topography[rec] + slope + this->connector->randu->get() * 1e-6;// * d2rec;
+				topography[node] = topography[rec] + slope + this->randu->get() * 1e-6;// * d2rec;
 				to_recompute.emplace_back(node);
 			}
 		}
