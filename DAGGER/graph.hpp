@@ -141,7 +141,7 @@ public:
 	{
 		this->connector = &con;
 		this->nnodes = this->connector->nnodes;
-		this->randu = this->con->randu;
+		this->randu = con.randu;
 		this->init_graph();
 	}
 
@@ -811,16 +811,10 @@ public:
 */
 
 	template<class out_t>
-	out_t get_all_nodes_upstream_of(int node, bool use_Sgraph = true, bool only_SD = false)
+	out_t get_all_nodes_upstream_of(int node, bool only_SD = false)
 	{
 		std::vector<int> out;
-		if(use_Sgraph)
-		{
-			out = this->_get_all_nodes_upstream_of_using_graph(node, only_SD);
-		}
-		else
-			throw std::runtime_error("graph::get_all_nodes_upstream_of::error not implemented yet without graph");
-
+		out = this->_get_all_nodes_upstream_of_using_graph(node, only_SD);
 		return format_output<decltype(out), out_t>(out);
 	}
 
@@ -911,16 +905,11 @@ public:
 	}
 
 	template<class out_t>
-	out_t get_all_nodes_downstream_of(int node, bool use_Sgraph = true, bool only_SD = false)
+	out_t get_all_nodes_downstream_of(int node, bool only_SD = false)
 	{
 		std::vector<int> out;
-		if(use_Sgraph)
-		{
-			out = this->_get_all_nodes_downstream_of_using_graph(node, only_SD);
-		}
-		else
-			throw std::runtime_error("graph::get_all_nodes_downstream_of::error not implemented yet without graph");
-
+		out = this->_get_all_nodes_downstream_of_using_graph(node, only_SD);
+		
 		return format_output<decltype(out), out_t>(out);
 	}
 
@@ -1549,16 +1538,17 @@ public:
 
 
 	template<class out_t>
-	out_t get_SFD_basin_labels(int nobasin_value = -1)
+	out_t get_SFD_basin_labels()
 	{
 
-		std::vector<int> baslab = this->_get_SFD_basin_labels( nobasin_value);
+		std::vector<int> baslab = this->_get_SFD_basin_labels();
 		return format_output<decltype(baslab), out_t>(baslab);
 
 	}
 
-	std::vector<int> _get_SFD_basin_labels(int nobasin_value = -1)
+	std::vector<int> _get_SFD_basin_labels()
 	{
+		int nobasin_value = -1;
 		std::vector<int> baslab(this->nnodes,nobasin_value);
 		int label = -1;
 		for(int i=0; i< this->nnodes; ++i)

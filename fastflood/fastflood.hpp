@@ -2095,7 +2095,7 @@ public:
 			if(erosion)
 			{
 				float_t sumvm = 0;
-				float_t vmottot_o = vmottot;
+				// float_t vmottot_o = vmottot;
 				for(int i = 0; i<this->graph->nnodes; ++i)
 				{
 					if(this->connector->boundaries.forcing_io(i)) continue;
@@ -2323,7 +2323,7 @@ public:
 					// float_t tdx = this->connector->get_dx_from_links_idx(reclink[j]);
 					float_t tQin = this->Qsin[node] * recweight[j];
 
-					float_t thflow = this->get_hflow_at_link(reclink[j]);
+					// float_t thflow = this->get_hflow_at_link(reclink[j]);
 
 
 					
@@ -2489,7 +2489,7 @@ public:
 			if(erosion)
 			{
 				float_t sumvm = 0;
-				float_t vmottot_o = vmottot;
+				// float_t vmottot_o = vmottot;
 				for(int i = 0; i<this->graph->nnodes; ++i)
 				{
 					if(this->connector->boundaries.forcing_io(i)) continue;

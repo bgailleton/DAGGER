@@ -542,7 +542,7 @@ public:
 		this->graph._compute_graph(this->z_surf, true, false);
 
 
-		for(int i= this->graph.nnodes -1; i>=0; --i)
+		for(int i = this->graph.nnodes -1; i>=0; --i)
 		{
 			// Getting geometrical info
 			// # location
@@ -1037,7 +1037,7 @@ public:
 					--j2;
 				}
 
-				tz-=this->TSP_store.dz;
+				tz -= this->TSP_store.dz;
 			}
 		}
 

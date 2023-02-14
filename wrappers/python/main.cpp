@@ -98,83 +98,518 @@ B.G.
        )
     .def(
       "get_all_nodes_upstream_of",
-       &graph<double,CONNECTOR_T>::template get_all_nodes_upstream_of< py::array_t<int,1> >
+       &graph<double,CONNECTOR_T>::template get_all_nodes_upstream_of< py::array_t<int,1> >,
+       py::arg("node"),py::arg("only_SFD"),
+       R"pdoc(
+Fecth all the nodes upstream of a given one.
 
+Description
+-------------
+
+Use the SFD stack structure from Braun and Willett (2013) to gather all the 
+nodes upstream of a given one. Effectively labels a watershed from a custom 
+starting point. Can be extended to MFD using FIFO queues (slower). This is not
+the fastest way to label all the watersheds and should be reserved for one-off
+operations.
+
+Parameters
+-----------
+
+- node (int): the starting node index
+- only_SFD (bool): only label Steepest Descent watersheds (faster, less nodes)
+
+returns:
+--------
+
+nodes_upstream (1D array: int): returns a 1D array containing all the node 
+indices of upstream locations.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_all_nodes_downstream_of",
-       &graph<double,CONNECTOR_T>::template get_all_nodes_downstream_of< py::array_t<int,1> > 
+       &graph<double,CONNECTOR_T>::template get_all_nodes_downstream_of< py::array_t<int,1> >,
+       py::arg("node"), py::arg("only_SFD"),
+       R"pdoc(
+Fecth all the nodes downstream of a given one.
+
+Description
+-------------
+
+Use the SFD stack structure from Braun and Willett (2013) to gather all the 
+nodes downstream of a given one. Effectively labels a water paths from a custom 
+starting point. Can be extended to MFD using FIFO queues (slower). This is not
+the fastest way to label all the flow paths and should be reserved for one-off
+operations.
+
+Parameters
+-----------
+
+- node (int): the starting node index
+- only_SFD (bool): only label Steepest Descent watersheds (faster, less nodes)
+
+returns:
+--------
+
+nodes_downstream (1D array: int): returns a 1D array containing all the node 
+indices of downstream locations.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_SFD_stack",
-      &graph<double,CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t,1>>
+      &graph<double,CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t,1>>,
+      R"pdoc(
+Returns the single flow stack (Braun and Willett. 2013) in "stack order".
+
+Description
+-------------
+
+Returns the single flow direction stack (sensu Braun and Willett (2013). 
+Warning: it corresponds to the last computation (``compute_graph``) and will 
+return an empty array if not computed at all yet. 
+
+The stack is in "stack order", **i.e.** from the most dowstream nodes to the 
+most upstream ones.
+
+This can also be call the topologicaly sorted list of nodes. be careful though,
+the array is of node size but contains ordered node index.
+
+returns:
+--------
+
+SFD stack array.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
       )
     .def(
       "get_MFD_stack",
-      &graph<double,CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t,1>>
+      &graph<double,CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t,1>>,
+      R"pdoc(
+Returns the Multiple flow stack in "stack order".
+
+Description
+-------------
+
+Returns the multiple flow direction stack.
+
+Warning: it corresponds to the last computation (``compute_graph`` with 
+only_SFD = false) and will return an empty array if not computed at all yet. 
+
+The stack is in "stack order", **i.e.** from the most dowstream nodes to the 
+most upstream ones.
+
+This can also be call the topologicaly sorted list of nodes. be careful though,
+the array is of node size but contains ordered node index. It does not follow 
+the same topology than Braun and Willett (2013) and is more difficult to compute
+. Only use if MFD is truly needed. 
+
+returns:
+--------
+
+MFD stack array.
+
+Authors:
+--------
+B.G.
+
+)pdoc"
       )
 
     .def(
       "accumulate_constant_downstream_SFD",
-       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_SFD< py::array_t<double, 1> > 
+       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_SFD< py::array_t<double, 1> >,
+       py::arg("constant_value"),
+       R"pdoc(
+Accumulates (integrate) a constant downstream in the SFD direction.
+
+Description
+-------------
+
+Sums a constant downstream in the single flow direction (each node adds the 
+constant value and give it to its receivers following the inverse stack order).
+For example, can be the area of a regular grid cell to compute drainage area.
+The operation is very efficient (needs the computed graph).
+
+Parameters
+-----------
+
+- constant_value (float): the value to accumulate
+
+returns:
+--------
+
+The 1D accumulated array (float, node size)
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "accumulate_variable_downstream_SFD",
-       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_SFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_SFD< py::array_t<double, 1>, py::array_t<double, 1> >,
+       py::arg("values"),
+       R"pdoc(
+Accumulates (integrate) a variable downstream in the SFD direction.
+
+Description
+-------------
+
+Sums a variable downstream in the single flow direction (each node adds the 
+variable value and give it to its receivers following the inverse stack order).
+For example, can be the cell area times variable precipitation rates of a 
+regular grid cell to compute weighted drainage area (~runoff).
+
+The operation is very efficient (needs the computed graph).
+
+Parameters
+-----------
+
+- values (1D array of node size, float): the value to accumulate
+
+returns:
+--------
+
+The 1D accumulated array (float, node size)
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "accumulate_constant_downstream_MFD",
-       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> >,
+       py::arg("weights"), py::arg("constant_value"),
+       R"pdoc(
+Accumulates (integrate) a constant downstream in the MFD direction.
+
+Description
+-------------
+
+Sums a constant downstream in the multiple flow direction (each node adds the 
+variable value and give it to its receivers following the inverse stack order).
+
+It needs to ingest partitionning weights, an array of n links size telling each
+nodes how to partition their value to their multiple receivers. The latter can 
+be calculated from a ``Connector`` and is most of the time expressed function of
+topographic gradient.
+
+For example, can be the area of a regular grid cell to compute drainage area.
+
+Parameters
+-----------
+
+- weigths (1D array of link size, float): the weights
+- constant_value (float): the value to accumulate
+
+returns:
+--------
+
+The 1D accumulated array (float, node size)
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "accumulate_variable_downstream_MFD",
-       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> > 
+       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> >,
+       py::arg("weights"), py::arg("values"),
+       R"pdoc(
+Accumulates (integrate) a variable downstream in the MFD direction.
+
+Description
+-------------
+
+Sums a variable value of node size downstream in the multiple flow direction 
+(each node adds the variable value and give it to its receivers following the 
+inverse stack order).
+
+It needs to ingest partitionning weights, an array of n links size telling each
+nodes how to partition their value to their multiple receivers. The latter can 
+be calculated from a ``Connector`` and is most of the time expressed function of
+topographic gradient.
+
+For example, can be the area of a regular grid cell times a variable 
+precipitation rate to compute runoff.
+
+Parameters
+-----------
+
+- weigths (1D array of link size, float): the weights
+- values (1D array of link size, float): the values to accumulate
+
+returns:
+--------
+
+The 1D accumulated array (float, node size)
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "set_LMR_method",
-       &graph<double,CONNECTOR_T>:: set_LMR_method
+       &graph<double,CONNECTOR_T>:: set_LMR_method,
+       py::arg("LMR_method"),
+       R"pdoc(
+Sets the Local Minima Resolver method.
+
+Description
+-------------
+
+Select which LMR (Local Minima Resolver) to use. It needs to be a LMR enum value
+and will dictacte if/how the local minima (internal pits) are rerouted (or not).
+
+Can be one of the following:
+
+- dagger.LMR.cordonnier_fill: approximate filling from Cordonnier et al. (2019)
+- dagger.LMR.cordonnier_carve: approximate carving from Cordonnier et al. (2019)
+- dagger.LMR.priority_flood: Fill with Barnes et al., 2014
+- dagger.LMR.none: Ignore pits
+
+There is no better solution than another, performances as well as accuracy are
+extremely case dependent.
+
+
+Parameters
+-----------
+
+- LMR_method (LMR enum)
+
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "set_minimum_slope_for_LMR",
-       &graph<double,CONNECTOR_T>:: set_minimum_slope_for_LMR
+       &graph<double,CONNECTOR_T>:: set_minimum_slope_for_LMR,
+       py::arg("slope"),
+       R"pdoc(LMR solvers impose a numerical topographic gradient to avoid 0 slopes. Default is 1e-5.)pdoc"
        )
     .def(
       "set_slope_randomness_for_LMR",
-       &graph<double,CONNECTOR_T>:: set_slope_randomness_for_LMR
+       &graph<double,CONNECTOR_T>:: set_slope_randomness_for_LMR,
+       py::arg("magnitude"),
+       R"pdoc(Avoid falt surfaces by imposing a very small randomness when processing local minimas. Must be an order of magitude smaller than the  minimal slope.)pdoc"
        )
 
     // Distance functions
     .def(
       "get_SFD_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the distance from the outlets following the SFD.
+
+Description
+-------------
+
+Uses the SFD stack order to integrate the distance from the outlets to the
+sources. Useful for long profiles.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+
        )
     .def(
       "get_SFD_min_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the minimum distance from the sources following the SFD.
+
+Description
+-------------
+
+Uses the SFD stack in inverse order to integrate the distance from the sources 
+toward the outlets. It keeps the minimum distance. Useful to identify the 
+closest sources.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_SFD_max_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the maximum distance from the sources following the SFD.
+
+Description
+-------------
+
+Uses the SFD stack in inverse order to integrate the distance from the sources 
+toward the outlets. It keeps the maximum distance. Useful to identify the 
+furthest sources.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_MFD_max_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_sources< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_sources< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the maximum distance from the sources following the MFD.
+
+Description
+-------------
+
+Uses the MFD stack in inverse order to integrate the distance from the sources 
+toward the outlets. It keeps the maximum distance. Useful to identify the 
+furthest sources.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_MFD_min_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_sources< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_sources< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the minimum distance from the sources following the MFD.
+
+Description
+-------------
+
+Uses the MFD stack in inverse order to integrate the distance from the sources 
+toward the outlets. It keeps the minimum distance. Useful to identify the 
+closest sources.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_MFD_max_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_outlets< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_outlets< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the maximum distance from the outlet following the MFD.
+
+Description
+-------------
+
+Uses the MFD stack in inverse order to integrate the distance from the outlet 
+toward the outlets. It keeps the maximum distance. Useful to identify the 
+furthest outlet.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     .def(
       "get_MFD_min_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<double,1> >
+       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<double,1> >,
+       R"pdoc(
+Calculates the minimum distance from the outlet following the MFD.
+
+Description
+-------------
+
+Uses the MFD stack in inverse order to integrate the distance from the outlet 
+toward the outlets. It keeps the minimum distance. Useful to identify the 
+closest outlet.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
        )
     
     // Watershed labelling
-    .def("get_SFD_basin_labels",  &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<int,1> >)
+    .def(
+      "get_SFD_basin_labels",
+      &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<int,1> >,
+      R"pdoc(
+Labels SFD watersheds with unique ID.
+
+Description
+-------------
+
+Uses the SFD stack order to label very efficiently basins.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+      )
     
   ;
 }
@@ -339,19 +774,40 @@ void declare_ff(py::module &m, std::string typestr)
 PYBIND11_MODULE(dagger, m) {
   m.doc() = R"pbdoc(
       DAGGER - python API
-      -----------------------
-      .. rubric:: Classes
-
-      .. autoclass:: D8N
-        :members:
-
-          
-
-
-      .. rubric:: D8N Members
+      ===================
+      
+      Quick API
+      ---------
 
       .. autosummary::
 
+          graph
+          graph.init_graph
+          graph.set_opt_stst_rerouting
+          graph.compute_graph
+          graph.is_Sstack_full
+          graph.activate_opti_sparse_border_cordonnier
+          graph.get_all_nodes_upstream_of
+          graph.get_all_nodes_downstream_of
+          graph.get_SFD_stack
+          graph.get_MFD_stack
+          graph.accumulate_constant_downstream_SFD
+          graph.accumulate_variable_downstream_SFD
+          graph.accumulate_constant_downstream_MFD
+          graph.accumulate_variable_downstream_MFD
+          graph.set_LMR_method
+          graph.set_minimum_slope_for_LMR
+          graph.set_slope_randomness_for_LMR
+          graph.get_SFD_distance_from_outlets
+          graph.get_SFD_min_distance_from_sources
+          graph.get_SFD_max_distance_from_sources
+          graph.get_MFD_max_distance_from_sources
+          graph.get_MFD_min_distance_from_sources
+          graph.get_MFD_max_distance_from_outlets
+          graph.get_MFD_min_distance_from_outlets
+          graph.get_SFD_basin_labels
+
+          D8N
           D8N.__init__
           D8N.set_default_boundaries
           D8N.set_custom_boundaries
@@ -388,6 +844,17 @@ PYBIND11_MODULE(dagger, m) {
           D8N.get_MFD_weighted_gradient
           D8N.get_link_weights
           D8N.set_stochaticiy_for_SFD
+
+
+      Full API
+      ---------
+
+      .. autoclass:: D8N
+        :members:
+
+      .. autoclass:: graph
+        :members:
+
           
   )pbdoc";
 
