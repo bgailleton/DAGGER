@@ -221,7 +221,6 @@ public:
 		std::vector<float_t>& faketopo,
 	  bool only_SD, // only computes the single flow graph if true
 	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
-
 		)
 	{
 

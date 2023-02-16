@@ -8,6 +8,7 @@
 #include "popscape.hpp"
 #include "popscape_utils.hpp"
 #include "fastflood.hpp"
+#include "graphflood.hpp"
 #include "trackscape.hpp"
 #include "utils.hpp"
 
@@ -768,6 +769,15 @@ void declare_ff(py::module &m, std::string typestr)
     .def("caesar_lisflood_OMP", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template caesar_lisflood_OMP, py::call_guard<py::gil_scoped_release>()    )
 #endif
 
+  ;
+}
+
+
+template<typename float_t, typename GRAPH_T, typename CONNECTOR_T>
+void declare_graphflood(py::module &m, std::string typestr)
+{
+  py::class_< graphflood<float_t, GRAPH_T, CONNECTOR_T> >(m, typestr.c_str())
+    .def(py::init<GRAPH_T&, CONNECTOR_T&>())
   ;
 }
 
@@ -1698,10 +1708,12 @@ B.G.
   ;
 
   declare_ff<DAGGER::D8connector<double> >(m,"FF");
+
+  declare_graphflood< double, DAGGER::graph<double, DAGGER::D8connector<double> >, DAGGER::D8connector<double> >(m, "graphflood");
   // // declare_ff<DAGGER::D4connector<double> >(m,"FFD4");
 
 
-  // m.def("generate_perlin_noise_2D", &generate_perlin_noise_2D<py::array_t<double,1>, double, D8connector<double> >);
+  m.def("generate_perlin_noise_2D", &generate_perlin_noise_2D<py::array_t<double,1>, double, D8connector<double> >);
 
   
 
