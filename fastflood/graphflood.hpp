@@ -233,7 +233,7 @@ public:
 
 
 	void enable_MFD(){this->hydromode = HYDRO::GRAPH_MFD;}
-	void enable_SFD(){this->hydromode = HYDRO::GRAPH_MFD;}
+	void enable_SFD(){this->hydromode = HYDRO::GRAPH_SFD;}
 
 
 	float_t aexp(int i)
@@ -320,6 +320,7 @@ public:
 		// std::cout << "init" << std::endl;
 		this->init_Qw();
 		// std::cout << "graph" << std::endl;
+		// return;
 
 		// Graph Processing
 		this->graph_automator();
@@ -336,18 +337,27 @@ public:
 		// std::cout << "main loop" << std::endl;
 
 		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
+		// std::cout << "SF::" << SF << std::endl;
 		for(int i = this->graph->nnodes-1; i>=0; --i)
 		{
 			// getting next node in line
 			int node = this->get_istack_node(i);
 
-			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_model(node)) continue;
+			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_model(node)) 
+			{
+				continue;
+			}
 
 			// Getting the receivers
 			int nrecs; 
-			if(SF) nrecs = 1;
+			if(SF)
+			{ 
+				nrecs = 1;
+			}
 			else
+			{
 				nrecs = this->connector->get_receivers_idx_links(node,receivers);
+			}
 
 
 			float_t Smax;
@@ -375,17 +385,52 @@ public:
 
 				// Hydro for the link
 				// universal params
-				int rec;if(SF)rec=this->connector->Sreceivers[node]; else rec = this->connector->get_to_links(receivers[j]);
+				int rec;
+				if(SF)
+				{
+					rec=this->connector->Sreceivers[node]; 
+				}
+				else
+				{
+					rec = this->connector->get_to_links(receivers[j]);
+				}
 				
 				if(rec == -1) continue;
 
-				float_t dx; if(SF)dx=this->connector->Sdistance2receivers[node];
-				else dx=this->connector->get_dx_from_links_idx(receivers[j]);
+				// this->_Qw[rec] += this->_Qw[node];
+				// continue;
+
+				float_t dx; 
+				if(SF)
+				{
+					dx=this->connector->Sdistance2receivers[node];
+				}
+				else
+				{ 
+					dx=this->connector->get_dx_from_links_idx(receivers[j]);
+				}
+
 				// float_t dl = this->connector->get_travers_dy_from_dx(dx);
-				float_t Sw; if(SF) Sw=this->get_Sw(node,rec,dx,this->minslope);
-				else Sw = slopes[j];
-				float_t tQout; if(SF) tQout = dx * this->mannings(node) * pohw * Smax; 
-				else tQout = this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax;
+				float_t Sw; 
+				if(SF) 
+				{
+					Sw=this->get_Sw(node,rec,dx,this->minslope);
+				}
+				else
+				{
+					Sw = slopes[j];
+				}
+				
+				float_t tQout = 0.; 
+				if(SF)
+				{ 
+					tQout = dx * this->mannings(node) * pohw * Smax; 
+				}
+				else
+				{
+					tQout = this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax;
+				}
+
 				total_Qout += tQout;
 
 				if(this->hydrostationary)
@@ -441,6 +486,7 @@ public:
 				if(this->connector->boundaries.can_give(i))
 				{
 					this->_Qw[i] += this->precipitations(i) * this->connector->get_area_at_node(i);
+					// this->_Qw[i] = 1;
 				}
 			}
 
@@ -456,9 +502,11 @@ public:
 	{
 
 		// is SS?
-		bool only_SD = (this->hydromode == HYDRO::GRAPH_MFD) ? false: true;
+		bool only_SD = (this->hydromode == HYDRO::GRAPH_SFD);
+
 		// making sure it has the right depression solver (SHOULD BE MOVED TO THE GRAPH MANAGEMENT LATER)
 		this->graph->set_LMR_method(this->depression_resolver);
+
 		// preformatting post-topo
 		std::vector<float_t> post_topo(this->_surface);
 

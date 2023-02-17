@@ -38,15 +38,99 @@ namespace DAGGER
 
 	// Useful namespace for my priority queue
 	using PQ_i_d =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
+	using PQH = PQ_helper<int,double>;
+
+	template <class float_t, class Connector_t>
+	void PriorityFlood(std::vector<float_t>& topography, Connector_t& connector)
+	{
+		PQ_i_d open;
+	  std::queue<PQH > pit;
+	  
+	  // auto topography = format_input(ttopography);
+	  uint64_t pitc            = 0;
+	  auto     PitTop          = -9999;
+	  int      false_pit_cells = 0; 
+	 
+	  std::vector<int8_t> closed(connector.nnodes,false);
+
+	  for(int i=0; i<connector.nnodes;++i)
+	  {
+	  	if(connector.boundaries.can_out(i) == false)
+	  		continue;
+	  	
+	    open.emplace(PQH(i,topography[i]));
+	    closed[i]=true;
+	  }
+
+	  auto neighbours = connector.get_empty_neighbour();
+	  while(open.size()>0 || pit.size()>0)
+	  {
+	    PQH c;
+	    if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
+	    {
+	      c=open.top();
+	      open.pop();
+	      PitTop=-9999;
+	    } 
+	    else if(pit.size()>0)
+	    {
+	      c=pit.front();
+	      pit.pop();
+	      if(PitTop==-9999)
+	        PitTop=topography[c.node];
+	    } else {
+	      c=open.top();
+	      open.pop();
+	      PitTop=-9999;
+	    }
+
+	    int nn = connector.get_neighbours_idx_richdemlike(c.node, neighbours);
+
+	    for(int j=0;j<nn;++j)
+	    {
+	      int n = neighbours[j];
+
+	      if(connector.is_in_bound(n) == false || connector.boundaries.can_create_link(n) == false) continue;
+
+	      if(closed[n])
+	        continue;
+
+	      closed[n]=true;
+
+	      float_t ntopo = topography[c.node] + connector.randu->get() * 1e-6 + 1e-8; 
+
+	      if(topography[n]==-9999)
+	        pit.emplace(PQH(n,-9999));
+
+	      else if(topography[n] <= topography[c.node])
+	      {
+
+	        if(PitTop !=-9999 && PitTop<topography[n] && ntopo>=topography[n])
+	        {
+	          ++false_pit_cells;
+	        }
+
+	        ++pitc;
+
+	        topography[n] = ntopo;
+
+	        pit.emplace(n,topography[n]);
+	      } else
+	        open.emplace(n,topography[n]);
+	    }
+	  }
+	}
 
 
 	// Largely adapted from RichDEM
 	template <class topo_t, class Connector_t>
-	std::vector<double> PriorityFlood(topo_t& ttopography, Connector_t& connector)
+	std::vector<double> PriorityFlood_old(topo_t& ttopography, Connector_t& connector)
 	{
 
 	  PQ_i_d open;
 	  std::queue<PQ_helper<int,double> > pit;
+
+	  double PitTop = -9999; 
 
 	  std::random_device rd; // obtain a random number from hardware
 	  std::mt19937 gen(rd()); // seed the generator
@@ -96,7 +180,7 @@ namespace DAGGER
 	      
 	      if(topography[n]<=c.score)
 	      {
-          topography[n] = c.score + 1e-6 + distr(gen);
+          topography[n] = std::nextafter(c.score, c.score + 1);
 	        pit.emplace(PQ_helper<int,double>(n,topography[n]));
 	      } 
 	      else

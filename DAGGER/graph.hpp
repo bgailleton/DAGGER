@@ -228,6 +228,11 @@ public:
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
 
+		if(this->depression_resolver == DEPRES::priority_flood)
+		{
+			PriorityFlood(faketopo,*this->connector);
+		}
+
 		// std::cout << "DEBUG::STOPOP::2" << std::endl;
 		// if the method is not Cordonnier -> apply the other first
 		// if(isCordonnier == false && this->depression_resolver != DEPRES::none)
@@ -303,12 +308,17 @@ public:
 
 			}
 		}
-		else if (this->depression_resolver == DEPRES::priority_flood)
-		{
-			faketopo = PriorityFlood(faketopo, *(this->connector));
-			// faketopo = connector->PriorityFlood(faketopo);
-			this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
-		}
+		// else if (this->depression_resolver == DEPRES::priority_flood)
+		// {
+		// 	PriorityFlood<float_t, Connector_t>(faketopo, *(this->connector));
+		// 	// faketopo = connector->PriorityFlood(faketopo);
+		// 	this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
+
+		// 	this->connector->recompute_SF_donors_from_receivers();
+			
+		// 	this->topological_sorting_SF();
+
+		// }
 
 		// if there is no need to recompute neighbours, then I can only calculate the topological sorting
 		// for multiple as the toposort for SF is already done

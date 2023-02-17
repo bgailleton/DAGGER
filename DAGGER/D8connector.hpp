@@ -443,6 +443,7 @@ public:
 	template<class topo_t>
 	void update_links(topo_t& topography)
 	{
+		// std::cout << "BUNT" << std::endl;
 
 		// am I using a stochastic adjustment for deciding on the steepest slope
 		bool stochastic_slope_on = this->stochaticiy_for_SFD > 0.;
@@ -460,6 +461,14 @@ public:
 			// Getting ht etwo nodes of the links
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
+
+			std::cout << std::setprecision(18);
+
+			// if( 808 * this->nx + 733 == from)
+			// 	std::cout << i <<" TESTED NODE from:: " << topography[from] << " v " << topography[to]  << "||" << (topography[from] > topography[to]) << std::endl;
+			// if( 808 * this->nx + 733 == to)
+			// 	std::cout << i <<" TESTED NODE to:: " << topography[to] << " v " << topography[from] << "||" << (topography[to] > topography[from]) << std::endl;
+
 			// std::cout << from << "|" << to << "||";
 			
 			// getting the link infos
@@ -594,7 +603,7 @@ public:
 			this->Sreceivers[i] = i;
 			this->Sdistance2receivers[i] = 0;
 			this->SS[i] = 0;
-			
+
 		}
 	}
 
@@ -2162,18 +2171,26 @@ public:
 
 	// Some of my algorithm are adapted from richdem and require iterating through neighbours the way they do
 	// starting from left and going clockwise around the node
-	std::vector<int> get_neighbours_idx_richdemlike(int i)
+	int get_neighbours_idx_richdemlike(int i, std::vector<int>& neighs)
 	{
-		std::vector<int> neighs;neighs.reserve(8);
-		neighs.emplace_back(this->get_left_idx(i));
-		neighs.emplace_back(this->get_topleft_idx(i));
-		neighs.emplace_back(this->get_top_idx(i));
-		neighs.emplace_back(this->get_topright_idx(i));
-		neighs.emplace_back(this->get_right_idx(i));
-		neighs.emplace_back(this->get_bottomright_idx(i));
-		neighs.emplace_back(this->get_bottom_idx(i));
-		neighs.emplace_back(this->get_bottomleft_idx(i));
-		return neighs;
+		int j=0;
+		neighs[j] = (this->get_left_idx(i));
+		++j;
+		neighs[j] = (this->get_topleft_idx(i));
+		++j;
+		neighs[j] = (this->get_top_idx(i));
+		++j;
+		neighs[j] = (this->get_topright_idx(i));
+		++j;
+		neighs[j] = (this->get_right_idx(i));
+		++j;
+		neighs[j] = (this->get_bottomright_idx(i));
+		++j;
+		neighs[j] = (this->get_bottom_idx(i));
+		++j;
+		neighs[j] = (this->get_bottomleft_idx(i));
+		++j;
+		return 8;
 	}
 
 
