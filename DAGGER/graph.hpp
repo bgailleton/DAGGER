@@ -777,7 +777,7 @@ public:
 
 	bool is_method_cordonnier()
 	{
-		if(this->depression_resolver == DEPRES::cordonnier_carve || this->depression_resolver == DEPRES::cordonnier_fill)
+		if(this->depression_resolver == DEPRES::cordonnier_carve || this->depression_resolver == DEPRES::cordonnier_fill || DEPRES::cordonnier_simple == this->depression_resolver)
 			return true;
 		else
 			return false;

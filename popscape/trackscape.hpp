@@ -769,7 +769,7 @@ public:
 	void _compute_SFD_marine(int node, int rec, float_t& S, float_t & mEs, float_t & mEr, float_t & mDs, float_t& dt, float_t& dx, float_t& cellarea)
 	{
 		// Storing the proportion of bedrock-power used
-		float_t propused = 0;
+		// float_t propused = 0;
 
 		// updating the node sediment flux with anything that came (river + hillslope)
 		this->Qs_hs[node] += this->Qs_sed[node];
@@ -788,13 +788,13 @@ public:
 				if(mEs * dt > this->h_sed[node])
 				{
 					// Correcting to the max sed height removal possible and calculating the proportion of sediment used
-					propused = this->h_sed[node]/dt /mEs;
+					// propused = this->h_sed[node]/dt /mEs;
 					mEs = this->h_sed[node]/dt;
 				}
 				else
 				{
 					// I don't have any sed? -> no propused
-					propused = 1.;
+					// propused = 1.;
 				}
 
 			// end of the check for excessing sed height

@@ -305,7 +305,7 @@ public:
 			ubound[i] = static_cast<BC>(bound[i]);
 
 		this->boundaries.set_codes(ubound);
-		// this->fill_linknodes();
+		this->fill_linknodes();
 
 		// std::cout << "Temporarily refactoring the boundary condition system and custom boundaries are not ready" << std::endl;
 		// auto bound = format_input(tbound);
@@ -594,6 +594,7 @@ public:
 			this->Sreceivers[i] = i;
 			this->Sdistance2receivers[i] = 0;
 			this->SS[i] = 0;
+			
 		}
 	}
 

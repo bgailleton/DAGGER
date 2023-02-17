@@ -34,6 +34,8 @@ enum class DEPRES
 	cordonnier_fill,
 	// Using Cordonnier et al., 2019 with the carving method (algorithm 3)
 	cordonnier_carve,
+	// Using Cordonnier et al., 2019 with the carving method (algorithm 3)
+	cordonnier_simple,
 	// Using the Wei et al 2018 variation of Barnes 2014 priority flood algorithm
 	priority_flood,
 	// Using the Barnes et al., 2014 priority flood algorithm

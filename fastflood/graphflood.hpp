@@ -84,6 +84,13 @@ enum class MFD_PARTITIONNING
 	PROPOREC,
 };
 
+
+enum class WATER_INPUT
+{
+	PRECIPITATIONS,
+	ENTRY_POINTS,
+};
+
 template<class float_t, class Graph_t, class Connector_t>
 class graphflood
 {
@@ -96,9 +103,11 @@ public:
 	// Global modes
 	HYDRO hydromode = HYDRO::GRAPH_MFD;
 	MORPHO morphomode = MORPHO::NONE;
-	DEPRES depression_resolver = DEPRES::priority_flood;
+	DEPRES depression_resolver = DEPRES::cordonnier_fill;
 	HYDROGRAPH_LM depression_management = HYDROGRAPH_LM::FILL;
 	MFD_PARTITIONNING weight_management = MFD_PARTITIONNING::PROPOSLOPE;
+	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS;
+
 
 	// Global constants:
 	const float_t GRAVITY = 9.81, FIVETHIRD = 5./3., minslope = 1e-6;
@@ -148,8 +157,10 @@ public:
 	std::vector<float_t> _kd_lateral = {0.1};;
 	
 	// # ke (coefficient for erosion)
-	PARAM_DT_MORPHO mode_dt_morho = PARAM_DT_MORPHO::HYDRO;
-	std::vector<float_t> _dt_morho = {1e-3};
+	PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
+	std::vector<float_t> _dt_morpho = {1e-3};
+
+
 
 	// Randomiser helper
 	DAGGER::easyRand randu;
@@ -162,7 +173,11 @@ public:
 	bool mode_mannings = false;
 	std::vector<float_t> _mannings = {0.033};
 
-	// float_t mannings = 0.033
+	// # ke (coefficient for erosion)
+	bool mode_precipitations = false;
+	std::vector<float_t> _precipitations = {1e-4};
+
+	// float_t mannings = 0.033 
 	float_t topological_number = 4./8;
 
 	// # ke (coefficient for erosion)
@@ -182,11 +197,43 @@ public:
 		this->connector = std::make_shared<Connector_t>(connector);
 	}
 
+	template<class topo_t>
+	void set_topo(topo_t& topo)
+	{
+		auto tin = DAGGER::format_input(topo);
+		std::vector<double> temp = DAGGER::to_vec(tin);
+		if(this->_hw.size() == 0) this->_hw = std::vector<float_t>(this->graph->nnodes,0);
+		this->_surface = std::vector<float_t>(temp);
+		for(int i=0; i < this->graph->nnodes; ++i)
+			this->_surface[i] -= this->_hw[i];
+	}
+
+	template<class topo_t>
+	void set_hw(topo_t& thw)
+	{
+		auto tin = DAGGER::format_input(thw);
+		std::vector<double> temp = DAGGER::to_vec(tin);
+		
+		if(this->_hw.size() == 0)
+			this->_hw = std::move(temp);
+		else
+		{
+			for(int i=0; i < this->graph->nnodes; ++i)
+				this->_surface[i] += temp[i] - this->_hw[i];
+			this->_hw = std::move(temp);
+		}
+		
+	}
+
 
 	float_t hw(int i){return this->_hw[i];}
 	float_t Qw(int i){return this->_Qw[i];}
 	float_t Qs(int i){return this->_Qs[i];}
 	float_t surface(int i){return this->_surface[i];}
+
+
+	void enable_MFD(){this->hydromode = HYDRO::GRAPH_MFD;}
+	void enable_SFD(){this->hydromode = HYDRO::GRAPH_MFD;}
 
 
 	float_t aexp(int i)
@@ -242,7 +289,7 @@ public:
 		if (this->mode_dt_morpho == PARAM_DT_MORPHO::VARIABLE)
 			return this->_dt_morpho[i];
 		else if (this->mode_dt_morpho == PARAM_DT_MORPHO::HYDRO)
-			return this->_dt_hydro(i);
+			return this->dt_hydro(i);
 		else
 			return this->_dt_morpho[0];
 	}
@@ -250,20 +297,35 @@ public:
 
 	float_t mannings(int i)
 	{
-		if (this->mode_kd)
-			return this->_kd[i];
+		if (this->mode_mannings)
+			return this->_mannings[i];
 		else
-			return this->_kd[0];
+			return this->_mannings[0];
+	}
+
+	float_t precipitations(int i)
+	{
+		if (this->mode_precipitations)
+			return this->_precipitations[i];
+		else
+			return this->_precipitations[0];
 	}
 
 
 	// Main running function:
 	void run()
 	{
+
+		// Initialise:
+		// std::cout << "init" << std::endl;
+		this->init_Qw();
+		// std::cout << "graph" << std::endl;
+
 		// Graph Processing
 		this->graph_automator();
 
 		std::vector<float_t> vmot, vmot_hw(this->graph->nnodes,0.);
+
 		if(this->morphomode != MORPHO::NONE)
 			vmot = std::vector<float_t>(this->graph->nnodes,0.);
 
@@ -271,13 +333,23 @@ public:
 		std::vector<int> receivers = this->connector->get_empty_neighbour();
 		std::vector<float_t> weights(receivers.size(),0.), slopes(receivers.size(),0.);
 
+		// std::cout << "main loop" << std::endl;
+
 		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
 		for(int i = this->graph->nnodes-1; i>=0; --i)
 		{
 			// getting next node in line
 			int node = this->get_istack_node(i);
+
+			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_model(node)) continue;
+
 			// Getting the receivers
-			int nrecs = (SF) ? 1 : this->connector->get_receivers_idx_links(node,receivers);
+			int nrecs; 
+			if(SF) nrecs = 1;
+			else
+				nrecs = this->connector->get_receivers_idx_links(node,receivers);
+
+
 			float_t Smax;
 			if(SF == false)
 			{
@@ -285,32 +357,52 @@ public:
 			}
 			else
 			{
-				Smax = this->get_Sw(node,this->connector->receivers[node],this->connector->Sdistance2receivers[node],this->minslope);
+				Smax = this->get_Sw(node,this->connector->Sreceivers[node],this->connector->Sdistance2receivers[node],this->minslope);
 			}
 
+			// std::cout << nrecs << "|";
 
 			// Initialising the total Qout
 			float_t total_Qout = 0.;
 			float_t Qwin = this->_Qw[node];
 			// precalculating the power
-			float_t pohw = std::pow(this->hw[node], this->FIVETHIRD);
+			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
 			// Squarerooting Smax
 			Smax = std::sqrt(Smax);
 			// going through the receiver(s)
 			for(int j =0; j<nrecs; ++j)
 			{
+
 				// Hydro for the link
 				// universal params
-				int rec = (SF)?this->connector->Sreceivers[node]:this->connector->get_to_links(receivers[j]);
-				float_t dx = (SF)?this->connector->Sdistance2receivers[node]:this->connector->get_dx_from_links_idx(receivers[j]);
+				int rec;if(SF)rec=this->connector->Sreceivers[node]; else rec = this->connector->get_to_links(receivers[j]);
+				
+				if(rec == -1) continue;
+
+				float_t dx; if(SF)dx=this->connector->Sdistance2receivers[node];
+				else dx=this->connector->get_dx_from_links_idx(receivers[j]);
 				// float_t dl = this->connector->get_travers_dy_from_dx(dx);
-				float_t Sw = (SF)?this->get_Sw(node,rec,dx,this->minslope):slopes[j];
-				float_t tQout = (SF) ? dx * this->mannings(node) * pohw * Smax: this->topological_number * pohw / dx * Sw/Smax * this->connector->get_area_at_node(node)/this->mannings(node);
+				float_t Sw; if(SF) Sw=this->get_Sw(node,rec,dx,this->minslope);
+				else Sw = slopes[j];
+				float_t tQout; if(SF) tQout = dx * this->mannings(node) * pohw * Smax; 
+				else tQout = this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax;
 				total_Qout += tQout;
+
 				if(this->hydrostationary)
-					this->_Qw[rec] += (SF)?Qwin: weights[i] * Qwin; 
+				{
+					if(SF)
+					{
+						this->_Qw[rec] += Qwin; 
+					}
+					else 
+					{
+						this->_Qw[rec] = weights[j] * Qwin; 
+					}
+				}
 				else
+				{
 					this->_Qw[rec] += tQout;
+				}
 
 				// Now the morpho
 				// if(this->morphomode != MORPHO::NONE)
@@ -322,16 +414,41 @@ public:
 			vmot_hw[node] += (this->_Qw[node] - total_Qout)/this->connector->get_area_at_node(node);
 		}
 
+		// std::cout << "Apply motions" << std::endl;
+
 
 		// Applying vmots
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
-			this->hw[i] += vmot_hw[i] * this->dt_hydro(i);
-			this->surface[i] += vmot_hw[i] * this->dt_hydro(i);
+			this->_hw[i] += vmot_hw[i] * this->dt_hydro(i);
+			this->_surface[i] += vmot_hw[i] * this->dt_hydro(i);
+
 			if(this->morphomode != MORPHO::NONE)
-				this->surface[i] += vmot[i] * this->dt_morpho(i);
+				this->_surface[i] += vmot[i] * this->dt_morpho(i);
 		}
 
+		// std::cout << "LOL" << std::endl;
+
+	}
+
+	void init_Qw()
+	{
+		this->_Qw = std::vector<float_t>(this->graph->nnodes,0.);
+		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS)
+		{
+			for(int i=0; i < this->graph->nnodes; ++i)
+			{
+				if(this->connector->boundaries.can_give(i))
+				{
+					this->_Qw[i] += this->precipitations(i) * this->connector->get_area_at_node(i);
+				}
+			}
+
+		}
+		else
+		{
+			std::cout << "TODO" << std::endl;
+		}
 	}
 
 
@@ -343,18 +460,19 @@ public:
 		// making sure it has the right depression solver (SHOULD BE MOVED TO THE GRAPH MANAGEMENT LATER)
 		this->graph->set_LMR_method(this->depression_resolver);
 		// preformatting post-topo
-		std::vector<float_t> post_topo(this->surface);
-		this->graph->_compute_graph(post_topo, only_SD, false);
+		std::vector<float_t> post_topo(this->_surface);
+
+		this->graph->_compute_graph(post_topo, only_SD, true);
 
 		// fill water where depressions have been solved
 		if(this->depression_management == HYDROGRAPH_LM::FILL)
 		{
 			for(int i=0; i<this->graph->nnodes; ++i)
 			{
-				if(this->surface[i] < post_topo[i])
+				if(this->_surface[i] < post_topo[i])
 				{
-					this->hw[i] += post_topo[i] - this->surface[i];
-					this->surface[i] = post_topo[i];
+					this->_hw[i] += post_topo[i] - this->_surface[i];
+					this->_surface[i] = post_topo[i];
 				}
 			}
 		}
@@ -367,6 +485,8 @@ public:
 		for(int i = 0; i < nrecs; ++i)
 		{
 			int lix = receivers[i];
+			if(this->connector->is_link_valid(lix) == false)
+				continue;
 			// int rec = this->connector->get_to_links(lix);
 			slopes[i] = this->get_Sw(lix, this->minslope);
 			if(slopes[i]>Smax)
@@ -385,8 +505,13 @@ public:
 			sumw += weights[i];
 		}
 
-		for(auto&v:weights)
-			v = v/sumw;
+		float_t sumf = 0.;
+		for(int i = 0; i<nrecs;++i)
+		{
+			weights[i] = weights[i]/sumw;
+			sumf += weights[i];
+		}
+		// std::cout << sumf << "|";
 
 		return Smax;
 	}
@@ -397,12 +522,12 @@ public:
 	float_t get_Sw(int lix, float_t minslope)
 	{
 		auto no = this->connector->get_from_to_links(lix);
-		return std::min((this->surface[no.first] - this->surface[no.second])/this->connector->get_dx_from_links_idx(),minslope); 
+		return std::max((this->_surface[no.first] - this->_surface[no.second])/this->connector->get_dx_from_links_idx(lix),minslope); 
 	}
 
 	float_t get_Sw(int node, int rec, float_t dx, float_t minslope)
 	{
-		return std::min((this->surface[node] - this->surface[rec])/dx,minslope); 
+		return std::max((this->_surface[node] - this->_surface[rec])/dx,minslope); 
 	}
 
 
@@ -411,7 +536,10 @@ public:
 	template<class out_t>
 	out_t get_hw(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_hw) ;}
 	template<class out_t>
-	out_t get_surface_topo(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->surface) ;}
+	out_t get_surface_topo(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_surface) ;}
+
+	template<class out_t>
+	out_t get_Qwin(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_Qw) ;}
 
 
 

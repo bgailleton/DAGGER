@@ -778,6 +778,17 @@ void declare_graphflood(py::module &m, std::string typestr)
 {
   py::class_< graphflood<float_t, GRAPH_T, CONNECTOR_T> >(m, typestr.c_str())
     .def(py::init<GRAPH_T&, CONNECTOR_T&>())
+    .def("run", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::run, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("set_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("set_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_surface_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_Qwin", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("enable_MFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_MFD, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("enable_SFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_SFD, R"pdoc(Main function running the model from all the input params)pdoc")
+    
+    
+    
   ;
 }
 
@@ -872,6 +883,7 @@ PYBIND11_MODULE(dagger, m) {
   py::enum_<DEPRES>(m, "LMR")
     .value("cordonnier_fill", DEPRES::cordonnier_fill)
     .value("cordonnier_carve", DEPRES::cordonnier_carve)
+    .value("cordonnier_simple", DEPRES::cordonnier_simple)
     .value("priority_flood", DEPRES::priority_flood)
     .value("none", DEPRES::none)
   ;
