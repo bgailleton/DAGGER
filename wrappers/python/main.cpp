@@ -784,11 +784,17 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("get_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("get_surface_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("get_Qwin", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_SSTACKDEBUG", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG <py::array_t<size_t,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+
     .def("enable_MFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_MFD, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("enable_SFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_SFD, R"pdoc(Main function running the model from all the input params)pdoc")
-    
-    
-    
+    .def("set_dt_hydro",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
+    .def("fill_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::fill_minima)
+    .def("reroute_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::reroute_minima)
+    .def("ignore_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::ignore_minima)
+    .def("enable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_morpho)
+    .def("disable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_morpho)
+
   ;
 }
 
