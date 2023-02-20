@@ -306,15 +306,9 @@ public:
 
 		this->boundaries.set_codes(ubound);
 		this->fill_linknodes();
-
-		// std::cout << "Temporarily refactoring the boundary condition system and custom boundaries are not ready" << std::endl;
-		// auto bound = format_input(tbound);
-		// this->boundary = std::vector<int>(this->nnodes,0);
-		// for(int i=0; i<this->nnodes; ++i)
-		// {
-		// 	this->boundary[i] = bound[i];
-		// }
 	}
+
+	
 
 	BC get_boundary_at_node(int i){return this->boundaries.codes[i];}
 

@@ -795,6 +795,18 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("enable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_morpho)
     .def("disable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_morpho)
 
+    .def("set_dt_morpho", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_dt_morpho)
+    .def("set_single_aexp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_aexp)
+    .def("set_single_ke", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_ke)
+    .def("set_single_ke_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_ke_lateral)
+    .def("set_single_kd", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd)
+    .def("set_single_kd_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
+    .def("set_single_tau_c", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
+
+    .def("set_water_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
+    .def("set_water_input_by_constant_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
+    .def("set_water_input_by_variable_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_water_input_by_variable_precipitation_rate<py::array_t<double,1> >)
+
   ;
 }
 

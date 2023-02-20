@@ -88,8 +88,9 @@ enum class MFD_PARTITIONNING
 
 enum class WATER_INPUT
 {
-	PRECIPITATIONS,
-	ENTRY_POINTS,
+	PRECIPITATIONS_CONSTANT,
+	PRECIPITATIONS_VARIABLE,
+	ENTRY_POINTS_H,
 };
 
 enum class SED_INPUT
@@ -115,7 +116,6 @@ public:
 	// DEPRES depression_resolver = DEPRES::priority_flood; // MANAGED BY THE GRAPH!
 	HYDROGRAPH_LM depression_management = HYDROGRAPH_LM::FILL;
 	MFD_PARTITIONNING weight_management = MFD_PARTITIONNING::PROPOSLOPE;
-	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS;
 	SED_INPUT sed_input_mode = SED_INPUT::NONE;
 
 
@@ -180,6 +180,7 @@ public:
 
 
 
+
 	// Randomiser helper
 	DAGGER::easyRand randu;
 
@@ -192,8 +193,10 @@ public:
 	std::vector<float_t> _mannings = {0.033};
 
 	// # ke (coefficient for erosion)
-	bool mode_precipitations = false;
+	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
 	std::vector<float_t> _precipitations = {1e-4};
+	std::vector<int> _water_entry_nodes;
+	std::vector<float_t> _water_entries;
 
 	// float_t mannings = 0.033 
 	float_t topological_number = 4./8;
@@ -250,6 +253,46 @@ public:
 		this->_dt_hydro = {tdt};
 	}
 
+	void set_dt_morpho(float_t tdt)
+	{
+		this->mode_dt_morpho = PARAM_DT_MORPHO::CONSTANT;
+		this->_dt_morpho = {tdt};
+	}
+
+	template<class out_t, class in_t>
+	void set_water_input_by_entry_points(out_t& hw_entry, in_t& hw_indices)
+	{
+		// preformatting the inputs
+		auto tin = DAGGER::format_input(hw_entry);
+		auto tin_idx = DAGGER::format_input(hw_indices);
+
+		// Setting the general mode
+		this->water_input_mode = WATER_INPUT::ENTRY_POINTS_H;
+
+		this->_water_entry_nodes = DAGGER::to_vec(tin_idx);
+		this->_water_entries = DAGGER::to_vec(tin);
+
+		for(size_t i =0; i< this->_water_entry_nodes.size(); ++i)
+		{
+			this->connector->boundaries.codes[this->_water_entry_nodes[i]] = BC::FORCE_IN;
+		}
+	}
+
+	// template<class out_t>
+	void set_water_input_by_constant_precipitation_rate(float_t precipitations)
+	{
+		this->water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
+		this->_precipitations = {precipitations};
+	}
+
+	template<class out_t>
+	void set_water_input_by_variable_precipitation_rate(out_t& precipitations)
+	{
+		this->water_input_mode = WATER_INPUT::PRECIPITATIONS_VARIABLE;
+		auto tin = format_input(precipitations);
+		this->_precipitations = DAGGER::to_vec(tin);
+	}
+
 
 	float_t hw(int i){return this->_hw[i];}
 	float_t Qw(int i){return this->_Qw[i];}
@@ -266,6 +309,14 @@ public:
 
 	void enable_morpho(){this->morphomode = MORPHO::TL;}
 	void disable_morpho(){this->morphomode = MORPHO::NONE;}
+
+
+	void set_single_aexp(float_t ta){this->mode_aexp = false; this->_aexp = {ta};}
+	void set_single_ke(float_t ta){this->mode_ke = PARAM_KE::CONSTANT; this->_ke = {ta};}
+	void set_single_ke_lateral(float_t ta){this->mode_ke_lateral = false; this->_ke_lateral = {ta};}
+	void set_single_kd(float_t ta){this->mode_kd = false; this->_kd = {ta};}
+	void set_single_kd_lateral(float_t ta){this->mode_kd_lateral = false; this->_kd_lateral = {ta};}
+	void set_single_tau_c(float_t ta){this->mode_tau_c = false; this->_tau_c = {ta};}
 
 
 	float_t aexp(int i)
@@ -353,7 +404,7 @@ public:
 
 	float_t precipitations(int i)
 	{
-		if (this->mode_precipitations)
+		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
 			return this->_precipitations[i];
 		else
 			return this->_precipitations[0];
@@ -395,7 +446,7 @@ public:
 			int node = this->get_istack_node(i);
 			// std::cout << "node::" << node << std::endl;
 
-			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_model(node)) 
+			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
 				continue;
 			}
@@ -420,7 +471,11 @@ public:
 			else
 			{
 				Smax = this->get_Sw(node,this->connector->Sreceivers[node],this->connector->Sdistance2receivers[node],this->minslope);
+				this->catch_nan(Smax, "hw node " + std::to_string(this->_hw[node]) + " and rec " + std::to_string(this->_hw[this->connector->Sreceivers[node]]) + " node: " + std::to_string(node) + " rec: " + std::to_string(this->connector->Sreceivers[node]));
 			}
+
+			if(this->_hw[node] == 0)
+				Smax = 0;
 
 			// std::cout << nrecs << "|" << std::endl;;
 
@@ -430,7 +485,9 @@ public:
 			// precalculating the power
 			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
 			// Squarerooting Smax
+			float_t debug_S = Smax;
 			Smax = std::sqrt(Smax);
+
 			// going through the receiver(s)
 			for(int j =0; j<nrecs; ++j)
 			{
@@ -476,7 +533,12 @@ public:
 				float_t tQout = 0.; 
 				if(SF)
 				{ 
-					tQout = dx * this->mannings(node) * pohw * Smax; 
+					tQout = dx * this->mannings(node) * pohw * Smax;
+					// this->catch_nan(this->mannings(node), "this->mannings(node)");
+					// this->catch_nan(pohw, "pohw");
+					// this->catch_nan(Smax, "Smax");
+					// this->catch_nan(tQout, "tQwout");
+
 				}
 				else
 				{
@@ -571,6 +633,7 @@ public:
 		// Applying vmots
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
+			if(this->connector->boundaries.forcing_io(i)) continue;
 			this->_hw[i] += vmot_hw[i] * this->dt_hydro(i);
 			this->_surface[i] += vmot_hw[i] * this->dt_hydro(i);
 
@@ -585,21 +648,23 @@ public:
 	void init_Qw()
 	{
 		this->_Qw = std::vector<float_t>(this->graph->nnodes,0.);
-		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS)
+		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT || this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
 		{
 			for(int i=0; i < this->graph->nnodes; ++i)
 			{
 				if(this->connector->boundaries.can_give(i))
 				{
 					this->_Qw[i] += this->precipitations(i) * this->connector->get_area_at_node(i);
-					// this->_Qw[i] = 1;
 				}
 			}
-
 		}
-		else
+		else if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_H)
 		{
-			std::cout << "TODO" << std::endl;
+			for(size_t i=0; i<this->_water_entries.size(); ++i)
+			{
+				int node = this->_water_entry_nodes[i];				
+				this->_Qw[node] += this->_water_entries[i] * this->connector->get_area_at_node(node);
+			}
 		}
 	}
 
@@ -737,7 +802,11 @@ public:
 
 
 
-
+	void catch_nan(float_t testval, std::string error_message)
+	{
+		if(std::isfinite(testval) == false)
+			throw std::runtime_error(error_message);
+	}
 
 
 };
