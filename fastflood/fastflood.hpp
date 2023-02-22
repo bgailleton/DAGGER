@@ -116,7 +116,7 @@ public:
 	void enable_Afdt(){this->Afdt = true;}
 	void disable_Afdt(){this->Afdt = false;}
 
-	void set_stochaslope(float_t stosto){this->stochaslope = stosto; this->connector->stochaticiy_for_SFD = stosto;}
+	void set_stochaslope(float_t stosto){this->stochaslope = stosto; this->connector->set_stochaticiy_for_SFD(stosto);}
 
 	template<class tt0>
 	float_t dt(tt0 i)

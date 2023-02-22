@@ -79,8 +79,21 @@ public:
 	int not_a_node;
 
 
-	T stochaticiy_for_SFD = 0; // (0 -> deactivates)
-	void set_stochaticiy_for_SFD(T val){this->stochaticiy_for_SFD = (val>0)?val:0;}
+	bool stochastic_slope_on = false;
+	T stochastic_slope_coeff = 1.; // (0 -> deactivates)
+	void set_stochaticiy_for_SFD(T val)
+	{
+		if(val <= 0)
+		{
+			this->stochastic_slope_on = false;
+			this->stochastic_slope_coeff = 1.;
+		}
+		else
+		{
+			this->stochastic_slope_on = true;
+			this->stochastic_slope_coeff = val;
+		}
+	}
 
 
 	// DEPRECATED BOUNDARY SYSTEM
@@ -440,7 +453,6 @@ public:
 		// std::cout << "BUNT" << std::endl;
 
 		// am I using a stochastic adjustment for deciding on the steepest slope
-		bool stochastic_slope_on = this->stochaticiy_for_SFD > 0.;
 		// iterating through all the nodes
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
@@ -476,16 +488,16 @@ public:
 			{
 
 				if(this->boundaries.force_giving(from) || this->boundaries.force_receiving(to))
-					slope = std::abs(slope);
+					slope = 1/std::abs(slope);
 
 				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
-					slope = -std::abs(slope);					
+					slope = -1/std::abs(slope);					
 			} 
 
 			
 
-			if(stochastic_slope_on) 
-				slope *= (this->stochaticiy_for_SFD * this->randu->get()) + 1e-6;
+			if(this->stochastic_slope_on) 
+				slope *= (this->randu->get() * this->stochastic_slope_coeff) + 1e-6;
 
 
 			// if slope is positive, to is the receiver by convention

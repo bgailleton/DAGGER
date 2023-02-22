@@ -781,8 +781,10 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("run", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::run, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("set_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("set_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    
     .def("get_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("get_surface_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_bedrock_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("get_Qwin", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     .def("get_SSTACKDEBUG", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG <py::array_t<size_t,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
 
@@ -806,6 +808,31 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_water_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
     .def("set_water_input_by_constant_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
     .def("set_water_input_by_variable_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_water_input_by_variable_precipitation_rate<py::array_t<double,1> >)
+    
+    .def("set_sed_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_sed_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
+
+    .def("enable_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
+    .def("disable_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
+    .def("get_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<py::array_t<double,1> >)
+
+    .def("enable_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
+    .def("disable_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
+    .def("get_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<py::array_t<double,1> >)
+
+    .def("get_tot_Qw_input", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
+    .def("get_tot_Qw_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
+    .def("get_tot_Qwin_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
+    .def("get_tot_Qs_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
+
+
+    .def("set_stochaslope", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_stochaslope)
+    .def("disable_stochaslope", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
+    .def("set_fixed_hw_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
+    .def("set_fixed_slope_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
+    
+    
+    
+    
 
   ;
 }

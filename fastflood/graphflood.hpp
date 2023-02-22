@@ -96,7 +96,14 @@ enum class WATER_INPUT
 enum class SED_INPUT
 {
 	NONE,
-	ENTRY_POINTS,
+	ENTRY_POINTS_Q,
+};
+
+
+enum class BOUNDARY_HW
+{
+	FIXED_HW,
+	FIXED_SLOPE,
 };
 
 template<class float_t, class Graph_t, class Connector_t>
@@ -116,7 +123,8 @@ public:
 	// DEPRES depression_resolver = DEPRES::priority_flood; // MANAGED BY THE GRAPH!
 	HYDROGRAPH_LM depression_management = HYDROGRAPH_LM::FILL;
 	MFD_PARTITIONNING weight_management = MFD_PARTITIONNING::PROPOSLOPE;
-	SED_INPUT sed_input_mode = SED_INPUT::NONE;
+
+
 
 
 	// Global constants:
@@ -124,6 +132,13 @@ public:
 
 	bool stochaslope = false;
 	float_t stochaslope_coeff = 1.;
+	void set_stochaslope(float_t val)
+	{
+		this->stochaslope = true;
+		this->stochaslope_coeff = val;
+		this->connector->set_stochaticiy_for_SFD(val);
+	}
+	void disable_stochaslope(){this->stochaslope = false;}
 
 	bool hydrostationary = true;
 
@@ -140,6 +155,40 @@ public:
 	std::vector<float_t> _Qs;
 	// # Sediment height
 	std::vector<float_t> _hs;
+
+	BOUNDARY_HW boundhw = BOUNDARY_HW::FIXED_HW;
+	float_t bou_fixed_val = 0.;
+	void set_fixed_hw_at_boundaries(float_t val){this->boundhw = BOUNDARY_HW::FIXED_HW; this->bou_fixed_val = val;}
+	void set_fixed_slope_at_boundaries(float_t val){this->boundhw = BOUNDARY_HW::FIXED_SLOPE; this->bou_fixed_val = val;}
+
+
+	bool record_Qw_out = false;
+	std::vector<float_t> _rec_Qwout;
+	void enable_Qwout_recording(){this->record_Qw_out = true;};
+	void disable_Qwout_recording(){this->record_Qw_out = false; this->_rec_Qwout.clear();};
+	template<class out_t>
+	out_t get_Qwout_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_Qwout) ;}
+
+	bool record_Sw = false;
+	std::vector<float_t> _rec_Sw;
+	void enable_Sw_recording(){this->record_Sw = true;};
+	void disable_Sw_recording(){this->record_Sw = false; this->_rec_Sw.clear();};
+	template<class out_t>
+	out_t get_Sw_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_Sw) ;}
+
+	// Low cost monitoring parameters
+	float_t tot_Qw_input = 0;
+	float_t get_tot_Qw_input()const{return this->tot_Qw_input;}
+
+	float_t tot_Qwin_output = 0;
+	float_t get_tot_Qwin_output()const{return this->tot_Qwin_output;}
+
+	float_t tot_Qw_output = 0;
+	float_t get_tot_Qw_output()const{return this->tot_Qw_output;}
+
+	float_t tot_Qs_output = 0;
+	float_t get_tot_Qs_output()const{return this->tot_Qs_output;}
+
 
 
 	// ###################################### 
@@ -177,6 +226,11 @@ public:
 	// # ke (coefficient for erosion)
 	PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
 	std::vector<float_t> _dt_morpho = {1e-3};
+
+	SED_INPUT sed_input_mode = SED_INPUT::NONE;
+	std::vector<int> _sed_entry_nodes;
+	std::vector<float_t> _sed_entries;
+
 
 
 
@@ -292,6 +346,23 @@ public:
 		auto tin = format_input(precipitations);
 		this->_precipitations = DAGGER::to_vec(tin);
 	}
+
+	template<class out_t, class in_t>
+	void set_sed_input_by_entry_points(out_t& sed_entry, in_t& sed_indices)
+	{
+		// preformatting the inputs
+		auto tin = DAGGER::format_input(sed_entry);
+		auto tin_idx = DAGGER::format_input(sed_indices);
+
+		// Setting the general mode
+		this->sed_input_mode = SED_INPUT::ENTRY_POINTS_Q;
+
+		this->_sed_entry_nodes = DAGGER::to_vec(tin_idx);
+		this->_sed_entries = DAGGER::to_vec(tin);
+
+	}
+
+
 
 
 	float_t hw(int i){return this->_hw[i];}
@@ -415,9 +486,9 @@ public:
 	void run()
 	{
 
-		// Initialise:
-		// std::cout << "init" << std::endl;
+		// Initialise the water discharge fields according to water input condition and other monitoring features:
 		this->init_Qw();
+		//
 		if(this->morphomode != MORPHO::NONE)
 			this->init_Qs();
 	
@@ -448,6 +519,7 @@ public:
 
 			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
+				this->tot_Qwin_output += this->_Qw[node];
 				continue;
 			}
 
@@ -471,7 +543,7 @@ public:
 			else
 			{
 				Smax = this->get_Sw(node,this->connector->Sreceivers[node],this->connector->Sdistance2receivers[node],this->minslope);
-				this->catch_nan(Smax, "hw node " + std::to_string(this->_hw[node]) + " and rec " + std::to_string(this->_hw[this->connector->Sreceivers[node]]) + " node: " + std::to_string(node) + " rec: " + std::to_string(this->connector->Sreceivers[node]));
+				// this->catch_nan(Smax, "hw node " + std::to_string(this->_hw[node]) + " and rec " + std::to_string(this->_hw[this->connector->Sreceivers[node]]) + " node: " + std::to_string(node) + " rec: " + std::to_string(this->connector->Sreceivers[node]));
 			}
 
 			if(this->_hw[node] == 0)
@@ -485,7 +557,7 @@ public:
 			// precalculating the power
 			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
 			// Squarerooting Smax
-			float_t debug_S = Smax;
+			// float_t debug_S = Smax;
 			Smax = std::sqrt(Smax);
 
 			// going through the receiver(s)
@@ -521,19 +593,25 @@ public:
 
 				// float_t dl = this->connector->get_travers_dy_from_dx(dx);
 				float_t Sw; 
-				if(SF) 
+				if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+					Sw = this->bou_fixed_val;
+				else if(SF) 
 				{
 					Sw=this->get_Sw(node,rec,dx,this->minslope);
+					if(this->record_Sw)
+						this->_rec_Sw[node] += Sw;
 				}
 				else
 				{
 					Sw = slopes[j];
+					if(this->record_Sw)
+						this->_rec_Sw[node] += Sw * weights[j];
 				}
 				
 				float_t tQout = 0.; 
 				if(SF)
 				{ 
-					tQout = dx * this->mannings(node) * pohw * Smax;
+					tQout = dx / this->mannings(node) * pohw * Smax;
 					// this->catch_nan(this->mannings(node), "this->mannings(node)");
 					// this->catch_nan(pohw, "pohw");
 					// this->catch_nan(Smax, "Smax");
@@ -542,7 +620,12 @@ public:
 				}
 				else
 				{
-					tQout = this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax;
+					tQout = (Smax > 0) ? this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax:0;
+					// this->catch_nan(this->mannings(node), "this->mannings(node)");
+					// this->catch_nan(pohw, "pohw");
+					// this->catch_nan(Smax, "Smax");
+					// this->catch_nan(Sw, "Sw");
+					// this->catch_nan(tQout, "tQwout " + std::to_string(Smax));
 				}
 
 				total_Qout += tQout;
@@ -557,6 +640,9 @@ public:
 					{
 						this->_Qw[rec] += weights[j] * Qwin; 
 					}
+
+					if(this->connector->flow_out_model(rec))
+						this->tot_Qw_output += tQout;
 				}
 				else
 				{
@@ -616,15 +702,22 @@ public:
 
 					vmot[node] += ddot - edot;
 
-					tQs -= (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_A) * dx;
+					tQs -= (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
 
 					if(tQs < 0) tQs = 0;
 					this->_Qs[rec] += tQs;
+
+					if(this->connector->flow_out_or_pit(rec))
+						this->tot_Qs_output += tQs;
 				}				
 			
 			}
 
 			vmot_hw[node] += (this->_Qw[node] - total_Qout)/this->connector->get_area_at_node(node);
+
+			if(this->record_Qw_out)
+				this->_rec_Qwout[node] += total_Qout;
+
 		}
 
 		// std::cout << "Apply motions" << std::endl;
@@ -633,9 +726,20 @@ public:
 		// Applying vmots
 		for(int i=0; i<this->graph->nnodes; ++i)
 		{
+
+			if(this->connector->flow_out_or_pit(i) && this->boundhw == BOUNDARY_HW::FIXED_HW)
+				this->_hw[i] = this->bou_fixed_val;
+
 			if(this->connector->boundaries.forcing_io(i)) continue;
-			this->_hw[i] += vmot_hw[i] * this->dt_hydro(i);
-			this->_surface[i] += vmot_hw[i] * this->dt_hydro(i);
+			
+			float_t tvh = vmot_hw[i] * this->dt_hydro(i);
+
+			if(tvh < - this->_hw[i])
+				tvh = - this->_hw[i];
+
+			this->_hw[i] += tvh;
+			
+			this->_surface[i] += tvh;
 
 			if(this->morphomode != MORPHO::NONE)
 				this->_surface[i] += vmot[i] * this->dt_morpho(i);
@@ -646,8 +750,15 @@ public:
 	}
 
 	void init_Qw()
-	{
+	{	
+		// resetting Qwin (needed to be stored at all time)
 		this->_Qw = std::vector<float_t>(this->graph->nnodes,0.);
+			
+		// resetting global monitors (low cost)
+		this->tot_Qw_input = 0;
+		this->tot_Qw_output = 0;
+		this->tot_Qwin_output = 0;
+
 		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT || this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
 		{
 			for(int i=0; i < this->graph->nnodes; ++i)
@@ -655,6 +766,7 @@ public:
 				if(this->connector->boundaries.can_give(i))
 				{
 					this->_Qw[i] += this->precipitations(i) * this->connector->get_area_at_node(i);
+					this->tot_Qw_input += this->_Qw[i];
 				}
 			}
 		}
@@ -664,17 +776,33 @@ public:
 			{
 				int node = this->_water_entry_nodes[i];				
 				this->_Qw[node] += this->_water_entries[i] * this->connector->get_area_at_node(node);
+				this->tot_Qw_input += this->_Qw[node];
+
 			}
 		}
+
+		if(this->record_Qw_out)
+			this->_rec_Qwout = std::vector<float_t>(this->graph->nnodes,0.);
+
+		if(this->record_Sw)
+			this->_rec_Sw = std::vector<float_t>(this->graph->nnodes,0.);
 	}
 
 	void init_Qs()
 	{
 		this->_Qs = std::vector<float_t>(this->graph->nnodes,0.);
-		if(this->sed_input_mode != SED_INPUT::NONE)
+		if(this->sed_input_mode == SED_INPUT::ENTRY_POINTS_Q)
 		{
-			std::cout << "TODO::AB45" << std::endl;
+			for(size_t i=0; i<this->_sed_entries.size(); ++i)
+			{
+				int node = this->_sed_entry_nodes[i];				
+				this->_Qs[node] += this->_sed_entries[i];
+				// this->tot_Qw_input += this->_Qs[node];
+
+			}
 		}
+
+		this->tot_Qs_output = 0.;
 	}
 
 
@@ -756,7 +884,6 @@ public:
 			weights[i] = weights[i]/sumw;
 			sumf += weights[i];
 		}
-		// std::cout << sumf << "|";
 
 		return Smax;
 	}
@@ -791,8 +918,21 @@ public:
 	// GET DATA OUT
 	template<class out_t>
 	out_t get_hw(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_hw) ;}
+	
 	template<class out_t>
 	out_t get_surface_topo(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_surface) ;}
+
+	template<class out_t>
+	out_t get_bedrock_topo()
+	{
+		std::vector<float_t> diff(this->_surface);
+		
+		for(int i=0; i< this->graph->nnodes; ++i)
+			diff[i] -= this->_hw[i];
+
+		return DAGGER::format_output<std::vector<float_t>, out_t >(diff) ;
+
+	}
 
 	template<class out_t>
 	out_t get_Qwin(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_Qw) ;}
