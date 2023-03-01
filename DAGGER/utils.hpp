@@ -159,18 +159,21 @@ The main function is On_gaussian_blur (see bellow)
 
 
 
-std::vector<int> boxesForGauss(float sigma, int n)	// standard deviation, number of boxes
+std::vector<int> boxesForGauss(double sigma, int n)	// standard deviation, number of boxes
 {
-	float wIdeal = std::sqrt((12*sigma*sigma/n)+1);	// Ideal averaging filter width 
+	double wIdeal = std::sqrt((12.*sigma*sigma/n)+1);	// Ideal averaging filter width 
 	int wl = std::floor(wIdeal);	if(wl%2==0) wl--;
 	int wu = wl+2;
 
-	float mIdeal = (12*sigma*sigma - n*wl*wl - 4*n*wl - 3*n)/(-4*wl - 4);
+	double mIdeal = (12.*sigma*sigma - n*wl*wl - 4*n*wl - 3*n)/(-4*wl - 4);
 	int m = std::round(mIdeal);
 	// var sigmaActual = Math.sqrt( (m*wl*wl + (n-m)*wu*wu - n)/12 );
 			
 	std::vector<int> sizes; sizes.reserve(n);	
-	for(int i=0; i<n; ++i) sizes.emplace_back(i<m?wl:wu);
+	for(int i=0; i<n; ++i) 
+	{
+		sizes.emplace_back(i<m?wl:wu);
+	}
 
 	return sizes;
 }
@@ -178,39 +181,46 @@ std::vector<int> boxesForGauss(float sigma, int n)	// standard deviation, number
 
 
 template<class T>
-void boxBlurH_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, T r) 
+void boxBlurH_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, double r) 
 {
-	T iarr = 1 / (r+r+1);
+	double iarr = 1. / (r+r+1);
 	for(int i=0; i<h; ++i) 
 	{
 		int ti = i*w, li = ti, ri = ti+r;
-		T fv = scl[ti], lv = scl[ti+w-1], val = (r+1)*fv;
-		for(int j=0; j<r; ++j) val += scl[ti+j];
-		for(int j=0	; j<=r ; ++j) { val += scl[ri++] - fv			 ;	 tcl[ti++] =std::round(val*iarr); }
-		for(int j=r+1; j<w-r; ++j) { val += scl[ri++] - scl[li++];	 tcl[ti++] =std::round(val*iarr); }
-		for(int j=w-r; j<w	; ++j) { val += lv - scl[li++];	 tcl[ti++] =std::round(val*iarr); }
+		double fv = scl[ti], lv = scl[ti+w-1], val = (r+1)*fv;
+		for(int j=0; j<r; ++j)
+		{ 
+			val += scl[ti+j];
+		}
+		for(int j=0	; j<=r ; ++j) 
+		{
+			val += scl[ri++] - fv;
+			tcl[ti++] = std::round(val*iarr); 
+		}
+		for(int j=r+1; j<w-r; ++j) { val += scl[ri++] - scl[li++];	 tcl[ti++] = val*iarr; }
+		for(int j=w-r; j<w	; ++j) { val += lv - scl[li++];	 tcl[ti++] = val*iarr; }
 	}
 }
 
 
 template<class T>
-void boxBlurT_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, T r) 
+void boxBlurT_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, double r) 
 {
-	T iarr = 1 / (r+r+1);
+	T iarr = 1. / (r+r+1);
 	for(int i=0; i<w; i++) 
 	{
 		int ti = i, li = ti, ri = ti+r*w;
-		T fv = scl[ti], lv = scl[ti+w*(h-1)], val = (r+1)*fv;
+		double fv = scl[ti], lv = scl[ti+w*(h-1.)], val = (r+1.)*fv;
 		for(int j=0; j<r; ++j) val += scl[ti+j*w];
-		for(int j=0	; j<=r ; ++j) { val += scl[ri] - fv		 ;	tcl[ti] = std::round(val*iarr);	ri+=w; ti+=w; }
-		for(int j=r+1; j<h-r; ++j) { val += scl[ri] - scl[li];	tcl[ti] = std::round(val*iarr);	li+=w; ri+=w; ti+=w; }
-		for(int j=h-r; j<h	; ++j) { val += lv			- scl[li];	tcl[ti] = std::round(val*iarr);	li+=w; ti+=w; }
+		for(int j=0	; j<=r ; ++j) { val += scl[ri] - fv		 ;	tcl[ti] = val*iarr;	ri+=w; ti+=w; }
+		for(int j=r+1; j<h-r; ++j) { val += scl[ri] - scl[li];	tcl[ti] = val*iarr;	li+=w; ri+=w; ti+=w; }
+		for(int j=h-r; j<h	; ++j) { val += lv			- scl[li];	tcl[ti] = val*iarr;	li+=w; ti+=w; }
 	}
 }
 
 
 template<class T>
-void boxBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, T r) 
+void boxBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, double r) 
 {
 	for(size_t i=0; i<scl.size(); ++i) tcl[i] = scl[i];
 	boxBlurH_4(tcl, scl, w, h, r);
@@ -218,7 +228,7 @@ void boxBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, int w, int h, T r)
 }
 
 template<class T>
-void gaussBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, T r, int nx, int ny) 
+void gaussBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, double r, int nx, int ny) 
 {
 	auto bxs = boxesForGauss(r, 3);
 	boxBlur_4 (scl, tcl, nx, ny, (bxs[0]-1)/2);
@@ -233,7 +243,7 @@ void gaussBlur_4 (std::vector<T>& scl, std::vector<T>& tcl, T r, int nx, int ny)
 /// topo is the original array
 /// nx,ny are the number of col and rows
 template<class T>
-std::vector<T> On_gaussian_blur(T r, std::vector<T> topo, int nx, int ny)
+std::vector<T> On_gaussian_blur(double r, std::vector<T> topo, int nx, int ny)
 {
 	std::vector<T>newtopo(topo);
 	gaussBlur_4 (topo, newtopo, r, nx, ny);

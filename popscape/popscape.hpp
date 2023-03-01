@@ -43,8 +43,259 @@ namespace py = pybind11;
 namespace DAGGER
 {
 
+enum class PARAM_MODE
+{
+	CONSTANT,
+	VARIABLE,
+};
+
+
+
 template<class float_t,class Graph_t, class Connector_t>
 class popscape
+{
+
+public:
+
+	// stored as direct children: they will be changed anyway
+	Graph_t graph;
+	Connector_t connector;
+
+	std::vector<float_t> QA;
+	std::vector<float_t> topography;
+
+	PARAM_MODE Kbase_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _Kbase = {1e-3};
+	PARAM_MODE Kmod_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _Kmod = {1.};
+	PARAM_MODE m_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _m = {0.45};
+	PARAM_MODE n_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _n = {1.};
+	PARAM_MODE precip_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _precip = {1.};
+
+	PARAM_MODE UE_mode = PARAM_MODE::CONSTANT;
+	std::vector<float_t> _UE = {1e-3};
+
+
+
+	popscape(){;}
+	popscape(Graph_t& graph, Connector_t& con)
+	{
+		
+		this->connector = _create_connector(con.nx,con.ny,con.dx,con.dy,0.,0.);
+		_create_graph(graph.nnodes, this->connector,this->graph);
+		
+		// this->graph = graph;
+
+	}
+
+	template<class in_t>
+	void set_topo(in_t& itopo)
+	{
+		auto ftopo = DAGGER::format_input(itopo);
+		this->topography = to_vec(ftopo);
+	}
+
+	template<class out_t>
+	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->topography);}
+	template<class out_t>
+	out_t get_QA(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->QA);}
+
+	// Parameters:
+	float_t Kbase(int i)
+	{
+		if(this->Kbase_mode == PARAM_MODE::CONSTANT)
+			return this->_Kbase[0];
+		else
+			return this->_Kbase[i];
+	}
+
+	float_t Kmod(int i)
+	{
+		if(this->Kmod_mode == PARAM_MODE::CONSTANT)
+			return this->_Kmod[0];
+		else
+			return this->_Kmod[i];
+	}
+
+	float_t m(int i)
+	{
+		if(this->m_mode == PARAM_MODE::CONSTANT)
+			return this->_m[0];
+		else
+			return this->_m[i];
+	}
+
+	float_t n(int i)
+	{
+		if(this->n_mode == PARAM_MODE::CONSTANT)
+			return this->_n[0];
+		else
+			return this->_n[i];
+	}
+
+	// Parameters:
+	float_t precip(int i)
+	{
+		if(this->precip_mode == PARAM_MODE::CONSTANT)
+			return this->_precip[0];
+		else
+			return this->_precip[i];
+	}
+	float_t UE(int i)
+	{
+		if(this->UE_mode == PARAM_MODE::CONSTANT)
+			return this->_UE[0];
+		else
+			return this->_UE[i];
+	}
+
+	void _init_vecs(){this->QA = std::vector<float_t>(this->connector.nnodes,0.);}
+
+
+	void StSt(int n_iterations)
+	{
+		// running the code for n_iterations
+		for(int nit = 0; nit < n_iterations; ++nit)
+		{
+			this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
+			this->graph._compute_graph(this->topography,true, false);
+			this->_init_vecs();
+			this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
+			for(int i = 0; i<this->graph.nnodes; ++i)
+			{
+				int node = this->graph.Sstack[i];
+
+				if(this->connector.flow_out_or_pit(node))
+					continue;
+
+				int rec = this->connector.Sreceivers[node];
+				this->topography[node] = this->topography[rec] + this->connector.Sdistance2receivers[node] * 
+					std::pow(this->UE(node)/(this->Kbase(node) * this->Kmod(node)),1./this->n(node)) *
+					std::pow(this->QA[node],-this->m(node)/this->n(node));
+			}
+
+		}
+		
+	}
+
+	void restriction(float_t noise_intensity)
+	{
+		
+		int nxy = 4 * this->graph.nnodes;
+
+		int nx = this->connector.nx * 2;
+		int ny = this->connector.ny * 2;
+
+		std::vector<float_t> ntopo(nxy,0.);
+
+
+		for(int i=0;i<this->graph.nnodes;++i)
+		{
+			int row,col;
+			this->connector.rowcol_from_node_id(i, row, col);
+			int nid = row*2 * nx + col*2;
+			ntopo[nid] = this->topography[i] + this->connector.randu->get() * noise_intensity;
+			nid = row*2 * nx + col*2+1;
+			ntopo[nid] = this->topography[i] + this->connector.randu->get() * noise_intensity;
+			nid = (row*2+1) * nx + col*2+1;
+			ntopo[nid] = this->topography[i] + this->connector.randu->get() * noise_intensity;
+			nid = (row*2+1) * nx + col*2;
+			ntopo[nid] = this->topography[i] + this->connector.randu->get() * noise_intensity;
+		}
+
+		
+		float_t dx = this->connector.dx/2;
+		float_t dy = this->connector.dy/2;
+		// init connector
+		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+		
+		// init graph
+		_create_graph(nxy, this->connector,this->graph);
+		// graph.
+		// this->graph.init_graph(this->connector);
+		this->topography = std::move(ntopo);
+		this->_init_vecs();
+
+	}
+
+	// TODO
+	void interpolation()
+	{
+		// int nxy = floor(this->graph.nnodes/4);
+
+		int nx = floor(this->connector.nx / 2);
+		int ny = floor(this->connector.ny / 2);
+		int nxy = nx * ny;
+
+		std::vector<float_t> ntopo(nxy,0.);
+
+		D8connector<double> ncon = _create_connector(nx,ny,this->connector.dx*2,this->connector.dy*2,0.,0.);
+
+
+
+		for(int i=0;i<nxy;++i)
+		{
+			int row,col;
+			ncon.rowcol_from_node_id(i, row, col);
+			int nid = row*2 * this->connector.nx + col*2;
+			float_t tntopo = 0.;
+			tntopo += this->topography[nid];
+			nid = row*2 * this->connector.nx + col*2+1;
+			tntopo += this->topography[nid];
+			nid = (row*2+1) * this->connector.nx + col*2+1;
+			tntopo += this->topography[nid];
+			nid = (row*2+1) * this->connector.nx + col*2;
+			tntopo += this->topography[nid];
+
+			ntopo[i] = tntopo/4;
+
+		}
+		// init connector
+		this->connector = std::move(ncon);
+		// init graph
+		_create_graph(nxy, this->connector,this->graph);
+		// this->graph.init_graph(this->connector);
+		this->topography = std::move(ntopo);
+		this->_init_vecs();
+	}
+
+	void smooth(float_t rr)
+	{
+		// this->topography = On_gaussian_blur<float_t>(rr, this->topography, this->connector.nx, this->connector.ny);
+		this->topography = On_gaussian_blur(rr, this->topography, this->connector.nx, this->connector.ny);
+	}
+
+
+};
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Former Popscape, to be deprecated soon
+template<class float_t,class Graph_t, class Connector_t>
+class popscape_old
 {
 public:
 	
@@ -61,13 +312,13 @@ public:
 
 
 	// empty constructor
-	popscape(){};
+	popscape_old(){};
 
 	// constructor 1:
 	// -> noise type is from the RANDOISE enum (white, red, perlin, ...)
 	// -> nx/ny are the number of nodes in the x/y dir
 	// -> dx dy are the related spacing in [L]
-	popscape(RANDNOISE noisetype, int start_nx,  int nit, float_t dx, float_t dy)
+	popscape_old(RANDNOISE noisetype, int start_nx,  int nit, float_t dx, float_t dy)
 	{
 
 		if(start_nx % 8 != 0)
