@@ -520,6 +520,8 @@ public:
 			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
 				this->tot_Qwin_output += this->_Qw[node];
+				if(this->connector->boundaries.force_giving(node))
+					throw std::runtime_error("Force_giving_is_pit?");
 				continue;
 			}
 
@@ -554,6 +556,7 @@ public:
 			// Initialising the total Qout
 			float_t total_Qout = 0.;
 			float_t Qwin = this->_Qw[node];
+
 			// precalculating the power
 			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
 			// Squarerooting Smax
@@ -574,6 +577,8 @@ public:
 				else
 				{
 					rec = this->connector->get_to_links(receivers[j]);
+					if(this->connector->boundaries.force_giving(rec))
+						throw std::runtime_error("forcer is receiver?");
 				}
 				
 				if(rec < 0) continue;
@@ -638,7 +643,11 @@ public:
 					}
 					else 
 					{
+						
+
+
 						this->_Qw[rec] += weights[j] * Qwin; 
+
 					}
 
 					if(this->connector->flow_out_model(rec))
@@ -825,7 +834,7 @@ public:
 			post_topo[i] = this->_surface[i];
 		}
 
-		this->graph->_compute_graph(post_topo, only_SD, true);
+		this->graph->_compute_graph(post_topo, only_SD, false);
 
 		// fill water where depressions have been solved
 		if(this->depression_management == HYDROGRAPH_LM::FILL)
@@ -845,14 +854,20 @@ public:
 	{
 
 		float_t sumw = 0., Smax = this->minslope;
+		// int yolo1 = node;
+		// bool isit = yolo1 == 300;
 		for(int i = 0; i < nrecs; ++i)
 		{
 			int lix = receivers[i];
+
 			
 			if(this->connector->is_link_valid(lix) == false)
-				continue;
+			{
 
-			// int rec = this->connector->get_to_links(lix);
+				continue;
+			}
+
+			int rec = this->connector->get_to_links(lix);
 			slopes[i] = this->get_Sw(lix, this->minslope);
 			
 			if(slopes[i]>Smax)
@@ -878,12 +893,14 @@ public:
 		for(int i = 0; i<nrecs;++i)
 		{
 			int lix = receivers[i];
+
 			if(this->connector->is_link_valid(lix) == false)
 				continue;
 
 			weights[i] = weights[i]/sumw;
 			sumf += weights[i];
 		}
+
 
 		return Smax;
 	}

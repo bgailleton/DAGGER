@@ -430,6 +430,11 @@ public:
 					this->links[i] = 1;
 				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
 					this->links[i] = 0;
+				else 
+				{
+					throw std::runtime_error("Should not happen 777");
+					this->links[i] = 2;
+				}
 
 				continue;
 			} 
@@ -468,7 +473,7 @@ public:
 			int from = this->linknodes[i*2];
 			int to = this->linknodes[i*2 + 1];
 
-			std::cout << std::setprecision(18);
+			// std::cout << std::setprecision(18);
 
 			// if( 808 * this->nx + 733 == from)
 			// 	std::cout << i <<" TESTED NODE from:: " << topography[from] << " v " << topography[to]  << "||" << (topography[from] > topography[to]) << std::endl;

@@ -554,10 +554,10 @@ public:
 			// }
 
 			// Otherwise incrementing the number of receivers for the right link
-			if(this->connector->links[i] == 1)
-				++nrecs[this->connector->linknodes[i*2+1]];
-			else if (this->connector->links[i] == 0)
-				++nrecs[this->connector->linknodes[i*2]];
+			// if(this->connector->links[i] == 1)
+			++nrecs[this->connector->get_from_links(i)];
+			// else if (this->connector->links[i] == 0)
+			// 	++nrecs[this->connector->get_from_links(i)];
 		}
 
 
@@ -566,7 +566,9 @@ public:
 		{
 			// std::cout << nrecs[i] << std::endl;;
 			if(nrecs[i] == 0)
+			{
 				toproc.emplace(i);
+			}
 		}
 
 
@@ -583,20 +585,25 @@ public:
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
 			// getting the idx of the recs
-			int nn = this->connector->get_receivers_idx(next, recs);
+			int nn = this->connector->get_donors_idx_links(next, recs);
 			for(int td=0;td<nn;++td)
 			{
-				int d = recs[td];
+				int d = this->connector->get_from_links(recs[td]);
 				// Decrementing the number of receivers (I use it as a visited vector)
 				--nrecs[d];
 				// if it has reached 0, the rec is ready to be put in the FIFO
 				if(nrecs[d] == 0)
+				{
 					toproc.emplace(d);
+				}
 			}
 		}
 
 		if(int(this->stack.size()) != this->nnodes)
+		{
 			std::cout << "WARNING::Stack->" << this->stack.size() << "/" << this->nnodes << std::endl;
+			throw std::runtime_error("STACK ISSUE");
+		}
 
 		// std::cout << debug_cpt << " <-- Nlinks invalids" << std::endl;
 		
@@ -609,8 +616,10 @@ public:
 	{
 		// Formatting hte topographic input from the wrapper
 		auto topography = format_input<topo_t>(ttopography);
+
 		// Dortng by index
 		auto yolo = sort_indexes(topography);
+
 		// the sorted index is now the stack
 		this->stack = std::move(yolo);
 	}

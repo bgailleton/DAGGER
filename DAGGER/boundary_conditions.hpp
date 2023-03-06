@@ -96,6 +96,7 @@ std::string BC2str(BC tbc)
 	if(tbc == BC::FLOW_BUT) return "FLOW_BUT";
 	if(tbc == BC::CAN_OUT) return "CAN_OUT";
 	if(tbc == BC::OUT) return "OUT";
+	if(tbc == BC::IN) return "IN";
 	if(tbc == BC::CANNOT_OUT) return "CANNOT_OUT";
 	if(tbc == BC::FORCE_OUT) return "FORCE_OUT";
 	if(tbc == BC::FORCE_IN) return "FORCE_IN";
