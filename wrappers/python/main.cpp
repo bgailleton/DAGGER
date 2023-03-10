@@ -610,7 +610,19 @@ Authors:
 B.G.
 
 )pdoc"
-      )
+    )
+
+    .def(
+      "get_n_pits",
+       &graph<double,CONNECTOR_T>:: get_n_pits,
+       R"pdoc(Return the number of internal pits (prior solving).)pdoc"
+    )
+
+    .def(
+      "get_debug_mask",
+       &graph<double,CONNECTOR_T>:: get_debug_mask,
+       R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc"
+    )
     
   ;
 }
@@ -834,6 +846,11 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("disable_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
     .def("get_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<py::array_t<double,1> >)
 
+    .def("enable_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
+    .def("disable_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
+    .def("get_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<py::array_t<double,1> >)
+
+
     .def("get_tot_Qw_input", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
     .def("get_tot_Qw_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
     .def("get_tot_Qwin_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
@@ -844,7 +861,7 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("disable_stochaslope", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
     .def("set_fixed_hw_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
     .def("set_fixed_slope_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
-    
+    .def("get_dt_hydro",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
     
     
     
@@ -1740,11 +1757,11 @@ B.G.
      );
 
 
-  declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
-  declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
-  // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
-  declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
-  // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
+  // declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
+  // declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
+  // // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
+  // declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
+  // // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
 
   py::enum_<RANDNOISE>(m, "NOISE")
     .value("WHITE", RANDNOISE::WHITE)
@@ -1752,38 +1769,8 @@ B.G.
     .value("PERLIN", RANDNOISE::PERLIN)
   ;
 
-  py::class_<fastflood_recorder<double> >(m, "fastflood_recorder")
-    .def(py::init<>())
-    .def("enable_edot_recording",&fastflood_recorder<double>::enable_edot_recording)
-    .def("disable_edot_recording",&fastflood_recorder<double>::disable_edot_recording)
-    .def("get_edot",&fastflood_recorder<double>::get_edot<py::array_t<double,1> >)
-    .def("enable_ddot_recording",&fastflood_recorder<double>::enable_ddot_recording)
-    .def("disable_ddot_recording",&fastflood_recorder<double>::disable_ddot_recording)
-    .def("get_ddot",&fastflood_recorder<double>::get_ddot<py::array_t<double,1> >)
-    .def("enable_lateral_edot_recording",&fastflood_recorder<double>::enable_lateral_edot_recording)
-    .def("disable_lateral_edot_recording",&fastflood_recorder<double>::disable_lateral_edot_recording)
-    .def("get_lateral_edot",&fastflood_recorder<double>::get_lateral_edot<py::array_t<double,1> >)
-    .def("enable_lateral_ddot_recording",&fastflood_recorder<double>::enable_lateral_ddot_recording)
-    .def("disable_lateral_ddot_recording",&fastflood_recorder<double>::disable_lateral_ddot_recording)
-    .def("get_lateral_ddot",&fastflood_recorder<double>::get_lateral_ddot<py::array_t<double,1> >)
-    .def("enable_qs_recording",&fastflood_recorder<double>::enable_qs_recording)
-    .def("disable_qs_recording",&fastflood_recorder<double>::disable_qs_recording)
-    .def("get_qs",&fastflood_recorder<double>::get_qs<py::array_t<double,1> >)
-    .def("enable_dhw_recording",&fastflood_recorder<double>::enable_dhw_recording)
-    .def("disable_dhw_recording",&fastflood_recorder<double>::disable_dhw_recording)
-    .def("get_dhw",&fastflood_recorder<double>::get_dhw<py::array_t<double,1> >)
-    .def("enable_tau_recording",&fastflood_recorder<double>::enable_tau_recording)
-    .def("disable_tau_recording",&fastflood_recorder<double>::disable_tau_recording)
-    .def("get_tau",&fastflood_recorder<double>::get_tau<py::array_t<double,1> >)
-    .def("enable_vmot_recording",&fastflood_recorder<double>::enable_vmot_recording)
-    .def("disable_vmot_recording",&fastflood_recorder<double>::disable_vmot_recording)
-    .def("get_vmot",&fastflood_recorder<double>::get_vmot<py::array_t<double,1> >)
-  ;
-
-  declare_ff<DAGGER::D8connector<double> >(m,"FF");
 
   declare_graphflood< double, DAGGER::graph<double, DAGGER::D8connector<double> >, DAGGER::D8connector<double> >(m, "graphflood");
-  // // declare_ff<DAGGER::D4connector<double> >(m,"FFD4");
 
 
   m.def("generate_perlin_noise_2D", &generate_perlin_noise_2D<py::array_t<double,1>, double, D8connector<double> >);

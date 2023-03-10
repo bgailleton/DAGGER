@@ -3,8 +3,8 @@ This header file extends the graph to provide routines to process depressions us
 */
 
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#ifndef cordonnier_versatile_2019_HPP
-#define cordonnier_versatile_2019_HPP
+#ifndef _cordonnier_versatile_2019_HPP
+#define _cordonnier_versatile_2019_HPP
 
 // STL imports
 #include <limits>
@@ -35,14 +35,14 @@ namespace DAGGER
 {
 
 template<class float_t>
-class basinLink
+class _basinLink
 {
 public:
 
 	int b1,b2,from,to;
 	float_t score;
-	basinLink(){;}
-	basinLink(int b1, int b2, int from, int to, float_t score)
+	_basinLink(){;}
+	_basinLink(int b1, int b2, int from, int to, float_t score)
 	{
 		this->b1 = b1;
 		this->b2 = b2;
@@ -57,12 +57,12 @@ public:
 
 // Custom operator sorting the nodes by scores
 template<class float_t>
-inline bool operator>( const basinLink<float_t>& lhs, const basinLink<float_t>& rhs )
+inline bool operator>( const _basinLink<float_t>& lhs, const _basinLink<float_t>& rhs )
 {
 	return lhs.score > rhs.score;
 }
 template<class float_t>
-inline bool operator<( const basinLink<float_t>& lhs, const basinLink<float_t>& rhs )
+inline bool operator<( const _basinLink<float_t>& lhs, const _basinLink<float_t>& rhs )
 {
 	return lhs.score < rhs.score;
 }
@@ -71,23 +71,23 @@ inline bool operator<( const basinLink<float_t>& lhs, const basinLink<float_t>& 
 
 
 template<class float_t>
-class SparseStorer
+class _SparseStorer
 {
 public:
 	int nel = 0;
 	int nlinks = 0;
 	bool optimize_memory = false;
 	std::vector<bool> isin;
-	std::unordered_map<std::string,basinLink<float_t> > blinks;
-	SparseStorer(){;}
-	SparseStorer(int nel)
+	std::unordered_map<std::string,_basinLink<float_t> > blinks;
+	_SparseStorer(){;}
+	_SparseStorer(int nel)
 	{
 		this->nel = nel;
 		if(this->optimize_memory == false)
 			this->isin = std::vector<bool>(this->nel*this->nel,false);
 	}
 
-	void insert(std::string idx, basinLink<float_t>& basl)
+	void insert(std::string idx, _basinLink<float_t>& basl)
 	{
 		bool tisin = false;
 		if(this->optimize_memory)
@@ -97,7 +97,7 @@ public:
 
 		if(tisin)
 		{
-			// basinLink<float_t>& cubasl = this->blinks[idx];
+			// _basinLink<float_t>& cubasl = this->blinks[idx];
 			if(basl.score < this->blinks[idx].score)
 			{
 				// std::cout << "happens::" << basl.score << " vs " << this->blinks[idx].score << std::endl;
@@ -114,10 +114,10 @@ public:
 
 
 template<class n_t, class dist_t, class Connector_t, class topo_t, class LM_t>
-class UnionFind
+class _UnionFind
 {
 	public:
-		UnionFind(int size,LM_t &cod )
+		_UnionFind(int size,LM_t &cod )
 		{
 			this->cod = &cod;
 			this->_parent = std::vector<int>(size);
@@ -178,7 +178,7 @@ class UnionFind
 
 // Only for pairs of std::hash-able types for simplicity.
 // You can of course template this struct to allow other hash functions
-struct pair_hash {
+struct _pair_hash {
 	template <class T1, class T2>
 	std::size_t operator () (const std::pair<T1,T2> &p) const {
 		auto h1 = std::hash<T1>{}(p.first);
@@ -192,7 +192,7 @@ struct pair_hash {
 
 	
 template<class float_t>
-class LMRerouter
+class _LMRerouter
 {
 
 public:
@@ -220,9 +220,9 @@ public:
 	// std::unordered_map<int , float_t> edges;
 	// std::unordered_map<int , std::pair<int,int> > edges_nodes;
 
-	SparseStorer<float_t> stostor;
+	_SparseStorer<float_t> stostor;
 
-	LMRerouter(){;};
+	_LMRerouter(){;};
 
 
 	template<class topo_t, class Connector_t>
@@ -297,24 +297,31 @@ public:
 		// int nconnector->linknodes = 0;
 
 		// std::cout << "DEBUGLM_II::4" <<std::endl;
-		// this->stostor = SparseStorer<float_t>(std::round(std::pow(this->nbas,2)/2));
-		this->stostor = SparseStorer<float_t>();
+		// this->stostor = _SparseStorer<float_t>(std::round(std::pow(this->nbas,2)/2));
+		this->stostor = _SparseStorer<float_t>();
 		this->stostor.optimize_memory = true;
 		
 		// going through each and every link
-		for(int i=0; i < int(connector->links.size()); ++i)
+		for(int i=0; i < int(connector->linknodes.size()); ++i)
 		{
 			// if the link is not valid, I continue
-			if(connector->is_link_valid(i) == false)
+			if(connector->linknodes[i] < 0)
 			{
+				// REALLY IMPORTANT: incrementing i as i is a noe and i+1 its counterpart
+				++i;
 				continue;
 			}
 
-			int o1,o2; connector->node_idx_from_link_idx_nocheck(i, o1, o2);
+			// j is first index and k the next
+			int j = i;
+			int k = j+1;
 
+			// REALLY IMPORTANT: incrementing i as i is a noe and i+1 its counterpart
+			++i;
+			
 			// translating the nodes to basin IDs 
-			int bj = this->basins[o1];
-			int bk = this->basins[o2];
+			int bj = this->basins[connector->linknodes[j]];
+			int bk = this->basins[connector->linknodes[k]];
 
 			// if in same basin or both open -> I skip
 			if(bj == bk || (this->is_open_basin[bj] && this->is_open_basin[bk]) )
@@ -322,17 +329,17 @@ public:
 
 			// The score is the minimum elevation of the pass or the elevation of the outlet if the flow can out a place
 			float_t score;
-			if(connector->boundaries.can_out(o1))
+			if(connector->boundaries.can_out(connector->linknodes[j]))
 			{
-				score = topography[o1];
+				score = topography[connector->linknodes[j]];
 			}
-			else if (connector->boundaries.can_out(o2))
+			else if (connector->boundaries.can_out(connector->linknodes[k]))
 			{
-				score = topography[o2];
+				score = topography[connector->linknodes[k]];
 			}
 			else
 			{
-				score = std::min(topography[o1],topography[o2]);
+				score = std::min(topography[connector->linknodes[j]],topography[connector->linknodes[k]]);
 			}
 			
 			// is bj < bk (the std::pair storing the pass always starts from the lowes to the highest by convention to keep the std::pair map keys unique)
@@ -340,7 +347,7 @@ public:
 			if(bjmin == false)
 			{
 				std::swap(bj,bk);
-				std::swap(o1,o2);
+				std::swap(j,k);
 			}
 
 
@@ -349,7 +356,7 @@ public:
 			std::string tp = this->uniqueBasid(bj,bk);
 
 			
-			basinLink<float_t> tbasl(bj,bk,o1,o2,score);
+			_basinLink<float_t> tbasl(bj,bk,connector->linknodes[j],connector->linknodes[k],score);
 			this->stostor.insert(tp, tbasl);
 
 		}
@@ -357,25 +364,25 @@ public:
 		// Done with the link construction
 
 		// Gathering all the links in a vector
-		std::vector<basinLink<float_t>> thesebasinlinks;
-		thesebasinlinks.reserve(this->stostor.nlinks);
+		std::vector<_basinLink<float_t>> these_basinlinks;
+		these_basinlinks.reserve(this->stostor.nlinks);
 		for(auto it: this->stostor.blinks)
 		{
-			thesebasinlinks.emplace_back(it.second);
+			these_basinlinks.emplace_back(it.second);
 		}
 
 		// And sorting it
-		std::sort(thesebasinlinks.begin(), thesebasinlinks.end());
+		std::sort(these_basinlinks.begin(), these_basinlinks.end());
 
 		// This will track which links are active or not
-		std::vector<bool> isactive(thesebasinlinks.size(), false);
+		std::vector<bool> isactive(these_basinlinks.size(), false);
 
 
 		// std::cout << "DEBUGLM_II::6" <<std::endl;
 
 
 		// This part is applying the kruskal algorithm (I think)
-		UnionFind<int, float_t, Connector_t,topo_t, LMRerouter> uf(this->nbas, (*this) );
+		_UnionFind<int, float_t, Connector_t,topo_t, _LMRerouter> uf(this->nbas, (*this) );
 
 		// trackng the receiver of all basins
 		this->receivers = std::vector<int>(this->nbas);
@@ -386,10 +393,10 @@ public:
 			this->receivers[i] = i;
 
 		// ok going through all the links from lowest pass to the highest
-		for(size_t i = 0; i < thesebasinlinks.size(); ++i)
+		for(size_t i = 0; i < these_basinlinks.size(); ++i)
 		{
 			// getting next link
-			auto& next = thesebasinlinks[i];
+			auto& next = these_basinlinks[i];
 
 			// getting basin IDs
 			int b1 = next.b1;
@@ -440,7 +447,7 @@ public:
 		{
 			bool alltrue = true;
 			int nlinkignored = 0;
-			for(size_t i=0; i<thesebasinlinks.size();++i)
+			for(size_t i=0; i<these_basinlinks.size();++i)
 			{
 				if(isactive[i] == false)
 				{
@@ -448,14 +455,14 @@ public:
 					continue;
 				}
 
-				int b1 = thesebasinlinks[i].b1, b2 = thesebasinlinks[i].b2;
+				int b1 = these_basinlinks[i].b1, b2 = these_basinlinks[i].b2;
 				if(this->is_open_basin[b1] && this->is_open_basin[b2])
 				{
 					nlinkignored++;
 					continue;
 				}
 
-				auto& next = thesebasinlinks[i];
+				auto& next = these_basinlinks[i];
 
 				// std::cout << "bulf";
 				// if(this->basins[next.to] != b2)
@@ -482,7 +489,7 @@ public:
 				else
 					alltrue = false;
 			}
-			// std::cout << nlinkignored << "/" << thesebasinlinks.size() << std::endl;
+			// std::cout << nlinkignored << "/" << these_basinlinks.size() << std::endl;
 
 			if(alltrue || p_nlinkignored == nlinkignored)
 				break;
@@ -779,7 +786,7 @@ public:
 		}
 
 		// if(this->nbas != this->stack.size())
-		// 	throw std::runtime_error("stacksize issue in LMRerouter::" + std::to_string(this->stack.size()) + " vs " + std::to_string(this->stack.size()));
+		// 	throw std::runtime_error("stacksize issue in _LMRerouter::" + std::to_string(this->stack.size()) + " vs " + std::to_string(this->stack.size()));
 
 		// for(auto v:this->stack)
 		// 	std::cout << v << "|";

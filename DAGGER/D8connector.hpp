@@ -44,9 +44,14 @@ namespace DAGGER
 // Useful namespace for my priority queue
 using PQ_i_d =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
 
+int fast_mod(const int input, const int ceil) {
+	// apply the modulo operator only when needed
+	// (i.e. when the input is greater than the ceiling)
+	return input < ceil ? input : input % ceil;
+	// NB: the assumption here is that the numbers are positive
+}
 
-
-template<class T>
+template<class T, class uI_t = std::uint8_t>
 class D8connector
 {
 public:
@@ -111,22 +116,27 @@ public:
 	CodeBC boundaries;
 
 	// Helpers for neighbouring operations
-	// -> neighbourer holdsthe indices to loop through for each boundary condition
-	std::vector<std::vector<int> > neighbourer;
+	// -> oldneighbourer holdsthe indices to loop through for each boundary condition
+	std::vector<std::vector<int> > oldneighbourer;
+
+	std::array<int,81> neighbourer;
+	std::array<int,81> reruobhgien;
+	
+	// vector of linksize pointing to the neighbourer
+	std::vector<uI_t> linkdir, ridknil;
+
 	// -> lengthener is the dx on each directions
-	std::vector<T> lengthener;
+	std::array<T,8> lengthener;
 
 	// uint8_t vector for each link indicating its directionality: 
-	// - 0 is inverse (linknode 2 --> linknode 1)
-	// - 1 is normal (linknode 1 --> linknode 2)
-	// - 3 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) ) or temporarily invalid due to dynamic boundary conditions
-	// The index itself is calculated from a connector
-	std::vector<std::uint8_t> links;
-	
-	// integer vector of 2*links size with the node indices of each link
-	// for example, the nodes of link #42 would be indices 84 and 85
-	std::vector<int> linknodes;
-
+	// - 0 is inverse (2 --> 1)
+	// - 1 is normal (1 --> 2)
+	// - 2 is forced inverse (linknode 2 --> linknode 1, no recomputing)
+	// - 3 is forced normal (linknode 1 --> linknode 2, no recomputing)
+	// - 4 is temporary invalid (for example a node can only receive flux and its neighbour is lower elevation
+	// - 5 is invalid (link index may exist, but is either inexsitant (index is conserved for speed reason when the link index is calculated from node index) )
+	// see dedicated function to convert node and link indices
+	std::vector<uI_t> links;
 
 	// Single graph receivers
 	// -> Sreceivers: steepest recervers (nnodes size), 
@@ -140,6 +150,8 @@ public:
 
 	// Steepest slope
 	std::vector<T> SS;
+
+	std::map<int,uI_t> converter;
 
 	// Coordinate stuff
 	// Xs and Ys are vectors of nx and ny size converting row to y and col to X
@@ -157,8 +169,9 @@ public:
 	{
 		// initialisation is offset to dedicated function because some languages like Julia are complicating non default constructor initialisation.
 		this->init_dimensions(nx,ny,dx,dy,xmin,ymin);
-		this->_allocate_vectors();
-		this->fill_linknodes();
+
+		// this->_allocate_vectors();
+		// this->precompute_links();
 	}
 
 	template<class topo_t>
@@ -173,15 +186,19 @@ public:
 	{
 		int nnodes = nx * ny;
 		this->set_dimensions(nx,ny,nnodes,dx,dy,xmin,ymin);
+		// std::cout << "YOLO" << std::endl;
+		this->initialise_neighbourer();
+		// std::cout << "YOLO2" << std::endl;
 		this->set_default_boundaries("4edges");
+	
 	}
 	
-	/// @Description: Initialising the "neighbourer", a data structure managing the iterations though the neighbours of a given node
-	/// Function of boundary conditions, one can feed the neighbourer with an indice which returns the index to ADD to the node to get its neighbour.
+	/// @Description: Initialising the "oldneighbourer", a data structure managing the iterations though the neighbours of a given node
+	/// Function of boundary conditions, one can feed the oldneighbourer with an indice which returns the index to ADD to the node to get its neighbour.
 	/// The neighbour order is (in table referential, be careful if Y axis is inverted) top-left, top, top-right, left, right, bottom-left, bottom, bottom-right
 	/// @Authors: B.G.
 	/// @Date: 2021
-	void initialise_neighbourer()
+	void initialise_oldneighbourer()
 	{
 		T diag = std::sqrt(std::pow(dx,2) + std::pow(dy,2) );
 		this->dxy = diag;
@@ -189,34 +206,1358 @@ public:
 		this->dxmax = std::max(this->dx,this->dy);
 
 
-		this->lengthener = std::initializer_list<T>{diag,dy,diag,dx,dx,diag,dy,diag};
-		this->neighbourer.clear();
+		this->lengthener = std::array<T,8>{diag,dy,diag,dx,dx,diag,dy,diag};
+		this->oldneighbourer.clear();
 
 		// these vectors are additioned to the node indice to test the neighbors
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 }); // internal node 0
-		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 });// periodic_first_row 1
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,- (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_last_row 2
-		this->neighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, (this->nx - 1),1, 2 * this->nx - 1, this->nx, this->nx + 1 }); // periodic_first_col 3
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - 2 * this->nx + 1, -1,-this->nx + 1, this->nx - 1, this->nx, 1 }); // periodic last_col 4
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, -1, 1, this->nx - 1, this->nx, this->nx + 1 }); // normal_first_row 5
-		this->neighbourer.emplace_back(std::initializer_list<int>{- this->nx - 1, - this->nx, - this->nx + 1, -1,1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_last_row 6
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, - this->nx, - this->nx + 1, this->not_a_node, 1, this->not_a_node,  this->nx, this->nx + 1 }); // normal_first_col 7
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node }); // normal_last_col 8
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node, 1, this->not_a_node, this->nx, this->nx + 1 }); // normal_top_left 9
-		this->neighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node, this->not_a_node, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node}); // normal_top_right 10
-		this->neighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node,- this->nx, - this->nx + 1,this->not_a_node, 1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_left 11
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_right 12
-		this->neighbourer.emplace_back(std::initializer_list<int>{this->ny * this->nx -1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, this->nx - 1, 1, 2 * this->nx - 1, this->nx, this->nx+1}); // top_left_periodic 13
-		this->neighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 2) * this->nx + 1, -1, - this->nx + 1,this->nx - 1, this->nx, 1 }); // top_right_periodic 14
-		this->neighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, this->nx - 1,1,- (this->ny - 2) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_bottom_left 15
-		this->neighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1, 1 - this->nx + 1, - (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny) * this->nx + 1 });// periodic_bottom_right 16
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 }); // internal node 0
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, -1,1,this->nx - 1, this->nx, this->nx + 1 });// periodic_first_row 1
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1,1,- (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_last_row 2
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, (this->nx - 1),1, 2 * this->nx - 1, this->nx, this->nx + 1 }); // periodic_first_col 3
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - 2 * this->nx + 1, -1,-this->nx + 1, this->nx - 1, this->nx, 1 }); // periodic last_col 4
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, -1, 1, this->nx - 1, this->nx, this->nx + 1 }); // normal_first_row 5
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{- this->nx - 1, - this->nx, - this->nx + 1, -1,1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_last_row 6
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, - this->nx, - this->nx + 1, this->not_a_node, 1, this->not_a_node,  this->nx, this->nx + 1 }); // normal_first_col 7
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node }); // normal_last_col 8
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node, 1, this->not_a_node, this->nx, this->nx + 1 }); // normal_top_left 9
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node, this->not_a_node, this->not_a_node, -1, this->not_a_node, this->nx - 1, this->nx, this->not_a_node}); // normal_top_right 10
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{ this->not_a_node,- this->nx, - this->nx + 1,this->not_a_node, 1, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_left 11
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, this->not_a_node, -1, this->not_a_node, this->not_a_node, this->not_a_node, this->not_a_node}); // normal_bottom_right 12
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{this->ny * this->nx -1, (this->ny - 1) * this->nx, (this->ny - 1) * this->nx + 1, this->nx - 1, 1, 2 * this->nx - 1, this->nx, this->nx+1}); // top_left_periodic 13
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{(this->ny - 1) * this->nx - 1, (this->ny - 1) * this->nx, (this->ny - 2) * this->nx + 1, -1, - this->nx + 1,this->nx - 1, this->nx, 1 }); // top_right_periodic 14
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{- 1, - this->nx, - this->nx + 1, this->nx - 1,1,- (this->ny - 2) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny - 1) * this->nx + 1 });// periodic_bottom_left 15
+		this->oldneighbourer.emplace_back(std::initializer_list<int>{-this->nx - 1, - this->nx, - this->nx + 1, -1, 1 - this->nx + 1, - (this->ny - 1) * this->nx - 1, - (this->ny - 1) * this->nx, - (this->ny) * this->nx + 1 });// periodic_bottom_right 16
 	
+	}
+
+
+	void initialise_neighbourer()
+	{
+		
+		T diag = std::sqrt( std::pow(dx,2) + std::pow(dy,2) );
+		this->dxy = diag;
+		this->dxmin = std::min(this->dx,this->dy);
+		this->dxmax = std::max(this->dx,this->dy);
+
+		for(int i=0; i<81; ++i)
+		{
+			this->neighbourer[i] = 0;
+			this->reruobhgien[i] = 0;
+		}
+
+
+		// this->lengthener = std::initializer_list<T>{diag,dy,diag,dx,dx,diag,dy,diag};
+		this->lengthener = std::array<T,8>{diag,dy,diag,dx,dx,diag,dy,diag};
+
+		// Array of adder for neighbouring:
+		// normal neighbouring
+		this->neighbourer[0] = std::numeric_limits<int>::min(); // nodata 0
+		this->converter[this->neighbourer[0]] = 0;
+		int aa = 1;
+		this->neighbourer[0 + aa] = 1; // right 1
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = this->nx + 1; // bottom right 2
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom3
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = this->nx - 1; // bottom left4
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = - 1; // left5
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = - this->nx - 1; // top left6
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top7
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - this->nx + 1; // top right8
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring top row  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 9
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = this->nx + 1; // bottom right10
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom11
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = this->nx - 1; // bottom left12
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = - 1; // left13
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = this->nnodes - this->nx - 1; // top left14
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = this->nnodes - this->nx; // top15
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = this->nnodes - this->nx + 1; // top right16
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring bottom row  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 17
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = - this->nnodes + this->nx + 1; // bottom right18
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = - this->nnodes + this->nx; // bottom19
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = - this->nnodes + this->nx - 1; // bottom left20
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = - 1; // left21
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = - this->nx - 1; // top left22
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top23
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - this->nx + 1; // top right24
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring topleft_corner  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 25
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = this->nx + 1; // bottom right26
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom27
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = 2 * this->nx - 1; // bottom left28
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = this->nx - 1; // left29
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = this->nnodes - 1; // top left30
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = this->nnodes - this->nx; // top31
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = this->nnodes - this->nx + 1; // top right32
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring topright_corner  
+		aa += 8;
+		this->neighbourer[0 + aa] = - this->nx + 1; // right 33
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = 1; // bottom right34
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom35
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = this->nx - 1; // bottom left36
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = - 1; // left37
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = this->nnodes - this->nx - 1; // top left38
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = this->nnodes - this->nx; // top39
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = this->nnodes - 2*this->nx + 1; // top right40
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring left col  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 41
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = this->nx + 1; // bottom right42
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom43
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = 2 * this->nx - 1; // bottom left44
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = this->nx - 1; // left45
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = - 1; // top left46
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top47
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - this->nx + 1; // top right48
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring right col  
+		aa += 8;
+		this->neighbourer[0 + aa] = - this->nx + 1; // right 49
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = 1; // bottom right50
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom51
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = this->nx - 1; // bottom left52
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = - 1; // left53
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = - this->nx - 1; // top left54
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top55
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - 1; // top right56
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring left col  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 57
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = this->nx + 1; // bottom right58
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = this->nx; // bottom59
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = 2 * this->nx - 1; // bottom left60
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = this->nx - 1; // left61
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = - 1; // top left62
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top63
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - this->nx + 1; // top right64
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+		// periodic neighbouring bottomleft_corner  
+		aa += 8;
+		this->neighbourer[0 + aa] = 1; // right 65
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = - this->nnodes + this->nx + 1; // bottom right66
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = - this->nnodes + this->nx; // bottom67
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = - this->nnodes + 2 * this->nx - 1; // bottom left68
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = this->nx - 1; // left69
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = -1; // top left70
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top71
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - this->nx + 1; // top right72
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+ 		// periodic neighbouring bottomright_corner  
+		aa += 8;
+		this->neighbourer[0 + aa] = - this->nx + 1; // right 73
+		this->converter[this->neighbourer[0 + aa]] = 0 + aa;
+		this->neighbourer[1 + aa] = - this->nnodes + 1; // bottom right74
+		this->converter[this->neighbourer[1 + aa]] = 1 + aa;
+		this->neighbourer[2 + aa] = - this->nnodes + this->nx; // bottom75
+		this->converter[this->neighbourer[2 + aa]] = 2 + aa;
+		this->neighbourer[3 + aa] = - this->nnodes + this->nx - 1; // bottom left76
+		this->converter[this->neighbourer[3 + aa]] = 3 + aa;
+		this->neighbourer[4 + aa] = -1; // left77
+		this->converter[this->neighbourer[4 + aa]] = 4 + aa;
+		this->neighbourer[5 + aa] = -this->nx - 1; // top left78
+		this->converter[this->neighbourer[5 + aa]] = 5 + aa;
+		this->neighbourer[6 + aa] = - this->nx; // top79
+		this->converter[this->neighbourer[6 + aa]] = 6 + aa;
+		this->neighbourer[7 + aa] = - 2 * this->nx + 1; // top right80
+		this->converter[this->neighbourer[7 + aa]] = 7 + aa;
+
+
+		for(int i = 0; i<81; ++i)
+		{
+			this->reruobhgien[i] = -1 * this->neighbourer[i];
+		}
+
+ 	}
+
+
+ 	int get_right_idx_links(int i)
+ 	{
+ 		return i*4;
+ 	}
+	int get_bottomright_idx_links(int i)
+	{
+		return i*4 + 1;
+	}
+	int get_bottom_idx_links(int i)
+	{
+		return i*4 + 2;
+	}
+	int get_bottomleft_idx_links(int i)
+	{
+		return i*4 + 3;
+	}
+
+
+	int get_left_idx_links(int i)
+	{
+		int modi = fast_mod(i, this->nx);
+		return this->get_left_idx_links(i,modi);
+	}
+
+	int get_left_idx_links(int i, int modi)
+	{
+		int o = -1;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[5];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[29];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[37];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[69]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[77];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[13];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[21];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[45];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[53];
+		}
+		return this->get_right_idx_links(o);
+
+	}
+
+	int get_topleft_idx_links(int i)
+	{
+		int modi = fast_mod(i, this->nx);
+		return this->get_topleft_idx_links(i,modi);
+	}
+
+	int get_topleft_idx_links(int i, int modi)
+	{
+		int o = -1;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[6];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[30];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[38];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[70]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[78];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[14];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[22];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[46];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[54];
+		}
+		return this->get_bottomright_idx_links(o);
+
+	}
+
+	int get_top_idx_links(int i)
+	{
+		int modi = fast_mod(i, this->nx);
+		return this->get_top_idx_links(i,modi);
+	}
+
+	int get_top_idx_links(int i, int modi)
+	{
+		int o = -1;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[7];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[31];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[39];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[71]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[79];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[15];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[23];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[47];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[55];
+		}
+		return this->get_bottom_idx_links(o);
+
+	}
+
+
+	int get_topright_idx_links(int i)
+	{
+		int modi = fast_mod(i, this->nx);
+		return this->get_topright_idx_links(i,modi);
+	}
+
+	int get_topright_idx_links(int i, int modi)
+	{
+		int o = -1;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[8];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[32];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[40];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[72]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[80];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[16];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[24];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[48];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[56];
+		}
+		return this->get_bottomleft_idx_links(o);
+
 	}
 
 
 
 
-	/// @description: Sets the dimension of the graph and initialise the neighbourer
+
+
+ 	int get_left_idx(int i)
+	{
+		int li = this->get_left_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+			return i + this->reruobhgien[this->ridknil[li]];
+		
+	}
+
+	int get_top_idx(int i)
+	{
+		int li = this->get_top_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+		{
+			return i + this->reruobhgien[this->ridknil[li]];
+		}
+	}
+
+	int get_right_idx(int i)
+	{
+		int li = this->get_right_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+		{
+			return i + this->neighbourer[this->linkdir[li]];
+		}
+	}
+
+	int get_bottom_idx(int i)
+	{
+		int li = this->get_bottom_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+		{
+			return i + this->neighbourer[this->linkdir[li]];
+		}
+	}
+
+	// D8 single neighbour extra routines
+	int get_topleft_idx(int i)
+	{
+		int li = this->get_topleft_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+			return i + this->reruobhgien[this->ridknil[li]];
+	}
+
+	int get_topright_idx(int i)
+	{
+		int li = this->get_topright_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+			return i + this->reruobhgien[this->ridknil[li]];
+	}
+
+	int get_bottomleft_idx(int i)
+	{
+		int li = this->get_bottomleft_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+			return i + this->reruobhgien[this->ridknil[li]];
+	}
+
+	int get_bottomright_idx(int i)
+	{
+		int li = this->get_bottomright_idx_links(i);
+		if(this->is_link_valid(li) == false)
+			return -1;
+		else
+			return i + this->neighbourer[this->linkdir[li]];
+	}
+
+	int get_raw_right_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_right_idx(i,modi);
+	}
+
+	int get_raw_right_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[1];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[25];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[33];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[65]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[73];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[9];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[17];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[41];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[49];
+		}
+
+		return o;
+	}
+
+	int get_raw_bottomright_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_bottomright_idx(i,modi);
+	}
+
+	int get_raw_bottomright_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[2];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[26];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[34];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[66]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[74];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[10];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[18];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[42];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[50];
+		}
+
+		return o;
+	}
+
+	int get_raw_bottom_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_bottom_idx(i,modi);
+	}
+
+	int get_raw_bottom_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[3];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[27];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[35];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[67]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[75];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[11];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[19];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[43];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[51];
+		}
+
+		return o;
+	}
+
+	int get_raw_bottomleft_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_bottomleft_idx(i,modi);
+	}
+
+	int get_raw_bottomleft_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[4];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[28];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[36];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[68]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[76];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[12];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[20];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[44];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[52];
+		}
+
+		return o;
+	}
+
+	int get_raw_left_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_left_idx(i,modi);
+	}
+
+	int get_raw_left_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[5];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[29];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[37];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[69]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[77];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[13];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[21];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[45];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[53];
+		}
+
+		return o;
+	}
+
+	int get_raw_topleft_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_topleft_idx(i,modi);
+	}
+
+	int get_raw_topleft_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[6];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[30];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[38];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[70]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[78];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[14];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[22];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[46];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[54];
+		}
+
+		return o;
+	}
+
+	int get_raw_top_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_top_idx(i,modi);
+	}
+
+	int get_raw_top_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[7];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[31];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[39];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[71]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[79];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[15];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[23];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[47];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[55];
+		}
+
+		return o;
+	}
+
+	int get_raw_topright_idx(int i)
+	{
+		int modi = fast_mod(i,this->nx);
+		return this->get_raw_topright_idx(i,modi);
+	}
+
+	int get_raw_topright_idx(int i, int modi)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[8];
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[32];
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[40];
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[72]; //woooo
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[80];
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[16];
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[24];
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[48];
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[56];
+		}
+
+		return o;
+	}
+
+
+	int get_raw_right_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[1];
+			dir = 1;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[25];
+			dir = 25;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[33];
+			dir = 33;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[65]; //woooo
+			dir = 65;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[73];
+			dir = 73;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[9];
+			dir = 9;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[17];
+			dir = 17;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[41];
+			dir = 41;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[49];
+			dir = 49;
+		}
+
+		return o;
+	}
+	
+	int get_raw_bottomright_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[2];
+			dir = 2;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[26];
+			dir = 26;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[34];
+			dir = 34;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[66]; //woooo
+			dir = 66;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[74];
+			dir = 74;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[10];
+			dir = 10;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[18];
+			dir = 18;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[42];
+			dir = 42;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[50];
+			dir = 50;
+		}
+
+		return o;
+	}
+	
+	int get_raw_bottom_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[3];
+			dir = 3;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[27];
+			dir = 27;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[35];
+			dir = 35;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[67]; //woooo
+			dir = 67;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[75];
+			dir = 75;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[11];
+			dir = 11;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[19];
+			dir = 19;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[43];
+			dir = 43;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[51];
+			dir = 51;
+		}
+
+		return o;
+	}
+	
+	int get_raw_bottomleft_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[4];
+			dir = 4;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[28];
+			dir = 28;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[36];
+			dir = 36;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[68]; //woooo
+			dir = 68;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[76];
+			dir = 76;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[12];
+			dir = 12;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[20];
+			dir = 20;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[44];
+			dir = 44;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[52];
+			dir = 52;
+		}
+
+		return o;
+	}
+	
+	int get_raw_left_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[5];
+			dir = 5;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[29];
+			dir = 29;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[37];
+			dir = 37;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[69]; //woooo
+			dir = 69;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[77];
+			dir = 77;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[13];
+			dir = 13;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[21];
+			dir = 21;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[45];
+			dir = 45;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[53];
+			dir = 53;
+		}
+
+		return o;
+	}
+	
+	int get_raw_topleft_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[6];
+			dir = 6;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[30];
+			dir = 30;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[38];
+			dir = 38;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[70]; //woooo
+			dir = 70;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[78];
+			dir = 78;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[14];
+			dir = 14;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[22];
+			dir = 22;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[46];
+			dir = 46;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[54];
+			dir = 54;
+		}
+
+		return o;
+	}
+	
+	int get_raw_top_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[7];
+			dir = 7;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[31];
+			dir = 31;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[39];
+			dir = 39;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[71]; //woooo
+			dir = 71;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[79];
+			dir = 79;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[15];
+			dir = 15;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[23];
+			dir = 23;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[47];
+			dir = 47;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[55];
+			dir = 55;
+		}
+
+		return o;
+	}
+	
+	int get_raw_topright_idx(int i, int modi, uI_t& dir)
+	{
+		int o;
+		if(i > this->nx && i < this->nnodes - this->nx - 1 && modi > 0 && modi != (this->nx - 1) )
+		{
+			o = i + this->neighbourer[8];
+			dir = 8;
+		}
+		else if(i == 0)
+		{
+			o = i + this->neighbourer[32];
+			dir = 32;
+		}
+		else if (i == this->nx - 1)
+		{
+			o = i + this->neighbourer[40];
+			dir = 40;
+		}
+		else if (i == this->nnodes - this->nx)
+		{
+			o = i + this->neighbourer[72]; //woooo
+			dir = 72;
+		}
+		else if (i == this->nnodes - 1)
+		{
+			o = i + this->neighbourer[80];
+			dir = 80;
+		}
+		else if (this->is_on_top_row(i))
+		{
+			o = i + this->neighbourer[16];
+			dir = 16;
+		}
+		else if (this->is_on_bottom_row(i))
+		{
+			o = i + this->neighbourer[24];
+			dir = 24;
+		}
+		else if (modi == 0)
+		{
+			o = i + this->neighbourer[48];
+			dir = 48;
+		}
+		else if(modi == this->nx -1)
+		{
+			o = i + this->neighbourer[56];
+			dir = 56;
+		}
+
+		return o;
+	}
+	
+
+
+
+
+
+
+	/// @description: Sets the dimension of the graph and initialise the oldneighbourer
 	void set_dimensions(int nx, int ny, int nnodes, T dx, T dy, T xmin, T ymin)
 	{
 		this->nx = nx;
@@ -232,7 +1573,7 @@ public:
 		// Not a node is utilised to detect when a neighbouring operation returns not a node
 		this->not_a_node = - nx * ny * 2;
 
-		this->initialise_neighbourer();
+		// this->initialise_oldneighbourer();
 
 		// Initialise coordinate stuff
 		this->Xs = std::vector<T>(this->nx);
@@ -293,8 +1634,8 @@ public:
 			throw std::runtime_error("invalid periodic boundaries");
 		}
 
-		// Recomputing fillnodes
-		// this->fill_linknodes();
+		this->precompute_links();
+
 	}
 
 	// Set all the out boundaries to 3, meaning they can now give to lower elevation neighbours
@@ -318,89 +1659,451 @@ public:
 			ubound[i] = static_cast<BC>(bound[i]);
 
 		this->boundaries.set_codes(ubound);
-		this->fill_linknodes();
+		this->precompute_links();
+
 	}
 
-	
 
 	BC get_boundary_at_node(int i){return this->boundaries.codes[i];}
 
 	bool is_in_bound(int i){return (i>=0 && i<this->nnodes)? true:false;}
 
-	void fill_linknodes()
+	// Checks the validity of a link
+	template<class ti_t>
+	bool is_link_valid(ti_t i)
 	{
-		for(int i=0; i<this->nnodes; ++i)
+		if(this->links[i]>3)
 		{
-			bool NDT = this->boundaries.can_create_link(i);
-			bool i_forcing = this->boundaries.forcing_io(i);
-
-
-			int o = this->get_right_idx(i);
-			bool linkvalid = (NDT &&  this->is_in_bound_and_can_create_link(o));
-			bool both_same_forcing = i_forcing && this->boundaries.forcing_io(o);
-			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
-						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
-				linkvalid = false;
-			this->linknodes[i*8] = (linkvalid) ? i:-1;
-			this->linknodes[i*8 + 1] = (linkvalid) ? o:-1;
-
-
-
-			o = this->get_bottomright_idx(i);
-			linkvalid = (NDT &&  this->is_in_bound_and_can_create_link(o));
-			both_same_forcing = i_forcing && this->boundaries.forcing_io(o);
-			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
-						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
-				linkvalid = false;
-			this->linknodes[i*8 + 2] = (linkvalid) ? i:-1;
-			this->linknodes[i*8 + 3] = (linkvalid) ? o:-1;
-
-			o = this->get_bottom_idx(i); 
-			linkvalid = (NDT &&  this->is_in_bound_and_can_create_link(o));
-			both_same_forcing = i_forcing && this->boundaries.forcing_io(o);
-			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
-						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
-				linkvalid = false;
-			this->linknodes[i*8 + 4] = (linkvalid) ? i:-1;
-			this->linknodes[i*8 + 5] = (linkvalid) ? o:-1;
-
-
-
-			o = this->get_bottomleft_idx(i); 
-			linkvalid = (NDT &&  this->is_in_bound_and_can_create_link(o));
-			both_same_forcing = i_forcing && this->boundaries.forcing_io(o);
-			if(both_same_forcing && ((this->boundaries.force_giving(o) && this->boundaries.force_giving(i)) ||
-						 (this->boundaries.force_receiving(o) && this->boundaries.force_receiving(i))))
-				linkvalid = false;
-			this->linknodes[i*8 + 6] = (linkvalid) ? i:-1;
-			this->linknodes[i*8 + 7] = (linkvalid) ? o:-1;
-
+			return false;
 		}
+		return true;
+	}
+	// Checks the validity of a link
+	
+	template<class ti_t>
+	bool is_link_normal(ti_t i)
+	{
+		if(this->links[i] == 1 || this->links[i] == 3)
+			return true;
+		return false;
+	}
+
+	template<class ti_t>
+	bool is_link_inverse(ti_t i)
+	{
+		if(this->links[i] == 0 || this->links[i] == 2)
+			return true;
+		return false;
+	}
+
+	template<class ti_t>
+	bool is_link_forced(ti_t i)
+	{
+		if(this->links[i] == 2 || this->links[i] == 3)
+			return true;
+		return false;
+	}
+
+	template<class ti_t>
+	bool link_needs_processing(ti_t i)
+	{
+		if(this->links[i] >= 2)
+			return false;
+		return true;
 	}
 
 
+	// DEPRECATED
+	// void fill_linknodes(){;}
+
+
+	int get_neighbour_idx_links_nochecks(int i, std::array<int,8>& tin)
+	{
+		tin[0] = this->get_right_idx_links(i);
+		tin[1] = this->get_bottomright_idx_links(i);
+		tin[2] = this->get_bottom_idx_links(i);
+		tin[3] = this->get_bottomleft_idx_links(i);
+		tin[4] = this->get_left_idx_links(i);
+		tin[5] = this->get_topleft_idx_links(i);
+		tin[6] = this->get_top_idx_links(i);
+		tin[7] = this->get_topright_idx_links(i);
+		return 8;
+	}
+
+	int get_neighbour_idx_links(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li))
+			{
+				tin[size] = li;
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli))
+			{
+				tin[size] = oli;
+				++size;
+			}
+		}
+		return size;
+	}
+
+	int get_receivers_idx_links(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && this->is_link_normal(li))
+			{
+				tin[size] = li;
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && !this->is_link_normal(oli))
+			{
+				tin[size] = oli;
+				++size;
+			}
+		}
+		return size;
+	}
+
+	int get_donors_idx_links(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && !this->is_link_normal(li))
+			{
+				tin[size] = li;
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && this->is_link_normal(oli))
+			{
+				tin[size] = oli;
+				++size;
+			}
+		}
+		return size;
+	}
+
+
+	int get_neighbour_idx(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li))
+			{
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				++size;
+			}
+			// else
+			// 	std::cout << "nope:" << li << "|";
+			
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli))
+			{
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];;
+				++size;
+			}
+			// else
+			// 	std::cout << "epon:" << li << "|";
+		}
+		return size;
+	}
+
+	int get_receivers_idx(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && this->is_link_normal(li))
+			{
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && !this->is_link_normal(oli))
+			{
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				++size;
+			}
+		}
+		return size;
+	}
+
+	int get_donors_idx(int i, std::array<int,8>& tin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && !this->is_link_normal(li))
+			{
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && this->is_link_normal(oli))
+			{
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				++size;
+			}
+		}
+		return size;
+	}
+
+
+	void node_idx_from_link_idx(int li, int& banh, int& bao)
+	{
+		if(this->is_link_valid(li) == false)
+		{
+			banh = -1;
+			bao = -1;
+		}
+		else
+		{
+			banh = static_cast<int>(li/4.);
+			bao = banh + this->neighbourer[this->linkdir[li]];
+		}
+	}
+
+	void node_idx_from_link_idx_nocheck(int li, int& banh, int& bao)
+	{
+
+		banh = static_cast<int>(li/4.);
+		bao = banh + this->neighbourer[this->linkdir[li]];
+	}
+
+	template<class ti_t>
+	ti_t get_from_links(ti_t i)
+	{
+		if(this->is_link_normal(i))
+			return static_cast<int>(i/4.);
+		else
+			return static_cast<int>(i/4.) + this->neighbourer[this->linkdir[i]];
+	}
+
+	template<class ti_t>
+	ti_t get_from_links(ti_t i, int onode)
+	{
+		if(this->is_link_normal(i))
+			return onode;
+		else
+			return onode + this->neighbourer[this->linkdir[i]];
+	}
+
+	template<class ti_t>
+	ti_t get_to_links(ti_t i)
+	{
+		if(this->is_link_inverse(i))
+			return static_cast<int>(i/4.);
+		else
+			return static_cast<int>(i/4.) + this->neighbourer[this->linkdir[i]];
+	}
+
+	template<class ti_t>
+	ti_t get_other_node_from_links(ti_t li, ti_t ni)
+	{
+		ti_t no,on;
+		this->node_idx_from_link_idx(li,on,no);
+		if(no == ni) return on;
+		if(on == ni) return no;
+		return -1;
+
+	}
+
+	void from_to_from_link_index(int li, int& from, int& to)
+	{
+		this->node_idx_from_link_idx(li,from,to);
+		if(from == -1)
+			return;
+
+		if(this->is_link_normal(li))
+			return;
+		else
+			std::swap(from,to);
+
+	}
+
+	void raw_node_idx_from_link_idx(int li, int& banh, int& bao)
+	{
+		
+		int modi = li % 4;
+		banh = static_cast<int>(li/4.);
+		
+		int palu = banh % this->nx;
+
+		if(modi == 0)
+			bao = this->get_raw_right_idx(banh, palu);
+		else if (modi == 1)
+			bao = this->get_raw_bottomright_idx(banh, palu);
+		else if (modi == 2)
+			bao = this->get_raw_bottom_idx(banh, palu);
+		else if (modi == 3)
+			bao = this->get_raw_bottomleft_idx(banh, palu);
+	}
+
+	void raw_node_idx_from_link_idx(int li, int& banh, int& bao, uI_t& dir)
+	{
+		
+		int modi = li % 4;
+		banh = static_cast<int>(li/4.);
+		
+		int palu = banh % this->nx;
+
+		if(modi == 0)
+			bao = this->get_raw_right_idx(banh, palu, dir);
+		else if (modi == 1)
+			bao = this->get_raw_bottomright_idx(banh, palu, dir);
+		else if (modi == 2)
+			bao = this->get_raw_bottom_idx(banh, palu, dir);
+		else if (modi == 3)
+			bao = this->get_raw_bottomleft_idx(banh, palu, dir);
+	
+	}
+
+
+
+	void precompute_links()
+	{
+
+		// initialising all the links to not_processed
+		uI_t maxu = std::numeric_limits<uI_t>::max();
+		
+		this->links = std::vector<uI_t>(this->nnodes * 4,maxu);
+		
+		this->linkdir = std::vector<uI_t>(this->nnodes * 4,maxu);
+		this->ridknil = std::vector<uI_t>(this->nnodes * 4,maxu);
+		this->Sreceivers = std::vector<int>(this->nnodes,-1);
+		for(int i=0;i<this->nnodes; ++i)
+			this->Sreceivers[i] = i;
+		this->Sdistance2receivers = std::vector<T >(this->nnodes,-1);
+		this->SS = std::vector<T>(this->nnodes,0.);
+
+		// int tocheck = 9876;
+		// auto lix = this->get_empty_neighbour<int>();
+		for(int i=0; i < this->nnodes * 4; ++i)
+		{
+
+			// getting link nodes
+			// std::cout << "Processing " << i << std::endl;
+			int a,b; uI_t dir; this->raw_node_idx_from_link_idx(i,a,b,dir);
+			// uI_t convdir = this->converter[delta];
+			int modi = i % 4;
+			int lib  = b * 4 + modi;
+			this->linkdir[i] = dir;
+			this->ridknil[lib] = dir;
+
+
+			// std::cout << "a:" << a << "and b:" << b << " dir:" << int(dir) << std::endl;
+			// if (a == 9876)
+			// if (b == 1999)
+				// std::cout << "a:" << a << "and b:" << b << " dir:" << int(dir) << " adder:" << this->neighbourer[dir] << std::endl;
+
+			// checking for permanently non valid link
+			if
+			(
+				this->boundaries.no_data(a) || 
+				this->boundaries.no_data(b) ||
+				(this->boundaries.force_giving(a) && this->boundaries.force_giving(b)) ||
+				(this->boundaries.force_receiving(a) && this->boundaries.force_receiving(b))
+			)
+			{
+				this->links[i] = 5;
+				continue;
+			}
+
+			
+
+
+			// chekcing for forcing links
+			if
+			(
+				(this->boundaries.force_giving(a) ||
+				this->boundaries.force_receiving(b))
+				&&
+				(
+					(this->is_on_top_row(a) && this->is_on_bottom_row(b) ) == false &&
+					(this->is_on_top_row(b) && this->is_on_bottom_row(a) ) == false &&
+					(this->is_on_leftest_col(a) && this->is_on_rightest_col(b) ) == false &&
+					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false
+				)
+
+			)
+			{
+				this->links[i] = 3;
+			}
+
+			else if
+			(
+				(this->boundaries.force_receiving(a) ||
+				this->boundaries.force_giving(b))
+				&&
+				(
+					(this->is_on_top_row(a) && this->is_on_bottom_row(b) ) == false &&
+					(this->is_on_top_row(b) && this->is_on_bottom_row(a) ) == false &&
+					(this->is_on_leftest_col(a) && this->is_on_rightest_col(b) ) == false &&
+					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false
+
+				)
+			)
+			{
+				this->links[i] = 2;
+			}
+			else if
+			(
+				(this->is_on_rightest_col(a) || this->is_on_bottom_row(a)) &&
+				(!this->boundaries.is_periodic(a) || !this->boundaries.is_periodic(b))
+			)
+			{
+				this->links[i] = 5;
+			}
+			else
+			{
+				this->links[i] = 0; // is temporary yo
+			}
+		}
+
+	}
 
 
 	template<class i_t>
 	void get_nodes_from_linkidx_implicit(int li, int& n1, int& n2)
 	{
-		n1 = floor(li/4);
-		n2 = n1 + li % 4;
+		throw std::runtime_error("get_nodes_from_linkidx_implicit::unavailable");
+		// n1 = floor(li/4);
+		// n2 = n1 + fast_mod(li,4);
 
-		bool nodes_can_create_links = (this->is_in_bound_and_can_create_link(n1) == false || this->is_in_bound_and_can_create_link(n1) == false);
-		bool both_forced = false;
-		if(nodes_can_create_links)
-		{
-			if(this->boundaries.forcing_io(n1) && this->boundaries.forcing_io(n2))
-				both_forced = true;
-		}
+		// bool nodes_can_create_links = (this->is_in_bound_and_can_create_link(n1) == false || this->is_in_bound_and_can_create_link(n1) == false);
+		// bool both_forced = false;
+		// if(nodes_can_create_links)
+		// {
+		// 	if(this->boundaries.forcing_io(n1) && this->boundaries.forcing_io(n2))
+		// 		both_forced = true;
+		// }
 
-		// Then not a valid link
-		if(nodes_can_create_links || both_forced)
-		{
-			n1 = -1;
-			n2 = -1;
-		}
+		// // Then not a valid link
+		// if(nodes_can_create_links || both_forced)
+		// {
+		// 	n1 = -1;
+		// 	n2 = -1;
+		// }
 	}
 
 
@@ -410,34 +2113,35 @@ public:
 	template<class topo_t>
 	void update_links_MFD_only(topo_t& topography)
 	{
+
 		// iterating though every links
+		int node = 0;
+		int incr = 0;
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
-			// Getting hte 2 nodes of the current link
-			int from = this->linknodes[i*2];
-			int to = this->linknodes[i*2 + 1];
-			
-			if(this->linknodes[i*2] < 0)
+
+			// checking if the link is valid 
+			if(this->link_needs_processing(i) ==  false)
 			{
-				this->links[i] = 2;
+				++incr;
+				if(incr == 4)
+				{
+					++node;
+					incr = 0;
+				}	
 				continue;
 			}
 
-			if(this->boundaries.forcing_io(from) || this->boundaries.forcing_io(to) )
+			// Getting hte 2 nodes of the current link
+			// int from,to; this->node_idx_from_link_idx(i,from,to);
+			int from = node;
+			int to = this->neighbourer[this->linkdir[i]] + from;
+			++incr;
+			if(incr == 4)
 			{
-
-				if(this->boundaries.force_giving(from) || this->boundaries.force_receiving(to))
-					this->links[i] = 1;
-				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
-					this->links[i] = 0;
-				else 
-				{
-					throw std::runtime_error("Should not happen 777");
-					this->links[i] = 2;
-				}
-
-				continue;
-			} 
+				++node;
+				incr = 0;
+			}
 
 			// by convention true -> topo1 > topo2
 			if(topography[from] > topography[to] && this->boundaries.can_give(from) && this->boundaries.can_receive(to))
@@ -446,7 +2150,7 @@ public:
 				this->links[i] = 0;
 			// If the configuration cannot allow the link, it is temporarily disabled
 			else
-				this->links[i] = 2;
+				this->links[i] = 4;
 		}
 		// done
 	}
@@ -455,58 +2159,85 @@ public:
 	template<class topo_t>
 	void update_links(topo_t& topography)
 	{
-		// std::cout << "BUNT" << std::endl;
-
+	
 		// am I using a stochastic adjustment for deciding on the steepest slope
 		// iterating through all the nodes
+		int node = 0;
+		int incr = 0;
 		for(size_t i = 0; i<this->links.size(); ++i)
 		{
 
-			// Checking the validity of the link
-			if(this->linknodes[i*2] < 0)
+			// checking if the link is valid 
+			if(this->is_link_valid(i) == false)
 			{
-				this->links[i] = 2;
+				++incr;
+				if(incr == 4)
+				{
+					++node;
+					incr = 0;
+				}
 				continue;
 			}
 
-			// Getting ht etwo nodes of the links
-			int from = this->linknodes[i*2];
-			int to = this->linknodes[i*2 + 1];
-
-			// std::cout << std::setprecision(18);
-
-			// if( 808 * this->nx + 733 == from)
-			// 	std::cout << i <<" TESTED NODE from:: " << topography[from] << " v " << topography[to]  << "||" << (topography[from] > topography[to]) << std::endl;
-			// if( 808 * this->nx + 733 == to)
-			// 	std::cout << i <<" TESTED NODE to:: " << topography[to] << " v " << topography[from] << "||" << (topography[to] > topography[from]) << std::endl;
-
-			// std::cout << from << "|" << to << "||";
+			// Getting hte 2 nodes of the current link
+			// int from,to; this->node_idx_from_link_idx(i,from,to);
+			int from = node;
+			int to = this->neighbourer[this->linkdir[i]] + from;
 			
+			// if(to < 0 || to >= this->nnodes)
+			// {
+			// 	std::cout << "HAPPENS::" << from << "/" << to << " dir:" << int(this->linkdir[i]) << std::endl;
+			// 	// std::cout << i << " vs " << node * 4
+			// }
+
 			// getting the link infos
 			// -> dx
 			T dx = this->get_dx_from_links_idx(i);
+
+			++incr;
+			if(incr == 4)
+			{
+				++node;
+				incr = 0;
+			}
+
+
 			// -> slope
 			T slope = (topography[from] - topography[to])/dx;
 
+			bool FORCED = this->is_link_forced(i);
 
-			if(this->boundaries.forcing_io(from) || this->boundaries.forcing_io(to) )
+			if(FORCED)
 			{
+				slope = 1/std::abs(slope);
+				if(this->is_link_inverse(i))
+				{
+					if(this->SS[to]<slope)
+					{
+						this->Sreceivers[to] = from;
+						this->Sdistance2receivers[to] = dx;
+						this->SS[to] = slope;
+					}				
+				}
+				else if(this->SS[from]<slope)
+				{
+					// saving the Sreceivers info as temporary best choice
+					this->Sreceivers[from] = to;
+					this->Sdistance2receivers[from] = dx;
+					this->SS[from] = slope;
+				}
 
-				if(this->boundaries.force_giving(from) || this->boundaries.force_receiving(to))
-					slope = 1/std::abs(slope);
+				continue;
 
-				else if(this->boundaries.force_giving(to) || this->boundaries.force_receiving(from))
-					slope = -1/std::abs(slope);					
+
 			} 
-
-			
 
 			if(this->stochastic_slope_on) 
 				slope *= (this->randu->get() * this->stochastic_slope_coeff) + 1e-6;
 
 
 			// if slope is positive, to is the receiver by convention
-			if(slope>0  && this->boundaries.can_give(from) && this->boundaries.can_receive(to))
+			if(slope>0  && this->boundaries.can_give(from) && this->boundaries.can_receive(to) )
 			{
 				// Conventional direction
 				this->links[i] = 1;
@@ -519,7 +2250,7 @@ public:
 					this->SS[from] = slope;
 				}
 			}
-			else if (this->boundaries.can_give(to) && this->boundaries.can_receive(from))
+			else if (this->boundaries.can_give(to) && this->boundaries.can_receive(from) )
 			{
 				// Otherwise the convention is inverted:
 				// isrec is falese and to is giving to from
@@ -534,9 +2265,10 @@ public:
 				}
 			}
 			else
-				this->links[i] = 2;
+				this->links[i] = 4;
 
 		}
+
 
 		// Finally inverting the Sreceivers into the Sdonors info
 		// Required for several routines
@@ -593,20 +2325,6 @@ public:
 
 	}
 
-
-	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
-	void _allocate_vectors()
-	{
-		this->links = std::vector<std::uint8_t>(int(this->nnodes * this->nneighbours/2), 2);
-		this->linknodes = std::vector<int>(int(this->nnodes * this->nneighbours), -1);
-		this->Sreceivers = std::vector<int>(this->nnodes,-1);
-		for(int i=0;i<this->nnodes; ++i)
-			this->Sreceivers[i] = i;
-		this->Sdistance2receivers = std::vector<T >(this->nnodes,-1);
-		this->SS = std::vector<T>(this->nnodes,0.);
-	}
-
-
 	void _reallocate_vectors()
 	{
 		for(int i=0;i<this->nnodes; ++i)
@@ -614,7 +2332,6 @@ public:
 			this->Sreceivers[i] = i;
 			this->Sdistance2receivers[i] = 0;
 			this->SS[i] = 0;
-
 		}
 	}
 
@@ -630,379 +2347,8 @@ public:
 	}
 
 
-
-
-	int get_right_idx_links(int i){return i*4;}
-	int get_bottomright_idx_links(int i){return i*4 + 1;}
-	int get_bottom_idx_links(int i){return i*4 + 2;}
-	int get_bottomleft_idx_links(int i){return i*4 + 3;}
-	int get_left_idx_links(int i){int yolo = this->get_left_idx(i); if (yolo>=0){ return this->get_right_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_topleft_idx_links(int i){int yolo = this->get_topleft_idx(i); if (yolo>=0){ return this->get_bottomright_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_top_idx_links(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_topright_idx_links(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_right_idx_linknodes(int i){return 2 * i * 4;}
-	int get_bottomright_idx_linknodes(int i){return 2 * (i*4 + 1);}
-	int get_bottom_idx_linknodes(int i){return 2 * (i*4 + 2);}
-	int get_bottomleft_idx_linknodes(int i){return 2 * (i*4 + 3);}
-	int get_left_idx_linknodes(int i){int yolo = this->get_left_idx(i); if (yolo>=0){ return 2 * this->get_right_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_topleft_idx_linknodes(int i){int yolo = this->get_topleft_idx(i); if (yolo>=0){ return 2 * this->get_bottomright_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_top_idx_linknodes(int i){int yolo = this->get_top_idx(i); if (yolo>=0){ return 2 * this->get_bottom_idx_links(yolo);} else{ return this->not_a_node;}}
-	int get_topright_idx_linknodes(int i){int yolo = this->get_topright_idx(i); if (yolo>=0){ return 2 * this->get_bottomleft_idx_links(yolo);} else{ return this->not_a_node;}}
-
-	std::vector<int> get_empty_neighbour(){return std::vector<int>(8,0);}
-
-	int get_neighbour_idx(int i, std::vector<int>& out)
-	{
-		
-		int n=0;
-
-		int next = this->get_right_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_bottomright_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_bottom_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_bottomleft_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_left_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_topleft_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_top_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		next = this->get_topright_idx(i);
-		if(this->is_in_bound(next))
-		{
-			if(!this->boundaries.no_data(next))
-			{
-				out[n] = next;
-				++n;
-			}
-		}
-		
-		return n;
-	}
-
-	int get_neighbour_idx_links(int i, std::vector<int>& out)
-	{
-		int n=0;
-		int next = this->get_right_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottomright_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottom_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottomleft_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_left_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_topleft_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_top_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_topright_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{	
-			out[n] = next;
-			++n;
-		}
-		return n;
-	}
-
-	int get_neighbour_idx_linknodes(int i, std::vector<int>& out)
-	{
-		int n=0;
-		int next = this->get_right_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottomright_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottom_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_bottomleft_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_left_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_topleft_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_top_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		next = this->get_topright_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{	
-			out[n] = next;
-			++n;
-		}
-		return n;
-	}
-
-	int get_neighbour_idx_distance(int i, std::vector<std::pair<int,T> >& out)
-	{
-		int n=0;
-		int next = this->get_right_idx(i);
-
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_bottomright_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_bottom_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_bottomleft_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_left_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_topleft_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_top_idx(i);
-		if(!this->boundaries.no_data(next)  && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_topright_idx(i);
-		if(!this->boundaries.no_data(next) && this->is_in_bound(next))
-		{	
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		
-		return n;
-	}
-
-	int get_neighbour_idx_distance_links(int i, std::vector<std::pair<int,T> >& out)
-	{
-		int n=0;
-		int next = this->get_right_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_bottomright_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_bottom_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_bottomleft_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_left_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_topleft_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_top_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_topright_idx_links(i);
-		if(next >= 0 && next < this->nnodes * 4)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		return n;
-	}
-
-	int get_neighbour_idx_distance_linknodes(int i, std::vector<std::pair<int,T> >& out)
-	{
-		int n = 0;
-		int next = this->get_right_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_bottomright_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_bottom_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_bottomleft_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_left_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dx);
-			++n;
-		}
-		next = this->get_topleft_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		next = this->get_top_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dy);
-			++n;
-		}
-		next = this->get_topright_idx_linknodes(i);
-		if(next >=0 && next < this->nnodes * 8)
-		{
-			out[n] = std::make_pair(next,this->dxy);
-			++n;
-		}
-		return n;
-	}
+	template<class U = int>
+	std::array<U,8> get_empty_neighbour(){return std::array<U,8>();}
 
 
 	// Takes a node index as input and a normalised displacement in the X and Y direction (between -1 and 1)
@@ -1010,6 +2356,7 @@ public:
 	template<class ii_t>
 	ii_t get_neighbour_idx_from_normalised_dxdy(ii_t node, T normdx, T normdy)
 	{
+		// NEEDS FURTHER CHECKS -> EXPERIMENTATL
 		if(normdx >= 0.5)
 		{
 			if(normdy <= -0.5)
@@ -1039,153 +2386,7 @@ public:
 	}
 
 
-	// get receivers of node i and put them in the recs vector fed in
-	// It returns the number of receivers in the recs vector
-	// THis whole process optimises repeated receiver fetching, by never reallocating/initialising the vector recs
-	int get_receivers_idx(int i, std::vector<int>& recs)
-	{
-		// getting the related links stroing them temporarily in the rec vec
-		int nli = this->get_neighbour_idx_links(i,recs);
-
-		// going through the linksß
-		// The idx is the idx of insertion in the recs vectors
-		// the idx of insertion is always <= of the index of reading (both receivers and links-to-assess are stored in the recs vector)	
-		int idx = 0;
-		// counter used to keep track of the number of receivers: starts at the number of links related to the given node and get decremented at each donor link 
-		int newli = nli;
-
-		// Iterating through the links
-		for(int ti=0;ti<nli;++ti)
-		{
-			// current link index
-			int li = recs[ti];
-
-			// this link is a rec if the node is the first of the linknode and links is true
-			if(i == this->linknodes[li*2] && this->links[li] == 1)
-			{
-				// in which case the receiver of the current node is the +  1
-				recs[idx] = this->linknodes[li*2 + 1];
-				++idx;
-			}
-			// OR if the current node is the +1 and the links false
-			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
-			{
-				// in which case the receivers is the 0 node
-				recs[idx] = this->linknodes[li*2];
-				++idx;
-			}
-			else
-			{
-				// otherwise, it's not a rec and we decrease the newli
-				--newli;
-			}
-		}
-		// recs is changed in place, and we return the number of recs newli
-		return newli;
-	}
-
-	// Getting the id of the receivers in the links array
-	// see get_receivers_idx for full comments about the section
-	int get_receivers_idx_links(int i, std::vector<int>& recs)
-	{
-		// getting the related links
-		int nli = this->get_neighbour_idx_links(i,recs);
-
-		// going through the linksß
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = recs[ti];
-			if(i == this->linknodes[li*2] && this->links[li])
-			{
-				recs[idx] = li;
-				++idx;
-			}
-			else if(this->links[li] == 0 && i == this->linknodes[li*2 + 1])
-			{
-				recs[idx] = li;
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
-
 	int get_nth_steepest_donors_of_node(int node, int j){return this->Sdonors[node * this->nneighbours + j];}
-
-	// Getting donor indicies
-	// see get_receivers_idx for full comments about the section
-	int get_donors_idx(int i, std::vector<int>& dons)
-	{
-		// getting the related links
-		int nli = this->get_neighbour_idx_links(i,dons);
-
-		// going through the links
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == 0)
-			{
-				dons[idx] = this->linknodes[li*2 + 1];
-				++idx;
-			}
-			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
-			{
-				dons[idx] = this->linknodes[li*2];
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
-	// getting links indices of hte donors (in the links array)
-	// see get_receivers_idx for full comments about the section
-	int get_donors_idx_links(int i, std::vector<int> & dons)
-	{
-		// getting the related links
-		int nli = this->get_neighbour_idx_links(i,dons);
-
-		// going through the linksß
-		int idx = 0;
-		int newli = nli;
-
-		for(int ti=0;ti<nli;++ti)
-		{
-			// checking the orientation
-			int li = dons[ti];
-			if(i == this->linknodes[li*2] && this->links[li] == 0)
-			{
-				dons[idx] = li;
-				++idx;
-			}
-			else if(this->links[li] == 1 && i == this->linknodes[li*2 + 1])
-			{
-				dons[idx] = li;
-				++idx;
-			}
-			else
-			{
-				--newli;
-			}
-		}
-		return newli;
-	}
-
 
 	// Debug function printing to the prompt the single receiver of a node
 	// Will probably get deprecated
@@ -1289,10 +2490,7 @@ public:
 
 	}
 
-	// Checks the validity of a link
-	// Invalid links have a linknode value of -1
-	template<class ti_t>
-	bool is_link_valid(ti_t i){return (this->links[i]==2)?false:true; }
+
 
 
 	// return true is the node is active: i.e. flow transfer through it
@@ -1326,67 +2524,6 @@ public:
 		return false;
 	}
 
-	// Returns the pair of node making a link, starting from the donor to the receiver
-	template<class ti_t>
-	std::pair<ti_t,ti_t> get_from_to_links(ti_t i)
-	{
-		if(this->links[i] == 1)
-			return std::make_pair(this->linknodes[i*2], this->linknodes[i*2 + 1]);
-		else if (this->links[i] == 0)
-			return std::make_pair(this->linknodes[i*2 + 1], this->linknodes[i*2]);
-		else
-			return {-1,-1};
-
-	}
-
-
-	template<class ti_t>
-	void get_from_to_links(ti_t i, std::pair<ti_t,ti_t>& fromto)
-	{
-		if(this->links[i] == 1)
-		{
-			fromto.first = this->linknodes[i*2]; fromto.second = this->linknodes[i*2 + 1];
-		}
-		else if (this->links[i] == 2)
-		{
-			fromto.first = this->linknodes[i*2 + 1]; fromto.second =  this->linknodes[i*2];
-		}
-		else
-			fromto = {-1,-1};
-
-	}
-
-	template<class ti_t>
-	ti_t get_from_links(ti_t i)
-	{
-		if(this->links[i] == 1)
-			return this->linknodes[i*2];
-		else if (this->links[i] == 0)
-			return this->linknodes[i*2 + 1];
-		else return -1;
-	}
-
-	template<class ti_t>
-	ti_t get_to_links(ti_t i)
-	{
-		if(this->links[i] == 0)
-			return this->linknodes[i*2];
-		else if (this->links[i] == 1)
-			return this->linknodes[i*2 + 1];
-		else return -1;
-	}
-
-	template<class ti_t>
-	ti_t get_other_node_from_links(ti_t li, ti_t ni)
-	{
-		if(this->linknodes[li*2 + 1] == ni)
-			return this->linknodes[li*2];
-		else if (this->linknodes[li*2] == ni)
-			return this->linknodes[li*2 + 1];
-		else
-			return -1;
-	}
-
 	std::vector<int> get_n_receivers()
 	{
 		std::vector<int> nrecs(this->nnodes,0);
@@ -1394,8 +2531,9 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				auto frto = this->get_from_to_links(i);
-				++nrecs[frto.first];
+
+				auto frto = this->get_from_links(i);
+				++nrecs[frto];
 			}
 		}
 		return nrecs;
@@ -1439,29 +2577,15 @@ public:
 
 	template<class out_t>
 	out_t get_linknodes_flat()
-	{return format_output<std::vector<int>, out_t>(this->linknodes);}
+	{
+		std::vector<int> out;
+		return format_output<std::vector<int>, out_t>(out);
+	}
 
 	template<class out_t>
 	out_t get_linknodes_flat_D4()
 	{
-		std::vector<int> temp(int(this->linknodes.size()/2),-1);
-		int j = 0;
-		int counter = -1;
-		for(int i=0; i< int(this->linknodes.size()); i += 2)
-		{
-			++counter;
-			if(counter == 0 || counter == 2)
-			{
-				temp[j] = this->linknodes[i];
-				++j;
-				temp[j] = this->linknodes[i+1];
-				++j;
-			}
-
-			if(counter == 3)
-				counter = -1;
-		}
-
+		std::vector<int> temp(int(this->links.size()/2),-1);
 		return format_output<std::vector<int>, out_t>(temp);
 
 	}
@@ -1495,10 +2619,10 @@ public:
 	out_t get_linknodes_list()
 	{
 		std::vector<std::vector<int> > out(this->links.size());
-		for(size_t i=0; i<this->links.size();++i)
-		{
-			out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
-		}
+		// for(size_t i=0; i<this->links.size();++i)
+		// {
+		// 	out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
+		// }
 		return out;
 	}
 
@@ -1506,10 +2630,10 @@ public:
 	out_t get_linknodes_list_oriented()
 	{
 		std::vector<std::vector<int> > out(this->links.size());
-		for(size_t i=0; i<this->links.size();++i)
-		{
-			out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
-		}
+		// for(size_t i=0; i<this->links.size();++i)
+		// {
+		// 	out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1], this->linknodes[i*2]};
+		// }
 		return out;
 	}
 
@@ -1598,7 +2722,8 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				gradient[i] = std::max((topography[this->linknodes[i*2]] - topography[this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i), min_slope);
+				int from,to; this->from_to_from_link_index(i,from,to);
+				gradient[i] = std::max((topography[from] - topography[to])/this->get_dx_from_links_idx(i), min_slope);
 			}
 		}
 
@@ -1624,10 +2749,10 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				T this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i);
-				auto frto = this->get_from_to_links(i);
-				gradient[frto.first] += this_gradient;
-				++ngradient[frto.first];
+				int from,to; this->from_to_from_link_index(i,from,to);
+				T this_gradient = std::abs(topography[from] - topography[to])/this->get_dx_from_links_idx(i);
+				gradient[from] += this_gradient;
+				++ngradient[from];
 			}
 		}
 
@@ -1661,10 +2786,10 @@ public:
 		{
 			if(this->is_link_valid(i))
 			{
-				T this_gradient = std::abs(topography[this->linknodes[i*2] - this->linknodes[i*2 + 1]])/this->get_dx_from_links_idx(i);
-				auto frto = this->get_from_to_links(i);
-				gradient[frto.first] += this_gradient * weights[i];
-				wgradient[frto.first] += weights[i];
+				int from,to; this->from_to_from_link_index(i,from,to);
+				T this_gradient = std::abs(topography[from] - topography[to])/this->get_dx_from_links_idx(i);
+				gradient[from] += this_gradient * weights[i];
+				wgradient[from] += weights[i];
 			}
 		}
 
@@ -1796,7 +2921,7 @@ public:
 
 	inline void rowcol_from_node_id(int node_index, int& row, int& col)
 	{
-		col = node_index % this->nx;
+		col = fast_mod(node_index , this->nx);
 		row = (int)std::floor(node_index/this->nx);
 	}
 
@@ -1829,7 +2954,7 @@ public:
 
 	inline T get_X_from_i(int i)
 	{
-		int col = i % this->nx;
+		int col = fast_mod(i,this->nx);
 		return this->Xs[col];
 	}
 
@@ -1852,86 +2977,86 @@ public:
 	// All the methods related to accessing and calculating neighbours
 	// ------------------------------------------------
 
-	std::vector<Neighbour<int,T> > get_neighbours(int i, bool ignore_nodata = false)
-	{
+	// std::vector<Neighbour<int,T> > get_neighbours(int i, bool ignore_nodata = false)
+	// {
 
-		// preformatting the output
-		std::vector<Neighbour<int,T> > neighbours;
+	// 	// preformatting the output
+	// 	std::vector<Neighbour<int,T> > neighbours;
 
-		// Reserving size depending on the flow topology
-		neighbours.reserve(8);
+	// 	// Reserving size depending on the flow topology
+	// 	neighbours.reserve(8);
 
-		size_t id_neighbourer = this->_get_neighbourer_id(i);
+	// 	size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);
 
-		// Now I need to determine the index of the neighbourer vector
-		// Which provides adder to determine the neighbours f(boundary_conditions)
-		// internal node 0
-		// periodic_first_row 1
-		// periodic_last_row 2
-		// periodic_first_col 3
-		// periodic last_col 4
-		// normal_first_row 5
-		// normal_last_row 6
-		// normal_first_col 7
-		// normal_last_col 8
-		// normal_top_left 9
-		// normal_top_right 10
-		// normal_bottom_left 11
-		// normal_bottom_right 12
-		// top_left_periodic 13
-		// top_right_periodic 14
-		// periodic_bottom_left 15
-		// periodic_bottom_right 16
+	// 	// Now I need to determine the index of the oldneighbourer vector
+	// 	// Which provides adder to determine the neighbours f(boundary_conditions)
+	// 	// internal node 0
+	// 	// periodic_first_row 1
+	// 	// periodic_last_row 2
+	// 	// periodic_first_col 3
+	// 	// periodic last_col 4
+	// 	// normal_first_row 5
+	// 	// normal_last_row 6
+	// 	// normal_first_col 7
+	// 	// normal_last_col 8
+	// 	// normal_top_left 9
+	// 	// normal_top_right 10
+	// 	// normal_bottom_left 11
+	// 	// normal_bottom_right 12
+	// 	// top_left_periodic 13
+	// 	// top_right_periodic 14
+	// 	// periodic_bottom_left 15
+	// 	// periodic_bottom_right 16
 
 	
-			this->set_neighbours_in_vector(neighbours, i, id_neighbourer, ignore_nodata);
+	// 		this->set_neighbours_in_vector(neighbours, i, id_oldneighbourer, ignore_nodata);
 
-		// and return it
-		return neighbours;
-	}
+	// 	// and return it
+	// 	return neighbours;
+	// }
 
 
-	// This function is the helper of the neighbouring function: it fills the neighbours vector with the actul values.
-	void set_neighbours_in_vector(std::vector<Neighbour<int,T> >& neighbours, int& i, size_t& id_neighbourer, bool ignore_nodata)
-	{
-		// node index of the current neighbour
-		int tn;
+	// // This function is the helper of the neighbouring function: it fills the neighbours vector with the actul values.
+	// void set_neighbours_in_vector(std::vector<Neighbour<int,T> >& neighbours, int& i, size_t& id_oldneighbourer, bool ignore_nodata)
+	// {
+	// 	// node index of the current neighbour
+	// 	int tn;
 
-		// If you wonder why I am not iterating with a vector and everything here, it is for the small perf gain of doing it this way
-		tn = this->neighbourer[id_neighbourer][1];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[1]));
-		tn = this->neighbourer[id_neighbourer][3];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[3]));
-		tn = this->neighbourer[id_neighbourer][4];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[4]));
-		tn = this->neighbourer[id_neighbourer][6];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[6]));
-		tn = this->neighbourer[id_neighbourer][0];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[0]));
-		tn = this->neighbourer[id_neighbourer][2];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[2]));
-		tn = this->neighbourer[id_neighbourer][5];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[5]));
-		tn = this->neighbourer[id_neighbourer][7];
-		if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
-			neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[7]));				
+	// 	// If you wonder why I am not iterating with a vector and everything here, it is for the small perf gain of doing it this way
+	// 	tn = this->oldneighbourer[id_oldneighbourer][1];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[1]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][3];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[3]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][4];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[4]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][6];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[6]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][0];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[0]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][2];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[2]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][5];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[5]));
+	// 	tn = this->oldneighbourer[id_oldneighbourer][7];
+	// 	if(tn != this->not_a_node && (ignore_nodata == false || (ignore_nodata && !this->boundaries.no_data(tn))))
+	// 		neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[7]));				
 	
-	}
+	// }
 
-	inline size_t _get_neighbourer_id(int i)
+	inline size_t _get_oldneighbourer_id(int i)
 	{
 
-		size_t id_neighbourer = -1;
-		// internal node, so neighbourer is 0
+		size_t id_oldneighbourer = -1;
+		// internal node, so oldneighbourer is 0
 		if(this->boundaries.is_normal_node(i))
-			id_neighbourer = 0;
+			id_oldneighbourer = 0;
 		else
 		{
 			// Case top left corner
@@ -1939,86 +3064,86 @@ public:
 			{
 				// Case Periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 13;
+					id_oldneighbourer = 13;
 				// Case Noraml
 				else if ( this->boundaries.normal_neighbouring_at_boundary(i) )
-					id_neighbourer = 9;
+					id_oldneighbourer = 9;
 			}
 			// Case top right corner 
 			else if (i == this->nx - 1)
 			{
 				// Case Periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 14;
+					id_oldneighbourer = 14;
 				// Case Noraml
 				else if ( this->boundaries.normal_neighbouring_at_boundary(i) )
-					id_neighbourer = 10;
+					id_oldneighbourer = 10;
 			}
 			// Case bottom left corner 
 			else if (i == (this->nnodes - this->nx) )
 			{
 				// Case Periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 15;
+					id_oldneighbourer = 15;
 				// Case Noraml
 				else if ( this->boundaries.normal_neighbouring_at_boundary(i) )
-					id_neighbourer = 11;
+					id_oldneighbourer = 11;
 			}
 			// Case bottom right corner 
 			else if (i == (this->nnodes - 1) )
 			{
 				// Case Periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 16;
+					id_oldneighbourer = 16;
 				// Case Noraml
 				else if ( this->boundaries.normal_neighbouring_at_boundary(i) )
-					id_neighbourer = 12;
+					id_oldneighbourer = 12;
 			}
 			// Cases first row (no corner)
 			else if(i < this->nx - 1)
 			{
 				// Case periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 1;
+					id_oldneighbourer = 1;
 				// Case normal
 				else if (this->boundaries.normal_neighbouring_at_boundary(i))
-					id_neighbourer = 5;
+					id_oldneighbourer = 5;
 			}
 			// Cases last row (no corner)
 			else if(i > (this->ny - 1) * this->nx)
 			{
 				// Case periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 2;
+					id_oldneighbourer = 2;
 				// Case normal
 				else if (this->boundaries.normal_neighbouring_at_boundary(i))
-					id_neighbourer = 6;
+					id_oldneighbourer = 6;
 			}
 			// Cases first col (no corner)
 			else if(i % this->nx == 0)
 			{
 				// Case periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 3;
+					id_oldneighbourer = 3;
 				// Case normal
 				else if (this->boundaries.normal_neighbouring_at_boundary(i))
-					id_neighbourer = 7;
+					id_oldneighbourer = 7;
 			}
 			// Cases last col (no corner)
 			else if(i % this->nx == this->nx - 1)
 			{
 				// Case periodic
 				if(this->boundaries.is_periodic(i))
-					id_neighbourer = 4;
+					id_oldneighbourer = 4;
 				// Case normal
 				else if (this->boundaries.normal_neighbouring_at_boundary(i))
-					id_neighbourer = 8;
+					id_oldneighbourer = 8;
 			}
 			else
-				id_neighbourer = 0;
+				id_oldneighbourer = 0;
 		}
 
-		// if(id_neighbourer == -1)
+		// if(id_oldneighbourer == -1)
 		// {
 		// 	int row,col;
 		// 	this->rowcol_from_node_id(i,row,col);
@@ -2026,108 +3151,141 @@ public:
 		// 	throw std::runtime_error("neighbouring issue");
 		// }
 
-		return id_neighbourer;
+		return id_oldneighbourer;
 	}
+
+	inline size_t _get_oldneighbourer_id_assume_periodic(int i)
+	{
+
+		size_t id_oldneighbourer = -1;
+		// internal node, so oldneighbourer is 0
+		if(this->boundaries.is_normal_node(i))
+			id_oldneighbourer = 0;
+		else
+		{
+			// Case top left corner
+			if(i == 0)
+			{
+				// Case Periodic
+				id_oldneighbourer = 13;
+			}
+			// Case top right corner 
+			else if (i == this->nx - 1)
+			{
+				// Case Periodic
+			
+				id_oldneighbourer = 14;
+				
+			}
+			// Case bottom left corner 
+			else if (i == (this->nnodes - this->nx) )
+			{
+				
+					id_oldneighbourer = 15;
+			
+			}
+			// Case bottom right corner 
+			else if (i == (this->nnodes - 1) )
+			{
+				
+					id_oldneighbourer = 16;
+				
+			}
+			// Cases first row (no corner)
+			else if(i < this->nx - 1)
+			{
+				
+					id_oldneighbourer = 1;
+			
+			}
+			// Cases last row (no corner)
+			else if(i > (this->ny - 1) * this->nx)
+			{
+				
+					id_oldneighbourer = 2;
+			
+			}
+			// Cases first col (no corner)
+			else if(i % this->nx == 0)
+			{
+				
+					id_oldneighbourer = 3;
+				
+			}
+			// Cases last col (no corner)
+			else if(i % this->nx == this->nx - 1)
+			{
+					id_oldneighbourer = 4;
+			
+			}
+			else
+				id_oldneighbourer = 0;
+		}
+
+		// if(id_oldneighbourer == -1)
+		// {
+		// 	int row,col;
+		// 	this->rowcol_from_node_id(i,row,col);
+		// 	std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/" << this->nnodes << " row: " << row << " col: " << col << std::endl;
+		// 	throw std::runtime_error("neighbouring issue");
+		// }
+
+		return id_oldneighbourer;
+	}
+
 
 	// D4 single neighbour routines
 	Neighbour<int,T> get_left_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][3] + i, this->dx);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][3] + i, this->dx);
 	}
 
 	Neighbour<int,T> get_top_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][1] + i, this->dy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][1] + i, this->dy);
 	}
 
 	Neighbour<int,T> get_right_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][4] + i, this->dx);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][4] + i, this->dx);
 	}
 
 	Neighbour<int,T> get_bottom_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][6] + i, this->dy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][6] + i, this->dy);
 	}
 
 	// D8 single neighbour extra routines
 	Neighbour<int,T> get_topleft_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][0] + i, this->dxy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][0] + i, this->dxy);
 	}
 
 	Neighbour<int,T> get_topright_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][2] + i, this->dxy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][2] + i, this->dxy);
 	}
 	
 	Neighbour<int,T> get_bottomleft_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][5] + i, this->dxy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][5] + i, this->dxy);
 	}
 
 	Neighbour<int,T> get_bottomright_neighbour(int i)
 	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return Neighbour<int,T>(this->neighbourer[id_neighbourer][7] + i, this->dxy);
+		size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);	
+		return Neighbour<int,T>(this->oldneighbourer[id_oldneighbourer][7] + i, this->dxy);
 	}
 
 	// D4 single neighbour routines
-	int get_left_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][3] + i;
-	}
-
-	int get_top_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][1] + i;
-	}
-
-	int get_right_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][4] + i;
-	}
-
-	int get_bottom_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][6] + i;
-	}
-
-	// D8 single neighbour extra routines
-	int get_topleft_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][0] + i;
-	}
-
-	int get_topright_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][2] + i;
-	}
-
-	int get_bottomleft_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][5] + i;
-	}
-
-	int get_bottomright_idx(int i)
-	{
-		size_t id_neighbourer = this->_get_neighbourer_id(i);	
-		return this->neighbourer[id_neighbourer][7] + i;
-	}
+	
 	
 	std::vector<int> get_D4_neighbours_only_id(int i)
 	{
@@ -2182,7 +3340,7 @@ public:
 
 	// Some of my algorithm are adapted from richdem and require iterating through neighbours the way they do
 	// starting from left and going clockwise around the node
-	int get_neighbours_idx_richdemlike(int i, std::vector<int>& neighs)
+	int get_neighbours_idx_richdemlike(int i, std::array<int,8>& neighs)
 	{
 		int j=0;
 		neighs[j] = (this->get_left_idx(i));
@@ -2249,8 +3407,15 @@ public:
 	// (i.e. one of the 4 lines)
 	bool is_on_dem_edge(int i)
 	{
-		if( this->is_on_top_row(i) || this->is_on_bottom_row(i) || this->is_on_leftest_col(i) || this->is_on_rightest_col(i) )
+		if( this->is_on_top_row(i))
 			return true;
+		else if(this->is_on_bottom_row(i))
+			return true;
+		else if(this->is_on_leftest_col(i))
+			return true;
+		else if(this->is_on_rightest_col(i))
+			return true;
+
 		return false;
 	}
 
@@ -2271,7 +3436,7 @@ public:
 
 	bool is_on_leftest_col(int i)
 	{
-		if(i % this->nx == 0)
+		if(fast_mod(i , this->nx) == 0)
 			return true;
 		else
 			return false;
@@ -2279,7 +3444,7 @@ public:
 
 	bool is_on_rightest_col(int i)
 	{
-		if(i % this->nx == this->nx - 1)
+		if(fast_mod(i, this->nx) == this->nx - 1)
 			return true;
 		else
 			return false;
@@ -2374,13 +3539,14 @@ public:
 	template<class i_t>
 	T get_dx_from_links_idx( i_t i)
 	{
-		if(i%4 == 0)
+		int modi = i%4;
+		if(modi == 0)
 			return this->dx;
-		else if(i%4 == 1)
+		else if(modi == 1)
 			return this->dxy;
-		else if(i%4 == 2)
+		else if(modi == 2)
 			return this->dy;
-		else if(i%4 == 3)
+		else if(modi == 3)
 			return this->dxy;
 		else
 			return this->dx;
@@ -2389,13 +3555,13 @@ public:
 	template<class i_t>
 	T get_traverse_dx_from_links_idx(i_t i)
 	{
-		if(i%4 == 0)
+		if(fast_mod(i,4) == 0)
 			return this->dy;
-		else if(i%4 == 1)
+		else if(fast_mod(i,4) == 1)
 			return this->dxy;
-		else if(i%4 == 2)
+		else if(fast_mod(i,4) == 2)
 			return this->dx;
-		else if(i%4 == 3)
+		else if(fast_mod(i,4) == 3)
 			return this->dxy;
 		else
 			return this->dy;
@@ -2449,13 +3615,13 @@ public:
 	std::pair<T,T> get_directed_dxdy_from_links_idx( i_t li, ii_t original_node, ii_t n1, ii_t n2)
 	{
 		int C_C = (original_node == n1) ? 1 : -1;
-		if(li%4 == 0)
+		if(fast_mod(li,4) == 0)
 			return std::make_pair(C_C * this->dx,C_C * 0.);
-		else if(li%4 == 1)
+		else if(fast_mod(li,4) == 1)
 			return std::make_pair(C_C * this->dx,C_C * this->dy);
-		else if(li%4 == 2)
+		else if(fast_mod(li,4) == 2)
 			return std::make_pair(C_C * 0.,C_C * this->dy);
-		else if(li%4 == 3)
+		else if(fast_mod(li,4) == 3)
 			return std::make_pair(-1 * C_C * this->dx,C_C * this->dy);
 		else
 			return std::make_pair(C_C * this->dx,C_C * 0.);
@@ -2464,13 +3630,13 @@ public:
 	template<class i_t, class ii_t>
 	std::pair<T,T> get_dxdy_from_links_idx( i_t li)
 	{
-		if(li%4 == 0)
+		if(fast_mod(li,4) == 0)
 			return std::make_pair(this->dx,0.);
-		else if(li%4 == 1)
+		else if(fast_mod(li,4) == 1)
 			return std::make_pair(this->dx,this->dy);
-		else if(li%4 == 2)
+		else if(fast_mod(li,4) == 2)
 			return std::make_pair(0.,this->dy);
-		else if(li%4 == 3)
+		else if(fast_mod(li,4) == 3)
 			return std::make_pair(this->dx,this->dy);
 		else
 			return std::make_pair(this->dx,0.);
@@ -2479,6 +3645,7 @@ public:
 	template<class i_t>
 	T get_dx_from_linknodes_idx( i_t i)
 	{
+		throw std::runtime_error("DEPRECATED");
 		int j = std::floor(i/2);
 		return this->get_dx_from_links_idx(j);
 	}
@@ -2513,201 +3680,6 @@ public:
 			throw std::runtime_error("Fatal error in DAGGER::D8connector::linkidx_from_nodes");
 	}
 
-	std::vector<int> get_ilinknodes_from_node_v1(int i)
-	{
-		std::vector<int> out;out.reserve(8);
-		int tn = this->get_right_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_bottomright_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_bottom_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_bottomleft_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_left_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_topleft_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_top_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		tn = this->get_topright_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-			out.emplace_back(tn);
-		return out;
-	}
-
-
-	std::vector<std::pair<int,bool>> get_ilinknodes_from_nodev2(int i)
-	{
-		std::vector<std::pair<int,bool> > out;out.reserve(8);
-
-		if(!this->boundaries.normal_neighbouring_at_boundary(i) && !this->boundaries.is_normal_node(i))
-		{
-			int tn = this->get_right_idx_links(i);
-			bool val = false;
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_bottomright_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_bottom_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_bottomleft_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_left_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_topleft_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_top_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-			tn = this->get_topright_idx_links(i);
-			if(tn >0 && tn < this->nnodes * 4)
-				val = true;
-			out.emplace_back(std::make_pair(tn,val));
-		}
-		else
-			out = {std::make_pair(this->get_right_idx_links(i),true),
-				std::make_pair(this->get_bottomright_idx_links(i),true),
-			std::make_pair(this->get_bottom_idx_links(i),true),
-			std::make_pair(this->get_bottomleft_idx_links(i),true),
-			std::make_pair(this->get_left_idx_links(i),true),
-			std::make_pair(this->get_topleft_idx_links(i),true),
-			std::make_pair(this->get_top_idx_links(i),true),
-			std::make_pair(this->get_topright_idx_links(i),true)
-		};
-
-
-
-		return out;
-	}
-
-
-
-	void get_ilinknodes_from_nodev3(int i, std::vector<std::pair<int,bool>>& out)
-	{
-
-		int tn = this->get_right_idx_links(i);
-		bool val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[0].first = tn;
-		out[0].second = val;
-		tn = this->get_bottomright_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[1].first = tn;
-		out[1].second = val;
-		tn = this->get_bottom_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[2].first = tn;
-		out[2].second = val;
-		tn = this->get_bottomleft_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[3].first = tn;
-		out[3].second = val;
-		tn = this->get_left_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[4].first = tn;
-		out[4].second = val;
-		tn = this->get_topleft_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[5].first = tn;
-		out[5].second = val;
-		tn = this->get_top_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[6].first = tn;
-		out[6].second = val;
-		tn = this->get_topright_idx_links(i);
-		val = false;
-		if(tn >0 && tn < this->nnodes * 4)
-			val = true;
-		out[7].first = tn;
-		out[7].second = val;
-	}
-
-	int get_ilinknodes_from_node(int i, std::vector<int>& out)
-	{
-		int nn = 0;
-		int tn = this->get_right_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_bottomright_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_bottom_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_bottomleft_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_left_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_topleft_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_top_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		tn = this->get_topright_idx_links(i);
-		if(tn >0 && tn < this->nnodes * 4)
-		{	
-			out[nn] = tn;
-			++nn;
-		}
-		return nn;
-	}
 
 
 
@@ -2740,6 +3712,41 @@ public:
 
 
 	int get_nneighbours(){return 8;}
+
+
+	void debug_print_neighbours(int i)
+	{
+		std::cout << "neighbours of " << i << " -> ";
+		auto neigh = this->get_empty_neighbour();
+		int nn = this->get_neighbour_idx(i,neigh);
+		for(int j=0; j<nn; ++j)
+			std::cout << "::" << neigh[j];
+		std::cout << std::endl;
+
+		std::cout << "receivers of " << i << " -> ";
+		neigh = this->get_empty_neighbour();
+		nn = this->get_receivers_idx(i,neigh);
+		for(int j=0; j<nn; ++j)
+			std::cout << "::" << neigh[j];
+		std::cout << std::endl;
+
+		std::cout << "donors of " << i << " -> ";
+		neigh = this->get_empty_neighbour();
+		nn = this->get_donors_idx(i,neigh);
+		for(int j=0; j<nn; ++j)
+			std::cout << "::" << neigh[j];
+		std::cout << std::endl;
+
+		std::cout << "neighbours links of " << i << " -> ";
+		neigh = this->get_empty_neighbour();
+		nn = this->get_neighbour_idx_links(i,neigh);
+		for(int j=0; j<nn; ++j)
+			std::cout << "::" << neigh[j] << "(" << int(this->links[neigh[j]]) << "|" << int(this->linkdir[neigh[j]])  << "|" << int(this->ridknil[neigh[j]]) << ")";
+		std::cout << std::endl;
+
+	}
+
+	// void debug
 
 
 };

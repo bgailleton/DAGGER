@@ -162,6 +162,28 @@ public:
 	void set_fixed_slope_at_boundaries(float_t val){this->boundhw = BOUNDARY_HW::FIXED_SLOPE; this->bou_fixed_val = val;}
 
 
+	
+
+
+
+
+	// ###################################### 
+	// ###### Hydro monitorers ##############
+	// ###################################### 
+
+		// Low cost monitoring parameters
+	float_t tot_Qw_input = 0;
+	float_t get_tot_Qw_input()const{return this->tot_Qw_input;}
+
+	float_t tot_Qwin_output = 0;
+	float_t get_tot_Qwin_output()const{return this->tot_Qwin_output;}
+
+	float_t tot_Qw_output = 0;
+	float_t get_tot_Qw_output()const{return this->tot_Qw_output;}
+
+	float_t tot_Qs_output = 0;
+	float_t get_tot_Qs_output()const{return this->tot_Qs_output;}
+
 	bool record_Qw_out = false;
 	std::vector<float_t> _rec_Qwout;
 	void enable_Qwout_recording(){this->record_Qw_out = true;};
@@ -176,19 +198,12 @@ public:
 	template<class out_t>
 	out_t get_Sw_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_Sw) ;}
 
-	// Low cost monitoring parameters
-	float_t tot_Qw_input = 0;
-	float_t get_tot_Qw_input()const{return this->tot_Qw_input;}
-
-	float_t tot_Qwin_output = 0;
-	float_t get_tot_Qwin_output()const{return this->tot_Qwin_output;}
-
-	float_t tot_Qw_output = 0;
-	float_t get_tot_Qw_output()const{return this->tot_Qw_output;}
-
-	float_t tot_Qs_output = 0;
-	float_t get_tot_Qs_output()const{return this->tot_Qs_output;}
-
+	bool record_dhw = false;
+	std::vector<float_t> _rec_dhw;
+	void enable_dhw_recording(){this->record_dhw = true;};
+	void disable_dhw_recording(){this->record_dhw = false; this->_rec_dhw.clear();};
+	template<class out_t>
+	out_t get_dhw_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_dhw) ;}
 
 
 	// ###################################### 
@@ -258,6 +273,7 @@ public:
 	// # ke (coefficient for erosion)
 	PARAM_DT_HYDRO mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
 	std::vector<float_t> _dt_hydro = {1e-3};
+	float_t get_dt_hydro() {return this->_dt_hydro[0];}
 
 
 	bool hflow = false;
@@ -503,7 +519,7 @@ public:
 			vmot = std::vector<float_t>(this->graph->nnodes,0.);
 
 		// main loop
-		std::vector<int> receivers = this->connector->get_empty_neighbour();
+		auto receivers = this->connector->get_empty_neighbour();
 		std::vector<float_t> weights(receivers.size(),0.), slopes(receivers.size(),0.);
 
 		// std::cout << "main loop" << std::endl;
@@ -642,9 +658,10 @@ public:
 						this->_Qw[rec] += Qwin; 
 					}
 					else 
-					{
-						
+					{						
 
+						// if(this->connector->boundaries.force_giving(node) && Qwin > 0)
+						// 	std::cout << weights[j] * Qwin << " from " << node << " to " << rec << std::endl;
 
 						this->_Qw[rec] += weights[j] * Qwin; 
 
@@ -659,7 +676,7 @@ public:
 				}
 
 				// Now the morpho
-				if(this->morphomode != MORPHO::NONE)
+				if(this->morphomode != MORPHO::NONE && this->_hw[node] > 0)
 				{
 					float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
 					float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
@@ -747,6 +764,8 @@ public:
 				tvh = - this->_hw[i];
 
 			this->_hw[i] += tvh;
+			if(this->record_dhw)
+				this->_rec_dhw[i] = tvh;
 			
 			this->_surface[i] += tvh;
 
@@ -786,7 +805,7 @@ public:
 				int node = this->_water_entry_nodes[i];				
 				this->_Qw[node] += this->_water_entries[i] * this->connector->get_area_at_node(node);
 				this->tot_Qw_input += this->_Qw[node];
-
+				// std::cout << node << " is given " << this->_water_entries[i] * this->connector->get_area_at_node(node);
 			}
 		}
 
@@ -795,6 +814,8 @@ public:
 
 		if(this->record_Sw)
 			this->_rec_Sw = std::vector<float_t>(this->graph->nnodes,0.);
+		if(this->record_dhw)
+				this->_rec_dhw = std::vector<float_t>(this->graph->nnodes,0.);;
 	}
 
 	void init_Qs()
@@ -850,7 +871,7 @@ public:
 		}
 	}
 
-	float_t weights_automator(std::vector<int>& receivers, std::vector<float_t>& weights, std::vector<float_t>& slopes, int& node, int& nrecs)
+	float_t weights_automator(std::array<int,8>& receivers, std::vector<float_t>& weights, std::vector<float_t>& slopes, int& node, int& nrecs)
 	{
 
 		float_t sumw = 0., Smax = this->minslope;
@@ -867,7 +888,7 @@ public:
 				continue;
 			}
 
-			int rec = this->connector->get_to_links(lix);
+			// int rec = this->connector->get_to_links(lix);
 			slopes[i] = this->get_Sw(lix, this->minslope);
 			
 			if(slopes[i]>Smax)
@@ -916,8 +937,8 @@ public:
 
 	float_t get_Sw(int lix, float_t minslope)
 	{
-		auto no = this->connector->get_from_to_links(lix);
-		return std::max((this->_surface[no.first] - this->_surface[no.second])/this->connector->get_dx_from_links_idx(lix),minslope); 
+		int from,to; this->connector->from_to_from_link_index(lix, from, to);
+		return std::max((this->_surface[from] - this->_surface[to])/this->connector->get_dx_from_links_idx(lix),minslope); 
 	}
 
 	float_t get_Sw(int node, int rec, float_t dx, float_t minslope)

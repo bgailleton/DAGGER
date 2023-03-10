@@ -1,6 +1,6 @@
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#ifndef graph_HPP
-#define graph_HPP
+#ifndef _graph_HPP
+#define _graph_HPP
 
 
 /*
@@ -37,10 +37,10 @@ B.G. 2022
 // -> General routines and data structures
 #include "utils.hpp"
 // -> Depression solvers
-#include "cordonnier_versatile_2019.hpp"
+#include "_cordonnier_versatile_2019.hpp"
 // -> The connector classes
-#include "D8connector.hpp"
-#include "priority_flood.hpp"
+#include "_D8connector.hpp"
+#include "_priority_flood.hpp"
 
 #include "wrap_helper.hpp"
 
@@ -50,7 +50,7 @@ namespace DAGGER
 
 
 template<class float_t, class Connector_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
-class graph
+class _graph
 {
 
 // Everything goes public, more straighforward
@@ -140,10 +140,10 @@ public:
 
 	
 	// default empty constructor
-	graph(){};
+	_graph(){};
 
 	// Classic constructor, simply giving the number of nodes and the number of neighbours per node
-	graph(Connector_t& con){this->init(con);}
+	_graph(Connector_t& con){this->init(con);}
 	void init(Connector_t& con)
 	{
 		this->connector = &con;
@@ -184,6 +184,8 @@ public:
 	{
 		// Allocate vectors to node size
 		this->_allocate_vectors();
+		// Calling the cionnector to allocate the linknodes to the right size
+		this->connector->fill_linknodes();
 	}
 
 	// used to reinitialise the the vectors
@@ -258,6 +260,7 @@ public:
 
 		// Updates the links vector and the Srecs vector by checking each link new elevation
 		this->connector->update_links(faketopo);
+		// std::cout << "NODE 0::" << this->connector->Sreceivers[0] << std::endl;
 
 		this->compute_npits();
 
@@ -271,7 +274,7 @@ public:
 		{
 			
 			// LMRerouter is the class managing the different cordonnier's mthod
-			LMRerouter<float_t> depsolver;
+			_LMRerouter<float_t> depsolver;
 
 			if(this->opti_sparse_border)
 				depsolver.opti_sparse_border = true;
@@ -280,6 +283,7 @@ public:
 			depsolver.slope_randomness = this->slope_randomness;
 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
 			// Note that faketopo are modified in place.
+			// std::cout << "wulf" << std::endl;
 			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
 
 			// Right, if reomputed needs to be
@@ -305,8 +309,8 @@ public:
 				if(only_SD)
 					return;
 				
-				// if(this->opt_stst_rerouting)
-				this->connector->update_links_MFD_only(faketopo); // up to 30% faster - slightly less accurate for Sgraph
+				if(this->opt_stst_rerouting)
+					this->connector->update_links_MFD_only(faketopo); // up to 30% faster - slightly less accurate for Sgraph
 
 
 			}
@@ -442,6 +446,7 @@ public:
 	// Helper functions to allocate and reallocate vectors when computing/recomputing the graph
 	void _allocate_vectors()
 	{
+		this->connector->_allocate_vectors();
 		this->Sstack = std::vector<size_t>(this->nnodes,0);
 	}
 
@@ -555,37 +560,47 @@ public:
 
 		// Iterating through the links
 		// int debug_cpt = 0;
-		int node = 0;
-		int incr = 0;
 		for(int i = 0; i < int( this->connector->links.size() ) ; ++i)
 		{
-
-			if(this->connector->is_link_valid(i))
-			{
-				// Otherwise incrementing the number of receivers for the right link
-				++nrecs[this->connector->get_from_links(i,node)];
 			
-			}
-
-			++incr;
-			if(incr == 4)
+			if(this->connector->links[i] == 2)
 			{
-				++node;
-				incr = 0;
+				// ++debug_cpt;
+				continue;
 			}
-		}
 
-		// this->connector->debug_print_neighbours(12);
+			// checking for no data
+			// if(connector->boundaries.no_data(this->connector->linknodes[i*2]))
+			// {
+			// 	// if the flow cannot go there, we emplace it in the stack (ultimately it does not matter where they are in the stack)
+			// 	this->stack.emplace_back(this->connector->linknodes[i*2]);
+			// 	continue;
+			// }
+
+			// Otherwise incrementing the number of receivers for the right link
+			// if(this->connector->links[i] == 1)
+			// std::cout << this->connector->get_from_links(i) << std::endl;
+			++nrecs[this->connector->get_from_links(i)];
+			// else if (this->connector->links[i] == 0)
+			// 	++nrecs[this->connector->get_from_links(i)];
+		}
 
 
 		// Now checking the receiverless nodes and emplacing them in the queueß
-		int asdgfkjhl = 0;
+		auto neighs = this->connector->get_empty_neighbour();
 		for(int i=0; i<this->nnodes; ++i)
 		{
+			int nn = this->connector->get_neighbour_idx(i, neighs);
+			// std::cout << "node " << i << " and neighbours are ";
+
+			// for(int j = 0; j<nn;++j)
+				// std::cout << neighs[j] << "|";
+
+			// std::cout << std::endl;;
+
 			if(nrecs[i] == 0)
 			{
 				toproc.emplace(i);
-				++asdgfkjhl;
 			}
 		}
 
@@ -603,18 +618,24 @@ public:
 			// Because we are using a FIFO queue, they are sorted correctly in the queue
 			this->stack.emplace_back(next);
 			// getting the idx of the dons
-			int nn = this->connector->get_donors_idx(next, dons);
+
+			// std::cout<< std::endl << "Next node is " << next  << " BC is " << BC2str(this->connector->boundaries.codes[next]) << std::endl;
+
+			int nn = this->connector->get_donors_idx_links(next, dons);
 			for(int td=0;td<nn;++td)
 			{
-				int d = dons[td];
+				int d = this->connector->get_from_links(dons[td]);
 				// Decrementing the number of receivers (I use it as a visited vector)
+				// std::cout << " || donor is " << d << " BC: " << BC2str(this->connector->boundaries.codes[d]) << " with " << nrecs[d] << " rec left ||| "  << std::endl;
 				--nrecs[d];
 				// if it has reached 0, the rec is ready to be put in the FIFO
 				if(nrecs[d] == 0)
 				{
+					// std::cout << d<<" is emplaced !"  << std::endl;
 					toproc.emplace(d);
 				}
 			}
+			// std::cout << std::endl;
 		}
 
 		if(int(this->stack.size()) != this->nnodes)
@@ -1223,11 +1244,9 @@ public:
 			for (int ttl = 0; ttl< nn; ++ttl)
 			{
 				int ti = reclinks[ttl];
-				if(this->connector->is_link_valid(ti))
-				{
-					int rec = this->connector->get_to_links(ti);
+				int rec = this->connector->get_to_links(ti);
+				if(this->connector->is_in_bound(rec))
 					out[rec] += out[node] * weights[ti];
-				}
 			}
 			
 		}
