@@ -205,6 +205,13 @@ public:
 	template<class out_t>
 	out_t get_dhw_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_dhw) ;}
 
+	bool record_filling = false;
+	std::vector<float_t> _rec_filling;
+	void enable_filling_recording(){this->record_filling = true;};
+	void disable_filling_recording(){this->record_filling = false; this->_rec_filling.clear();};
+	template<class out_t>
+	out_t get_filling_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_filling) ;}
+
 
 	// ###################################### 
 	// Parameters for morpho ################
@@ -508,10 +515,15 @@ public:
 		if(this->morphomode != MORPHO::NONE)
 			this->init_Qs();
 	
+		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
 
 		// Graph Processing
 		this->graph_automator();
 
+
+		std::vector<std::uint8_t> topological_number_helper;
+		if(SF == false)
+			topological_number_helper = std::vector<std::uint8_t>(this->connector->nnodes, 0);
 
 		std::vector<float_t> vmot, vmot_hw(this->graph->nnodes,0.);
 
@@ -520,11 +532,11 @@ public:
 
 		// main loop
 		auto receivers = this->connector->get_empty_neighbour();
+		// auto neighbours = this->connector->get_empty_neighbour();
 		std::vector<float_t> weights(receivers.size(),0.), slopes(receivers.size(),0.);
 
 		// std::cout << "main loop" << std::endl;
 
-		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
 		// std::cout << "SF::" << SF << std::endl;
 		for(int i = this->graph->nnodes-1; i>=0; --i)
 		{
@@ -541,8 +553,10 @@ public:
 				continue;
 			}
 
+			int nvalidneighb = this->connector->get_n_potential_receivers(node);
+
 			// Getting the receivers
-			int nrecs; 
+			int nrecs,nrecs_eff = 0; 
 			if(SF)
 			{ 
 				nrecs = 1;
@@ -557,6 +571,11 @@ public:
 			if(SF == false)
 			{
 				Smax = this->weights_automator(receivers, weights, slopes, node, nrecs);
+				for(int j=0; j<nrecs; ++j)
+				{
+					if(weights[j] > 0 && this->_hw[node] > 0)
+						++nrecs_eff;
+				}
 			}
 			else
 			{
@@ -575,6 +594,18 @@ public:
 
 			// precalculating the power
 			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
+			
+			float_t ttoponum = 1.;
+			if(SF == false)
+			{
+				// int neff = nrecs_eff + int(topological_number_helper[node]);
+				if(nvalidneighb > 4)
+				{
+					ttoponum = 4./nvalidneighb;
+					// std::cout << "node: " << node << " toponum = " << ttoponum << std::endl;
+				}
+			}
+
 			// Squarerooting Smax
 			// float_t debug_S = Smax;
 			Smax = std::sqrt(Smax);
@@ -612,10 +643,30 @@ public:
 					dx=this->connector->get_dx_from_links_idx(receivers[j]);
 				}
 
-				// float_t dl = this->connector->get_travers_dy_from_dx(dx);
+				float_t dw = this->connector->get_travers_dy_from_dx(dx);
+
+
+				// TEMPORARY OVERWRITTING
+				// dx = this->connector->dx;
+				// dw = this->connector->dy;
+
+
 				float_t Sw; 
 				if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+				{
 					Sw = this->bou_fixed_val;
+					Smax = std::sqrt(Sw);
+					// std::cout << "rec is " << rec << " and Sw is " << Sw << " hw is " << this->_hw[node] <<  std::endl;
+					if(this->record_Sw)
+					{
+						dx = this->connector->dx;
+						dw = this->connector->dy;
+						if(SF)
+							this->_rec_Sw[node] += Sw;
+						else
+							this->_rec_Sw[node] += Sw * weights[j];
+					}
+				}
 				else if(SF) 
 				{
 					Sw=this->get_Sw(node,rec,dx,this->minslope);
@@ -632,7 +683,7 @@ public:
 				float_t tQout = 0.; 
 				if(SF)
 				{ 
-					tQout = dx / this->mannings(node) * pohw * Smax;
+					tQout = dw / this->mannings(node) * pohw * std::sqrt(Sw);
 					// this->catch_nan(this->mannings(node), "this->mannings(node)");
 					// this->catch_nan(pohw, "pohw");
 					// this->catch_nan(Smax, "Smax");
@@ -641,7 +692,9 @@ public:
 				}
 				else
 				{
-					tQout = (Smax > 0) ? this->topological_number * pohw * dx/this->mannings(node) * Sw/Smax:0;
+
+					// tQout = (Smax > 0) ? this->topological_number * pohw * dw/this->mannings(node) * Sw/Smax:0;
+					tQout = (Smax > 0) ? ttoponum * pohw * dw/this->mannings(node) * Sw/Smax:0;
 					// this->catch_nan(this->mannings(node), "this->mannings(node)");
 					// this->catch_nan(pohw, "pohw");
 					// this->catch_nan(Smax, "Smax");
@@ -657,13 +710,14 @@ public:
 					{
 						this->_Qw[rec] += Qwin; 
 					}
-					else 
+					else if(weights[j] > 0 && Qwin > 0)
 					{						
 
 						// if(this->connector->boundaries.force_giving(node) && Qwin > 0)
 						// 	std::cout << weights[j] * Qwin << " from " << node << " to " << rec << std::endl;
 
-						this->_Qw[rec] += weights[j] * Qwin; 
+						this->_Qw[rec] += weights[j] * Qwin;
+						++topological_number_helper[rec]; 
 
 					}
 
@@ -676,37 +730,58 @@ public:
 				}
 
 				// Now the morpho
-				if(this->morphomode != MORPHO::NONE && this->_hw[node] > 0)
+				if(this->morphomode != MORPHO::NONE)
 				{
-					float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
+					// initialising all the variables. e = erosion, d = deposition, _l is for the lateral ones and AB are the 2 lateral nodes
 					float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
+					// Getting the transversal (perpendicular) dx to apply lateral erosion/deposition
 					float_t tdl = this->connector->get_traverse_dx_from_links_idx(receivers[j]);
+					// And gathering the orthogonal nodes
 					std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,rec);
-					float_t tQs = this->_Qs[node];
 
-					int oA = (orthonodes.first >= 0 && orthonodes.first < this->graph->nnodes) ? orthonodes.first:-1;
-					int oB = (orthonodes.second >= 0 && orthonodes.second < this->graph->nnodes) ? orthonodes.second:-1;
-					
-					if(SF == false)
-						tQs *= weights[j];
+					// Calculating the shear stress for the given link
+					float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
 
+					// Calculating the sediment flux going through this link
+					float_t tQs = (SF) ? this->_Qs[node] : this->_Qs[node] * weights[j];
+
+
+					// Double checking the orthogonal nodes and if needs be to process them
+					int oA = orthonodes.first;
+					if(this->connector->is_in_bound(oA))
+					{
+						if(this->connector->boundaries.forcing_io(oA)) oA = -1;
+						if(this->connector->boundaries.can_receive(oA) == false || this->connector->boundaries.can_give(oA) == false) oA = -1;
+					}
+					else oA = -1;
+
+					int oB = orthonodes.second;
+					if(this->connector->is_in_bound(oB))
+					{
+						if(this->connector->boundaries.forcing_io(oB)) oB = -1;
+						if(this->connector->boundaries.can_receive(oB) == false || this->connector->boundaries.can_give(oB) == false) oB = -1;
+					}
+					else oB = -1;
+									
+
+					// Calculating local erosion rates, which depends on whether the shear stress exceeds the critical one
 					if( tau > this->tau_c(node))
 						edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
 					
+					// And the local deposition, which depends on the transport distance
 					ddot = tQs/this->kd(node);
 
+					// Dealing with lateral deposition if lS > 0 and erosion if lS <0
 					if(oA >= 0 )
 					{
 						float_t tSwl = this->get_Sw(node,oA, tdl);
 						if(tSwl > 0)
 						{
 							dldot_A = tSwl * this->kd_lateral(node) * ddot;
-							vmot[oA] += dldot_A;
 						}
 						else
 						{
 							eldot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
-							vmot[oA] -= eldot_A;
 						}
 
 					}
@@ -717,20 +792,32 @@ public:
 						if(tSwl > 0)
 						{
 							dldot_B = tSwl * this->kd_lateral(node) * ddot;
-							vmot[oB] += dldot_B;
 						}
 						else
 						{
 							eldot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
-							vmot[oB] -= eldot_B;
 						}
 					}
 
-					vmot[node] += ddot - edot;
+					//
+					float_t fbatch = (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
+					tQs -= fbatch;
 
-					tQs -= (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
+					float_t corrector = 1.;
+					float_t totd = ddot + dldot_B + dldot_A;
+					if(tQs < 0) 
+					{
+						// std::cout << "happend?????????" << std::endl;
+						corrector = totd/(totd + corrector); 
+						tQs = 0;
+					}
 
-					if(tQs < 0) tQs = 0;
+					vmot[node] += ddot*corrector - edot;
+					vmot[oA] += dldot_A*corrector;
+					vmot[oA] -= eldot_A;
+					vmot[oB] += dldot_B*corrector;
+					vmot[oB] -= eldot_B;
+
 					this->_Qs[rec] += tQs;
 
 					if(this->connector->flow_out_or_pit(rec))
@@ -759,9 +846,11 @@ public:
 			if(this->connector->boundaries.forcing_io(i)) continue;
 			
 			float_t tvh = vmot_hw[i] * this->dt_hydro(i);
-
 			if(tvh < - this->_hw[i])
+			{
+				// std::cout << "HAPPENS::" << tvh << " vs " << this->_hw[i] << std::endl;
 				tvh = - this->_hw[i];
+			}
 
 			this->_hw[i] += tvh;
 			if(this->record_dhw)
@@ -846,6 +935,9 @@ public:
 		if(this->depression_management == HYDROGRAPH_LM::IGNORE)
 			this->graph->set_LMR_method(DEPRES::none);
 
+		if(this->record_filling)
+			this->_rec_filling = std::vector<float_t>(this->graph->nnodes,0.);
+
 		// std::cout << "COMPUTING GRAPH " << only_SD << std::endl;
 
 		// preformatting post-topo
@@ -862,9 +954,19 @@ public:
 		{
 			for(int i=0; i<this->graph->nnodes; ++i)
 			{
+				if(this->connector->boundaries.no_data(i) || this->connector->boundaries.forcing_io(i))
+					continue;
+
 				if(this->_surface[i] < post_topo[i])
 				{
-					this->_hw[i] += post_topo[i] - this->_surface[i];
+					
+					float_t ddhhee = post_topo[i] - this->_surface[i];
+					
+					if(this->record_filling)
+						this->_rec_filling[i] = ddhhee;
+
+					this->_hw[i] += ddhhee;
+
 					this->_surface[i] = post_topo[i];
 				}
 			}

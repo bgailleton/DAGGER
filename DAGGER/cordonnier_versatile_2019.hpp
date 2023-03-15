@@ -241,6 +241,7 @@ public:
 		{
 			// getting the current nodes
 			size_t node = Sstack[i];
+			if(connector->boundaries.no_data(node)) continue;
 
 			// If it is its own receiver, then
 			if(connector->Sreceivers[node] == int(node))
@@ -311,6 +312,9 @@ public:
 			}
 
 			int o1,o2; connector->node_idx_from_link_idx_nocheck(i, o1, o2);
+
+			if(!connector->boundaries.can_receive(o1) || !connector->boundaries.can_receive(o2))
+				continue;
 
 			// translating the nodes to basin IDs 
 			int bj = this->basins[o1];
@@ -507,14 +511,14 @@ public:
 
 		// std::cout << "DEBUGLM_II::10::" << this->stack.size() <<std::endl;
 
-		if(method == DEPRES::cordonnier_carve)
+		if(method == DEPRES::cordonnier_carve || true) // artificially enabled (see cordonnier fill bellow, temporarily broken)
 		{
 			for(int i =	this->nbas-1; i>=0; --i)
 			{
 				int bas = this->stack[i];
 				// std::cout << bas << "/" << this->nbas << std::endl;;
 				// HOTFIX TO CHECK!!!!!: || this->is_open_basin[bas] == false, needed when p_nlinkignored is triggered
-				if(connector->boundaries.can_out(this->pitnode[bas]) || this->is_open_basin[bas] == false)
+				if(connector->boundaries.can_out(this->pitnode[bas]) )// || this->is_open_basin[bas] == false)
 					continue;
 
 				// std::cout << "A" << std::endl;
@@ -547,10 +551,22 @@ public:
 				// std::cout << connector->Sreceivers[this->pitnode[bas]] << std::endl;
 			}
 
-		}
-		else if (method == DEPRES::cordonnier_fill)
-		{
+			for(int i = 0; i<connector->nnodes; ++i)
+			{
+				if(i == connector->Sreceivers[i])
+				{
+					if(connector->boundaries.force_giving(i))
+						throw std::runtime_error("HAPPENS::force_giving_is_outlet");
+				}
+			}
 
+		}
+		else if (method == DEPRES::cordonnier_fill && false)// artificially disconnected, see bellow
+		{
+			// std::cout << "NEED FIXING" << std::endl;
+
+
+			// THIS IS THE "normal" cordonnier_fill but is broken at the moment. Switching back to a fake carve-fill
 			std::vector<std::uint8_t> inQ(connector->nnodes,0);
 			auto neighbours = connector->get_empty_neighbour();
 			for(int i =	0; i<this->nbas; ++i)
@@ -604,7 +620,14 @@ public:
 							continue;
 						}
 
-						topography[tn] = topography[n] + connector->randu->get() * 1e-6 + 1e-8;
+						if(connector->boundaries.forcing_io(tn))
+							continue;
+
+						// if( tn == 0 )
+						// 	std::cout << "before::" << topography[tn];
+						// topography[tn] = topography[n] + connector->randu->get() * 1e-6 + 1e-8;
+						// if( tn == 0 )
+						// 	std::cout << "after::" << topography[tn] << std::endl;;
 						connector->Sreceivers[tn] = n;
 						connector->Sdistance2receivers[tn] = connector->Sdistance2receivers[n];
 						Q.emplace(tn);

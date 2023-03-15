@@ -242,6 +242,8 @@ public:
 			// getting the current nodes
 			size_t node = Sstack[i];
 
+			if(connector->boundaries.no_data(node)) continue;
+
 			// If it is its own receiver, then
 			if(connector->Sreceivers[node] == int(node))
 			{
@@ -281,6 +283,7 @@ public:
 		{
 			for(int i=0; i<connector->nnodes; ++i)
 			{
+				if(connector->boundaries.no_data(node)) continue;
 				if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
 			}
 		}

@@ -1646,6 +1646,7 @@ public:
 			if(v == BC::FORCE_OUT)
 				v = BC::OUT;
 		}
+		this->precompute_links();
 	}
 
 
@@ -1729,6 +1730,7 @@ public:
 		tin[7] = this->get_topright_idx_links(i);
 		return 8;
 	}
+
 
 	int get_neighbour_idx_links(int i, std::array<int,8>& tin)
 	{
@@ -1823,6 +1825,36 @@ public:
 		}
 		return size;
 	}
+
+	int get_n_potential_receivers(int i)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li))
+			{
+				int on = i + this->neighbourer[this->linkdir[li]];
+				if(this->boundaries.can_receive(on) || this->boundaries.can_give(on))
+					++size;
+			}
+			// else
+			// 	std::cout << "nope:" << li << "|";
+			
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli))
+			{
+				int on = i + this->reruobhgien[this->ridknil[li]];;
+				if(this->boundaries.can_receive(on) || this->boundaries.can_give(on))
+					++size;
+			}
+			// else
+			// 	std::cout << "epon:" << li << "|";
+		}
+		return size;
+	}
+
 
 	int get_receivers_idx(int i, std::array<int,8>& tin)
 	{
@@ -2042,7 +2074,15 @@ public:
 					(this->is_on_top_row(a) && this->is_on_bottom_row(b) ) == false &&
 					(this->is_on_top_row(b) && this->is_on_bottom_row(a) ) == false &&
 					(this->is_on_leftest_col(a) && this->is_on_rightest_col(b) ) == false &&
-					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false
+					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false &&
+					(a == 0 && (this->is_on_bottom_row(b) || this->is_on_rightest_col(b) ) ) == false &&
+					(b == 0 && (this->is_on_bottom_row(a) || this->is_on_rightest_col(a) ) ) == false &&
+					(b == this->nx-1 && (this->is_on_bottom_row(a) || this->is_on_leftest_col(a) ) ) == false &&
+					(a == this->nx-1 && (this->is_on_bottom_row(b) || this->is_on_leftest_col(b) ) ) == false &&
+					(a == this->nnodes - this->nx && (this->is_on_top_row(b) || this->is_on_rightest_col(b) ) ) == false &&
+					(b == this->nnodes - this->nx && (this->is_on_top_row(a) || this->is_on_rightest_col(a) ) ) == false &&
+					(b == this->nnodes-1 && (this->is_on_top_row(a) || this->is_on_leftest_col(a) ) ) == false &&
+					(a == this->nnodes-1 && (this->is_on_top_row(b) || this->is_on_leftest_col(b) ) ) == false
 				)
 
 			)
@@ -2059,8 +2099,15 @@ public:
 					(this->is_on_top_row(a) && this->is_on_bottom_row(b) ) == false &&
 					(this->is_on_top_row(b) && this->is_on_bottom_row(a) ) == false &&
 					(this->is_on_leftest_col(a) && this->is_on_rightest_col(b) ) == false &&
-					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false
-
+					(this->is_on_leftest_col(b) && this->is_on_rightest_col(a) ) == false &&
+					(a == 0 && (this->is_on_bottom_row(b) || this->is_on_rightest_col(b) ) ) == false &&
+					(b == 0 && (this->is_on_bottom_row(a) || this->is_on_rightest_col(a) ) ) == false &&
+					(b == this->nx-1 && (this->is_on_bottom_row(a) || this->is_on_leftest_col(a) ) ) == false &&
+					(a == this->nx-1 && (this->is_on_bottom_row(b) || this->is_on_leftest_col(b) ) ) == false &&
+					(a == this->nnodes - this->nx && (this->is_on_top_row(b) || this->is_on_rightest_col(b) ) ) == false &&
+					(b == this->nnodes - this->nx && (this->is_on_top_row(a) || this->is_on_rightest_col(a) ) ) == false &&
+					(b == this->nnodes-1 && (this->is_on_top_row(a) || this->is_on_leftest_col(a) ) ) == false &&
+					(a == this->nnodes-1 && (this->is_on_top_row(b) || this->is_on_leftest_col(b) ) ) == false
 				)
 			)
 			{
@@ -2068,8 +2115,8 @@ public:
 			}
 			else if
 			(
-				(this->is_on_rightest_col(a) || this->is_on_bottom_row(a)) &&
-				(!this->boundaries.is_periodic(a) || !this->boundaries.is_periodic(b))
+				(this->is_on_rightest_col(a) || this->is_on_bottom_row(a) || i== 4) &&
+				(!this->boundaries.is_periodic(a) && !this->boundaries.is_periodic(b))
 			)
 			{
 				this->links[i] = 5;
@@ -2209,7 +2256,7 @@ public:
 
 			if(FORCED)
 			{
-				slope = 1/std::abs(slope);
+				slope = this->randu->get();
 				if(this->is_link_inverse(i))
 				{
 					if(this->SS[to]<slope)

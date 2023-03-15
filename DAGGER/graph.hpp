@@ -295,6 +295,8 @@ public:
 				// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
 				if(this->depression_resolver == DEPRES::cordonnier_carve)
 					this->carve_topo_v2(faketopo);
+				else if (this->depression_resolver == DEPRES::cordonnier_fill)
+					this->fill_topo_v2(1e-5, faketopo);
 
 
 				// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
@@ -698,9 +700,8 @@ public:
 	/// It starts from the most dowstream nodes and climb its way up.
 	/// when a node is bellow its receiver, we correct the slope
 	template<class topo_t>
-	std::vector<int> fill_topo_v2(float_t slope, topo_t& topography)
+	void fill_topo_v2(float_t slope, topo_t& topography)
 	{
-		std::vector<int> to_recompute;
 		for(int i=0; i < this->nnodes; ++i)
 		{
 			int node  = this->Sstack[i];
@@ -713,10 +714,8 @@ public:
 			if(dz <= 0)
 			{
 				topography[node] = topography[rec] + slope + this->randu->get() * 1e-6;// * d2rec;
-				to_recompute.emplace_back(node);
 			}
 		}
-		return to_recompute;
 	}
 
 /*
@@ -1152,7 +1151,16 @@ public:
 			out[node] += var;
 
 			if(this->connector->flow_out_or_pit(node))
+			{
+				if(this->connector->is_on_dem_edge(node) == false)
+				{
+					std::cout << "WARNING_DEBUG_45b::FLOW OUTS - NOT ON DEM EDGE " << std::endl;;
+					std::cout << node << "||" << this->connector->Sreceivers[node] << std::endl;
+					this->connector->debug_print_neighbours(node);
+					
+				}
 				continue;
+			}
 
 			out[this->connector->Sreceivers[node]] += out[node];
 			
