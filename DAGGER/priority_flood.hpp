@@ -40,85 +40,315 @@ namespace DAGGER
 	using PQ_i_d =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
 	using PQH = PQ_helper<int,double>;
 
+	template<class Connector_t, class int_t, class out_t, class float_t>
+	out_t standalone_priority_flood(int_t& topography, Connector_t& connector)
+	{
+		auto ttopo = format_input(topography);
+		auto vtopo = DAGGER::to_vec(ttopo);
+		PriorityFlood(vtopo, connector);
+		return DAGGER::format_output<std::vector<float_t>, out_t >(vtopo);
+	}
+
+
+
+
 	template <class float_t, class Connector_t>
 	void PriorityFlood(std::vector<float_t>& topography, Connector_t& connector)
 	{
 		PQ_i_d open;
-	  std::queue<PQH > pit;
-	  
-	  // auto topography = format_input(ttopography);
-	  uint64_t pitc            = 0;
-	  auto     PitTop          = -9999;
-	  int      false_pit_cells = 0; 
+		std::queue<PQH > pit;
+		
+		// auto topography = format_input(ttopography);
+		uint64_t pitc            = 0;
+		auto     PitTop          = -9999;
+		int      false_pit_cells = 0; 
 	 
-	  std::vector<int8_t> closed(connector.nnodes,false);
+		std::vector<int8_t> closed(connector.nnodes,false);
 
-	  for(int i=0; i<connector.nnodes;++i)
-	  {
-	  	if(connector.boundaries.can_out(i) == false)
-	  		continue;
-	  	
-	    open.emplace(PQH(i,topography[i]));
-	    closed[i]=true;
-	  }
+		for(int i=0; i<connector.nnodes;++i)
+		{
+			if(connector.boundaries.can_out(i) == false)
+				continue;
+			
+			open.emplace(PQH(i,topography[i]));
+			closed[i]=true;
+		}
 
-	  auto neighbours = connector.get_empty_neighbour();
-	  while(open.size()>0 || pit.size()>0)
-	  {
-	    PQH c;
-	    if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
-	    {
-	      c=open.top();
-	      open.pop();
-	      PitTop=-9999;
-	    } 
-	    else if(pit.size()>0)
-	    {
-	      c=pit.front();
-	      pit.pop();
-	      if(PitTop==-9999)
-	        PitTop=topography[c.node];
-	    } else {
-	      c=open.top();
-	      open.pop();
-	      PitTop=-9999;
-	    }
+		auto neighbours = connector.get_empty_neighbour();
+		while(open.size()>0 || pit.size()>0)
+		{
+			PQH c;
+			// if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
+			// {
+			// 	c=open.top();
+			// 	open.pop();
+			// 	PitTop=-9999;
+			// } 
+			// else if(pit.size()>0)
+			// {
+			// 	c=pit.front();
+			// 	pit.pop();
+			// 	if(PitTop==-9999)
+			// 		PitTop=topography[c.node];
+			// // } else {
+			c=open.top();
+			open.pop();
+			PitTop=topography[c.node];
+			// }
 
-	    int nn = connector.get_neighbours_idx_richdemlike(c.node, neighbours);
+			int nn = connector.get_neighbour_idx(c.node, neighbours);
+			float_t ttopo = topography[c.node];
 
-	    for(int j=0;j<nn;++j)
-	    {
-	      int n = neighbours[j];
+			for(int j=0;j<nn;++j)
+			{
+				int n = neighbours[j];
 
-	      if(connector.is_in_bound(n) == false || connector.boundaries.can_create_link(n) == false) continue;
+				if(connector.is_in_bound(n) == false || connector.boundaries.can_create_link(n) == false) continue;
 
-	      if(closed[n])
-	        continue;
+				if(closed[n])
+					continue;
 
-	      closed[n]=true;
+				closed[n]=true;
+				ttopo += connector.randu->get() * 1e-6 + 1e-8;
+				// float_t ntopo = ; 
+				topography[n] = std::max(ttopo, topography[n]);
+				open.emplace(n,topography[n]);
 
-	      float_t ntopo = topography[c.node] + connector.randu->get() * 1e-6 + 1e-8; 
+			}
+		}
+	}
 
-	      if(topography[n]==-9999)
-	        pit.emplace(PQH(n,-9999));
 
-	      else if(topography[n] <= topography[c.node])
-	      {
 
-	        if(PitTop !=-9999 && PitTop<topography[n] && ntopo>=topography[n])
-	        {
-	          ++false_pit_cells;
-	        }
 
-	        ++pitc;
 
-	        topography[n] = ntopo;
+// Grayscale morphological reconstruction algorithm
+void morphologicalReconstruction(std::vector<double>& data, int width, int height) {
+    // Initialize the marker image with the original data
+    std::vector<double> marker(data);
 
-	        pit.emplace(n,topography[n]);
-	      } else
-	        open.emplace(n,topography[n]);
-	    }
-	  }
+    // Structuring element
+    int se_width = 3;
+    int se_height = 3;
+    std::vector<double> se_data = {
+        1, 1, 1,
+        1, 1, 1,
+        1, 1, 1
+    };
+
+    // Iteratively dilate and take intersection
+    bool changed = true;
+    while (changed) {
+        changed = false;
+
+        std::vector<double> dilated(data.size());
+
+        // Perform dilation
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                double max_val = 0;
+
+                // Apply structuring element
+                for (int j = -se_height/2; j <= se_height/2; j++) {
+                    for (int i = -se_width/2; i <= se_width/2; i++) {
+                        int nx = x + i;
+                        int ny = y + j;
+
+                        // Skip out-of-bounds pixels
+                        if (nx < 0 || nx >= width || ny < 0 || ny >= height) {
+                            continue;
+                        }
+
+                        double val = marker[ny * width + nx] + se_data[(j + se_height/2) * se_width + i + se_width/2];
+                        max_val = std::max(max_val, val);
+                    }
+                }
+
+                dilated[y * width + x] = max_val;
+            }
+        }
+
+        // Take intersection with original data
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                double old_val = marker[y * width + x];
+                double new_val = std::min(dilated[y * width + x], data[y * width + x]);
+                marker[y * width + x] = new_val;
+
+                // Check if any values changed
+                if (new_val != old_val) {
+                    changed = true;
+                }
+            }
+        }
+    }
+
+    // Copy the marker image back into the original data
+    for (int i = 0; i < data.size(); i++) {
+        data[i] = marker[i];
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	// DOES NOT WORK!
+	template<class Connector_t,class graph_t, class int_t, class out_t, class float_t>
+	out_t standalone_priority_flood_opti(int_t& topography, Connector_t& connector, graph_t& GRAPH)
+	{
+		auto ttopo = format_input(topography);
+		auto vtopo = DAGGER::to_vec(ttopo);
+		PriorityFlood_opti(vtopo, connector, GRAPH.Sstack);
+		return DAGGER::format_output<std::vector<float_t>, out_t >(vtopo);
+	}
+
+	template <class float_t, class Connector_t>
+	bool PriorityFlood_opti(std::vector<float_t>& topography, Connector_t& connector, std::vector<size_t>& Sstack)
+	{
+		PQ_i_d open;
+		std::queue<PQH > pit;
+		
+		// auto topography = format_input(ttopography);
+		uint64_t pitc            = 0;
+		auto     PitTop          = -9999;
+		int      false_pit_cells = 0; 
+	 
+		std::vector<int8_t> closed(connector.nnodes,false);
+		int checker = 0;
+		for(int i=0; i<connector.nnodes; ++i)
+		{
+			int node = int(Sstack[i]);
+			if(connector.boundaries.no_data(node))
+			{
+				closed[node]=true;
+				++checker;
+				continue;
+			}
+
+			if(connector.boundaries.can_out(node) == false)
+			{
+				closed[node] = closed[connector.Sreceivers[node]];
+
+				if(closed[node]) 
+					++checker;
+				
+				continue;
+			}
+
+			// open.emplace(PQH(node,topography[node]));
+			closed[node]=true;
+			++checker;
+		}
+			// std::cout << "CHECKER::" << checker << "|" << connector.nnodes << std::endl;
+
+		if(checker == connector.nnodes)
+		{
+			return false;
+		}
+
+		for(int i=0; i<int(connector.links.size());++i)
+		{
+			if(connector.is_link_valid(i) == false) 
+				continue;
+			
+			int u,o; connector.node_idx_from_link_idx_nocheck(i,u,o);
+
+			if(closed[u] == closed[o])
+				continue;
+
+			// open.emplace(PQH(i,topography[i]));
+
+			if(closed[u]) 
+			{
+				open.emplace(PQH(u,topography[u]));
+			}
+			else 
+			{
+				open.emplace(PQH(o,topography[o]));
+			}
+
+		}
+
+		// std::cout << "open size::" << open.size() << std::endl;
+
+		auto neighbours = connector.get_empty_neighbour();
+		while(open.size()>0 || pit.size()>0)
+		{
+			PQH c;
+			if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
+			{
+				c=open.top();
+				open.pop();
+				PitTop=-9999;
+			} 
+			else if(pit.size()>0)
+			{
+				c=pit.front();
+				pit.pop();
+				if(PitTop==-9999)
+					PitTop=topography[c.node];
+			} else {
+				c=open.top();
+				open.pop();
+				PitTop=-9999;
+			}
+
+			int nn = connector.get_neighbour_idx(c.node, neighbours);
+
+			for(int j=0;j<nn;++j)
+			{
+				int n = neighbours[j];
+
+				if(connector.is_in_bound(n) == false || connector.boundaries.can_create_link(n) == false) continue;
+
+				if(closed[n])
+					continue;
+
+				closed[n]=true;
+
+				float_t ntopo = topography[c.node] + connector.randu->get() * 1e-6 + 1e-8; 
+
+				if(topography[n]==-9999)
+					pit.emplace(PQH(n,-9999));
+
+				else if(topography[n] <= topography[c.node])
+				{
+
+					if(PitTop !=-9999 && PitTop<topography[n] && ntopo>=topography[n])
+					{
+						++false_pit_cells;
+					}
+
+					++pitc;
+
+					topography[n] = ntopo;
+
+					pit.emplace(n,topography[n]);
+				} else
+					open.emplace(n,topography[n]);
+			}
+		}
+
+		return true;
 	}
 
 
@@ -127,67 +357,67 @@ namespace DAGGER
 	std::vector<double> PriorityFlood_old(topo_t& ttopography, Connector_t& connector)
 	{
 
-	  PQ_i_d open;
-	  std::queue<PQ_helper<int,double> > pit;
+		PQ_i_d open;
+		std::queue<PQ_helper<int,double> > pit;
 
-	  double PitTop = -9999; 
+		double PitTop = -9999; 
 
-	  std::random_device rd; // obtain a random number from hardware
-	  std::mt19937 gen(rd()); // seed the generator
-	  std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the range
+		std::random_device rd; // obtain a random number from hardware
+		std::mt19937 gen(rd()); // seed the generator
+		std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the range
 
-	  auto topography = format_input(ttopography);
+		auto topography = format_input(ttopography);
 
-	  std::vector<int8_t> closed(connector.nnodes,false);
+		std::vector<int8_t> closed(connector.nnodes,false);
 
-	  for(int i=0; i<connector.nnodes;++i)
-	  {
-	  	if(connector.boundaries.can_out(i))
-	  	{
-	  		open.emplace(PQ_helper<int,double>(i,topography[i]));
-	  		closed[i] = true;
-	  	}
-	    
-	  }
-	  
+		for(int i=0; i<connector.nnodes;++i)
+		{
+			if(connector.boundaries.can_out(i))
+			{
+				open.emplace(PQ_helper<int,double>(i,topography[i]));
+				closed[i] = true;
+			}
+			
+		}
+		
 		auto neighbours = connector.get_empty_neighbour();
-	  while(open.size()>0 || pit.size()>0)
-	  {
-	    PQ_helper<int,double> c;
-	    if(pit.size()>0)
-	    {
-	      c=pit.front();
-	      pit.pop();
-	    } 
-	    else 
-	    {
-	      c=open.top();
-	      open.pop();
-	    }
+		while(open.size()>0 || pit.size()>0)
+		{
+			PQ_helper<int,double> c;
+			if(pit.size()>0)
+			{
+				c=pit.front();
+				pit.pop();
+			} 
+			else 
+			{
+				c=open.top();
+				open.pop();
+			}
 
-	    int nn = connector.get_neighbour_idx(c.node,neighbours);
+			int nn = connector.get_neighbour_idx(c.node,neighbours);
 
-	    for(int j=0;j<nn;++j)
-	    {
-	      int n = neighbours[j];
+			for(int j=0;j<nn;++j)
+			{
+				int n = neighbours[j];
 
-	      if(connector.boundaries.no_data(n) || connector.boundaries.force_giving(n)) continue;
-	      
-	      if(closed[n])
-	        continue;
+				if(connector.boundaries.no_data(n) || connector.boundaries.force_giving(n)) continue;
+				
+				if(closed[n])
+					continue;
 
-	      closed[n]=true;
-	      
-	      if(topography[n]<=c.score)
-	      {
-          topography[n] = std::nextafter(c.score, c.score + 1);
-	        pit.emplace(PQ_helper<int,double>(n,topography[n]));
-	      } 
-	      else
-	        open.emplace(PQ_helper<int,double>(n,topography[n]));
-	    }
-	  }
-	  return to_vec(topography);
+				closed[n]=true;
+				
+				if(topography[n]<=c.score)
+				{
+					topography[n] = std::nextafter(c.score, c.score + 1);
+					pit.emplace(PQ_helper<int,double>(n,topography[n]));
+				} 
+				else
+					open.emplace(PQ_helper<int,double>(n,topography[n]));
+			}
+		}
+		return to_vec(topography);
 
 	}
 
@@ -204,85 +434,85 @@ namespace DAGGER
 		auto tttopography = format_input(ttopography);
 		std::vector<double> topography = to_vec(tttopography);
 
-	  PQ_i_d open;
-	  std::queue<PQ_helper<int,double> > pit;
+		PQ_i_d open;
+		std::queue<PQ_helper<int,double> > pit;
 
-	  uint64_t processed_cells = 0;
-	  uint64_t pitc            = 0;
-	  int      false_pit_cells = 0;
-	  double PitTop = -9999;
+		uint64_t processed_cells = 0;
+		uint64_t pitc            = 0;
+		int      false_pit_cells = 0;
+		double PitTop = -9999;
 
-	  std::vector<bool> closed(connector.nnodes,false);
+		std::vector<bool> closed(connector.nnodes,false);
 
-	  // RDLOG_PROGRESS<<"Adding cells to the priority queue...";
-	  for(int i = 0; i<connector.nnodes; ++i)
-	  {
-	  	// if(connector.can_flow_even_go_there(i) && i == graph.Sreceivers[i])
-	  	if(connector.boundaries.can_out(i))
-	  	{
-	  		closed[i] = true; 
-	  		open.emplace(i,topography[i]);
-	  	}
-	  }
+		// RDLOG_PROGRESS<<"Adding cells to the priority queue...";
+		for(int i = 0; i<connector.nnodes; ++i)
+		{
+			// if(connector.can_flow_even_go_there(i) && i == graph.Sreceivers[i])
+			if(connector.boundaries.can_out(i))
+			{
+				closed[i] = true; 
+				open.emplace(i,topography[i]);
+			}
+		}
 
-	  // RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
-	  auto neighbours = connector.get_empty_neighbour();
+		// RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
+		auto neighbours = connector.get_empty_neighbour();
 
 
-	  // throw std::runtime_error("???A");
-	  // int ii = 0;
-	  while(open.size()>0 || pit.size()>0)
-	  {
-	  	// ++ii;
-	  	// if(ii % 100000 == 0) std::cout << open.size() << "||" << pit.size() << std::flush << std::endl;
+		// throw std::runtime_error("???A");
+		// int ii = 0;
+		while(open.size()>0 || pit.size()>0)
+		{
+			// ++ii;
+			// if(ii % 100000 == 0) std::cout << open.size() << "||" << pit.size() << std::flush << std::endl;
 
-	    PQ_helper<int,double> c;
+			PQ_helper<int,double> c;
 
-	    if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
-	    {
-	      c=open.top(); open.pop();
-	      PitTop=-9999;
-	    } 
-	    else if(pit.size()>0)
-	    {
-	      c=pit.front(); pit.pop();
-	      if(PitTop==-9999)
-	        PitTop=topography[c.node];
-	    } 
-	    else 
-	    {
-	      c=open.top(); open.pop();
-	      PitTop=-9999;
-	    }
-	    processed_cells++;
+			if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
+			{
+				c=open.top(); open.pop();
+				PitTop=-9999;
+			} 
+			else if(pit.size()>0)
+			{
+				c=pit.front(); pit.pop();
+				if(PitTop==-9999)
+					PitTop=topography[c.node];
+			} 
+			else 
+			{
+				c=open.top(); open.pop();
+				PitTop=-9999;
+			}
+			processed_cells++;
 
-	    int nn = connector.get_neighbour_idx(c.node, neighbours);
-	    for(int tnn = 0; tnn<nn; ++nn)
-	    {
-	    	int n = neighbours[tnn];
-	      if(connector.can_flow_even_go_there(n) == false) 
-	      	continue;
+			int nn = connector.get_neighbour_idx(c.node, neighbours);
+			for(int tnn = 0; tnn<nn; ++nn)
+			{
+				int n = neighbours[tnn];
+				if(connector.can_flow_even_go_there(n) == false) 
+					continue;
 
-	      if(closed[n])
-	        continue;
+				if(closed[n])
+					continue;
 
-	      closed[n]=true;
+				closed[n]=true;
 
-	      if(topography[n] <= std::nextafter(c.score,std::numeric_limits<double>::infinity()))
-	      {
-	        if(PitTop!=-9999 && PitTop<topography[n] && std::nextafter(c.score,std::numeric_limits<double>::infinity())>=topography[n])
-	          ++false_pit_cells;
-	      
-	        ++pitc;
-	        // topography[n]=std::nextafter(c.score,std::numeric_limits<double>::infinity());
-	        topography[n] = c.score + distr(gen);
-	        pit.emplace(n,topography[n]);
-	      } else
-	        open.emplace(n,topography[n]);
-	    }
-	  }
+				if(topography[n] <= std::nextafter(c.score,std::numeric_limits<double>::infinity()))
+				{
+					if(PitTop!=-9999 && PitTop<topography[n] && std::nextafter(c.score,std::numeric_limits<double>::infinity())>=topography[n])
+						++false_pit_cells;
+				
+					++pitc;
+					// topography[n]=std::nextafter(c.score,std::numeric_limits<double>::infinity());
+					topography[n] = c.score + distr(gen);
+					pit.emplace(n,topography[n]);
+				} else
+					open.emplace(n,topography[n]);
+			}
+		}
 	
-	  return topography;
+		return topography;
 	}
 
 

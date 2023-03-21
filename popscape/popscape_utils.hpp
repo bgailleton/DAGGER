@@ -15,7 +15,7 @@ enum class RANDNOISE
 
 
 template<class T>
-DAGGER::D8connector<T> _create_connector(int nx, int ny, T dx, T dy, T xmin, T ymin){DAGGER::D8connector<T> con = DAGGER::D8connector<T>(); con.init_dimensions(nx, ny, dx, dy, xmin, ymin); return con;}
+DAGGER::D8connector<T> _create_connector(int nx, int ny, T dx, T dy, T xmin, T ymin){DAGGER::D8connector<T> con = DAGGER::D8connector<T>(); con.default_permissive = true; con.init_dimensions(nx, ny, dx, dy, xmin, ymin); return con;}
 template<class T>
 void _create_connector(int nx, int ny, T dx, T dy, T xmin, T ymin, DAGGER::D4connector<T>& con){con = DAGGER::D4connector<T>(nx, ny, dx, dy, xmin, ymin);}
 

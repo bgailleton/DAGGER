@@ -153,6 +153,8 @@ public:
 
 	std::map<int,uI_t> converter;
 
+	bool default_permissive = false;
+
 	// Coordinate stuff
 	// Xs and Ys are vectors of nx and ny size converting row to y and col to X
 	// Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib imshow plots)
@@ -1606,7 +1608,7 @@ public:
 			for(size_t i = 0; i < this->nnodes_t; ++i)
 			{
 				if(this->is_on_dem_edge(i))
-					this->boundaries.codes[i] = BC::FORCE_OUT;
+					this->boundaries.codes[i] = (this->default_permissive)?BC::CAN_OUT :BC::OUT;
 			}
 		}
 		else if(bountype == "periodic_EW")
@@ -1614,7 +1616,7 @@ public:
 			for(int i = 0; i < this->nnodes; ++i)
 			{
 				if(this->is_on_top_row(i) || this->is_on_bottom_row(i))
-					this->boundaries.codes[i] = BC::FORCE_OUT;
+					this->boundaries.codes[i] = (this->default_permissive)?BC::CAN_OUT :BC::OUT;
 				else if(this->is_on_leftest_col(i) || this->is_on_rightest_col(i))
 					this->boundaries.codes[i] = BC::PERIODIC_BORDER;
 			}
@@ -1624,7 +1626,7 @@ public:
 			for(int i = 0; i < this->nnodes; ++i)
 			{
 				if(this->is_on_leftest_col(i) || this->is_on_rightest_col(i))
-					this->boundaries.codes[i] = BC::FORCE_OUT;
+					this->boundaries.codes[i] = (this->default_permissive)?BC::CAN_OUT :BC::OUT;
 				else if(this->is_on_top_row(i) || this->is_on_bottom_row(i))
 					this->boundaries.codes[i] = BC::PERIODIC_BORDER;
 			}

@@ -265,6 +265,16 @@ public:
 		// Braun and willett 2014 (modified)
 		this->topological_sorting_SF();
 
+		if(this->depression_resolver == DEPRES::priority_flood_opti)
+		{
+			bool need_reco = PriorityFlood_opti(faketopo,*this->connector, this->Sstack);
+			if(need_reco)
+			{
+				this->connector->update_links(faketopo);
+				this->topological_sorting_SF();
+			}
+		}
+
 
 		// manages the Cordonnier method if needed
 		if(isCordonnier)

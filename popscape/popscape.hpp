@@ -103,6 +103,10 @@ public:
 	template<class out_t>
 	out_t get_QA(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->QA);}
 
+	template<class out_t>
+	out_t get_chistar(){std::vector<float_t> chistar = this->_chi_star();return DAGGER::format_output<std::vector<float_t>,out_t>(chistar);}
+
+
 	// Parameters:
 	float_t Kbase(int i)
 	{
@@ -218,6 +222,7 @@ public:
 		// this->graph.init_graph(this->connector);
 		this->topography = std::move(ntopo);
 		this->_init_vecs();
+		this->border20();
 
 	}
 
@@ -260,12 +265,106 @@ public:
 		// this->graph.init_graph(this->connector);
 		this->topography = std::move(ntopo);
 		this->_init_vecs();
+		this->border20();
+
 	}
 
 	void smooth(float_t rr)
 	{
 		// this->topography = On_gaussian_blur<float_t>(rr, this->topography, this->connector.nx, this->connector.ny);
 		this->topography = On_gaussian_blur(rr, this->topography, this->connector.nx, this->connector.ny);
+	}
+
+	void border20()
+	{
+		for(int i=0; i<this->connector.nnodes; ++i)
+		{
+			if(this->connector.flow_out_model(i))
+				this->topography[i] = 0;
+		}
+	}
+
+
+	std::vector<float_t> _chi_star()
+	{
+		std::vector<float_t> A = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
+		std::vector<float_t> chistar(this->graph.nnodes, 0.);
+		float_t chimax = 0;
+		for(int i=0;i<this->graph.nnodes; ++i)
+		{
+			int node = this->graph.Sstack[i];
+			int rec = this->connector.Sreceivers[node];
+			if(node == rec)
+				continue;
+
+			// chistar[node] = chistar[rec] + this->connector.Sdistance2receivers[node] * (std::pow(1/A[node], this->m(node)/this->n(node)));
+			chistar[node] = chistar[rec] + this->connector.Sdistance2receivers[node] * (std::pow(1/A[node], 0.2) );
+			if(chistar[node] > chimax)
+				chimax = chistar[node];
+		}
+
+		for(auto&v:chistar)
+			v/=chimax;
+
+		return chistar;
+	}
+
+	std::vector<float_t> _z_star()
+	{
+		std::vector<float_t> zstar(this->topography);
+		float_t zmax = 0;
+		for(int i=0;i<this->graph.nnodes; ++i)
+		{
+			if(zstar[i] > zmax)
+				zmax = zstar[i];
+		}
+
+		for(auto&v:zstar)
+			v/=zmax;
+
+		return zstar;
+	}
+
+
+	void simple_Kfchi(float_t tkmod, float_t chimin, float_t chimax)
+	{
+
+		auto chistar = this->_chi_star();
+
+		this->Kmod_mode = PARAM_MODE::VARIABLE;
+		this->_Kmod = std::vector<float_t>(this->graph.nnodes, 1.);
+		for(int i = 0; i<this->graph.nnodes; ++i)
+		{
+			if(chistar[i] > chimin && chistar[i] <chimax)
+				this->_Kmod[i] = tkmod;
+		}
+
+		this->StSt(1);
+
+		this->Kmod_mode = PARAM_MODE::CONSTANT;
+		this->_Kmod = {1};
+
+	}
+
+
+	void simple_Kfz(float_t tkmod, float_t zmin, float_t zmax)
+	{
+
+		auto zstar = this->_z_star();
+
+		this->Kmod_mode = PARAM_MODE::VARIABLE;
+		this->_Kmod = std::vector<float_t>(this->graph.nnodes, 1.);
+		for(int i = 0; i<this->graph.nnodes; ++i)
+		{
+			if(zstar[i] > zmin && zstar[i] <zmax)
+				this->_Kmod[i] = tkmod;
+		}
+
+		this->StSt(1);
+
+		this->Kmod_mode = PARAM_MODE::CONSTANT;
+		this->_Kmod = {1};
+
 	}
 
 

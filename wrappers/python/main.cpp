@@ -661,6 +661,9 @@ void declare_popscape(py::module &m, std::string typestr)
     .def("set_topo", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_topo<py::array_t<double,1> >)
     .def("get_topo", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array_t<double,1> >)
     .def("get_QA", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_QA<py::array_t<double,1> >)
+    .def("get_chistar", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_chistar<py::array_t<double,1> >)
+    .def("simple_Kfchi", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::simple_Kfchi)
+    .def("simple_Kfz", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::simple_Kfz)
   ;
 }
 
@@ -866,12 +869,24 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_fixed_hw_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
     .def("set_fixed_slope_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
     .def("get_dt_hydro",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
-    
-    
+
+    .def("set_partition_method", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_partition_method)
+    .def("set_topological_number", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_topological_number)
+    .def("get_topological_number", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_topological_number)
+
+
+    .def("get_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
+    .def("set_courant_numer", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_courant_numer)
+    .def("set_max_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
+    .def("enable_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
+    .def("set_Qwin_crit", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
+        
     
 
   ;
 }
+
+
 
 PYBIND11_MODULE(dagger, m) {
   m.doc() = R"pbdoc(
@@ -966,8 +981,18 @@ PYBIND11_MODULE(dagger, m) {
     .value("cordonnier_carve", DEPRES::cordonnier_carve)
     .value("cordonnier_simple", DEPRES::cordonnier_simple)
     .value("priority_flood", DEPRES::priority_flood)
+    .value("priority_flood_opti", DEPRES::priority_flood_opti)
     .value("none", DEPRES::none)
   ;
+
+  py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
+    .value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
+    .value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
+    .value("PROPOREC", MFD_PARTITIONNING::PROPOREC)
+  ;
+
+
+
 
   py::class_<D8connector<double> >(
 m, "D8N", R"pbdoc(
@@ -1760,9 +1785,21 @@ B.G.
 )pbdoc"
      );
 
+  m.def(
+    "standalone_priority_flood",
+    &standalone_priority_flood<D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double >,
+   py::arg("topography"), py::arg("connector")
+  );
+
+m.def(
+    "standalone_priority_flood_opti",
+    &standalone_priority_flood_opti<D8connector<double>,  DAGGER::graph<double, DAGGER::D8connector<double> >, py::array_t<double, 1>, py::array_t<double, 1>, double >,
+   py::arg("topography"), py::arg("connector"), py::arg("graph")
+  );
+
 
   // declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
-  // declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
+  declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
   // // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
   // declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
   // // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
