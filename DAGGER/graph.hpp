@@ -1203,7 +1203,7 @@ public:
 
 		if(abs(bal) > 1e-3)
 			std::cout << "DEBUG BALANCE = " << bal << std::endl;
-		std::cout << "DEBUG TOTOUT " << tot << std::endl;
+		// std::cout << "DEBUG TOTOUT " << tot << std::endl;
 		return out;
 	}
 

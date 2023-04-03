@@ -29,15 +29,17 @@
 #include "D8connector.hpp"
 #include "D4connector.hpp"
 #include "popscape_utils.hpp"
+// #include "D8connector.hpp"
+#include "graph.hpp"
 
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/numpy.h>
+// #include <pybind11/pybind11.h>
+// #include <pybind11/stl.h>
+// #include <pybind11/numpy.h>
 
-namespace py = pybind11;
+// namespace py = pybind11;
 
 
 namespace DAGGER
@@ -77,6 +79,8 @@ public:
 
 	PARAM_MODE UE_mode = PARAM_MODE::CONSTANT;
 	std::vector<float_t> _UE = {1e-3};
+
+	std::string boundary_string = "periodic_EW";
 
 
 
@@ -215,6 +219,7 @@ public:
 		float_t dy = this->connector.dy/2;
 		// init connector
 		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+		this->connector.set_default_boundaries(this->boundary_string);
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
@@ -238,6 +243,7 @@ public:
 		std::vector<float_t> ntopo(nxy,0.);
 
 		D8connector<double> ncon = _create_connector(nx,ny,this->connector.dx*2,this->connector.dy*2,0.,0.);
+		ncon.set_default_boundaries(this->boundary_string);
 
 
 

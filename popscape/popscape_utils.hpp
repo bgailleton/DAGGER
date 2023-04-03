@@ -2,6 +2,7 @@
 #define POPSCAPE_UTILS_HPP
 // -> The connector classes
 #include "D8connector.hpp"
+#include "graph.hpp"
 #include "D4connector.hpp"
 #include "PerlinNoise.hpp"
 

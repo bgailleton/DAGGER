@@ -85,7 +85,7 @@ enum class BC: std::uint8_t
 	FORCE_IN=8,
 
 	// periodic border
-	PERIODIC_BORDER=9,
+	PERIODIC_BORDER=9
 
 };
 
