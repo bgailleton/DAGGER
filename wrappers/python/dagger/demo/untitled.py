@@ -2,13 +2,39 @@ import dagger as dag
 from helper import load_raster
 import matplotlib.pyplot as plt
 import numpy as np
+import scabbard as scb
 
-dem = load_raster("putna_FAKE_20.tif")
-dem['array'] = np.random.rand(dem['nx'] * dem['ny'])
+nx = 5
+ny = 10
+dx,dy = 1,1
 
-con = dag.D8N(dem["nx"], dem["ny"], dem["dx"], dem["dy"], dem["x_min"], dem["y_min"])
-gf = dag.graph(con)
-gf.init_graph()
+S0 = 1
 
-gf.set_LMR_method(dag.LMR.cordonnier_carve)
-PPdem = gf.compute_graph(dem['array'].ravel(), True, True)
+BC = np.ones((ny,nx), dtype=np.uint8)
+BC[0,:] = 0
+BC[:,[0,-1]] = 0
+BC[-1,1:9] = 4
+
+grid = scb.slope_RGrid(nx,ny,dx,dy, slope = S0, noise_magnitude=0., EW = "out", S = "out", N = "noflow")
+
+grid.Z2D[5,1] = 0
+grid.Z2D[5,3] = 0
+grid.Z2D[2:7,1:4] -= 5
+
+grid.compute_graphcon()
+grid.con.set_custom_boundaries(BC.ravel())
+
+grid.graph.set_LMR_method(dag.LMR.dagger_carve )
+PPdem = grid.graph.compute_graph(grid.Z, False, False)
+
+A = grid.graph.accumulate_constant_downstream_SFD(1)
+
+fig,ax = plt.subplots()
+ax.imshow(A.reshape(grid.rshp))
+fig.show()
+B = np.copy(A)
+B[A>=1] =1
+print(np.sum(B))
+
+input()
+

@@ -95,6 +95,156 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 }
 
 
+template<class Graph_t, class Connector_t,class topo_t, class out_t, class float_t>
+out_t rayshade(
+	Graph_t& graph, Connector_t& connector, topo_t& ttopography, 
+	float_t ray_slope, // Slope of the sun
+	float_t shadow_mag, // magnitude of the shadow ray
+	float_t smooth_r, // magnitude of final smoothing 
+	float_t attenuation,
+	float_t diagonals
+)
+{
+	auto topography = format_input(ttopography);
+
+	std::vector<float_t> shade(connector.nnodes,0.);
+	std::vector<float_t> tshade(connector.nnodes,0.);
+
+	for(int i = connector.nnodes - 1;i >= 0; --i)
+	{
+		int node = graph.stack[i];
+		float_t zcasted = topography[node];
+		float_t oshadowmag = shadow_mag;
+		
+		while(true)
+		{
+			// Get the link in the right direction
+			int link = connector.get_right_idx_links(node);
+
+			if(connector.is_link_valid(link) == false)
+				break;
+
+			float_t dx = connector.get_dx_from_links_idx(link);
+
+			int onode = connector.get_other_node_from_links(link, node);
+			// float_t ozcaqs = zcasted;
+
+			zcasted -= ray_slope * dx; 
+
+			// std::cout << "zcasted is " << zcasted << " vs " << topography[onode] << " and was " << ozcaqs << std::endl;
+			if(zcasted < topography[onode])
+				break;
+			
+			node = onode;
+			tshade[onode] = std::max(oshadowmag, tshade[onode]);
+			oshadowmag *= attenuation;		
+		}
+
+	}
+
+	for(int i=0;i<connector.nnodes;++i)
+	{
+		shade[i] += tshade[i];
+	}
+
+	
+	if(diagonals>0)
+	{
+		tshade = std::vector<float_t>(connector.nnodes,0.);
+	
+		for(int i = connector.nnodes - 1;i >= 0; --i)
+		{
+			int node = graph.stack[i];
+			float_t zcasted = topography[node];
+			float_t oshadowmag = shadow_mag * diagonals;
+			
+			while(true)
+			{
+				// Get the link in the right direction
+				int link = connector.get_bottomright_idx_links(node);
+				
+				if(connector.is_link_valid(link) == false)
+					break;
+	
+				float_t dx = connector.get_dx_from_links_idx(link);
+	
+				int onode = connector.get_other_node_from_links(link, node);
+				// float_t ozcaqs = zcasted;
+	
+				zcasted -= ray_slope * dx; 
+	
+				// std::cout << "zcasted is " << zcasted << " vs " << topography[onode] << " and was " << ozcaqs << std::endl;
+				if(zcasted < topography[onode])
+					break;
+				
+				node = onode;
+				tshade[onode] = std::max(oshadowmag, tshade[onode]);
+				oshadowmag *= attenuation;		
+			}
+	
+		}
+	
+		for(int i=0;i<connector.nnodes;++i)
+		{
+			shade[i] += tshade[i];
+		}
+	
+		tshade = std::vector<float_t>(connector.nnodes,0.);
+	
+		for(int i = connector.nnodes - 1;i >= 0; --i)
+		{
+			int node = graph.stack[i];
+			float_t zcasted = topography[node];
+			float_t oshadowmag = shadow_mag * diagonals;
+			
+			while(true)
+			{
+				// Get the link in the right direction
+				int link = connector.get_bottomleft_idx_links(node);
+				
+				if(connector.is_link_valid(link) == false)
+					break;
+	
+				float_t dx = connector.get_dx_from_links_idx(link);
+	
+				int onode = connector.get_other_node_from_links(link, node);
+				// float_t ozcaqs = zcasted;
+	
+				zcasted -= ray_slope * dx; 
+	
+				// std::cout << "zcasted is " << zcasted << " vs " << topography[onode] << " and was " << ozcaqs << std::endl;
+				if(zcasted < topography[onode])
+					break;
+				
+				node = onode;
+				tshade[onode] = std::max(oshadowmag, tshade[onode]);
+				oshadowmag *= attenuation;		
+			}
+	
+		}
+
+		float_t tmax = 0;
+		for(int i=0;i<connector.nnodes;++i)
+		{
+			shade[i] += tshade[i];
+			tmax = std::max(tmax, shade[i]);
+		}
+
+		for(auto&v:shade)v/=tmax;
+	}
+
+	// REPEAT AND STACK OPERATION IN DIAGONALS
+	// visited = std::vector<std::uint8_t>(connector.nnodes,0);
+	
+
+
+	if(smooth_r >= 1)
+		shade = On_gaussian_blur(smooth_r, shade, connector.nx, connector.ny);
+
+	return format_output<decltype(shade), out_t>(shade);
+}
+
+
 
 
 // End of namespace DAGGEr	

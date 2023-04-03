@@ -2551,7 +2551,9 @@ public:
 		
 		bool con_val = this->boundaries.can_out(node);
 		if(con_val && this->Sreceivers[node] == int(node))
+		{
 			return true;
+		}
 		return false;
 	}
 
@@ -3793,6 +3795,14 @@ public:
 			std::cout << "::" << neigh[j] << "(" << int(this->links[neigh[j]]) << "|" << int(this->linkdir[neigh[j]])  << "|" << int(this->ridknil[neigh[j]]) << ")";
 		std::cout << std::endl;
 
+	}
+
+
+	void debug_print_row_col(int i)
+	{
+		int row,col;
+		this->rowcol_from_node_id(i,row,col);
+		std::cout << "row: " << row << " col: " << col;
 	}
 
 	// void debug

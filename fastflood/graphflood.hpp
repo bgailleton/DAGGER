@@ -174,7 +174,11 @@ public:
 	void set_fixed_hw_at_boundaries(float_t val){this->boundhw = BOUNDARY_HW::FIXED_HW; this->bou_fixed_val = val;}
 	void set_fixed_slope_at_boundaries(float_t val){this->boundhw = BOUNDARY_HW::FIXED_SLOPE; this->bou_fixed_val = val;}
 
+	bool debugntopo = true;
+	std::vector<float_t> DEBUGNTOPO;
+	std::vector<float_t> get_nT(){return this->DEBUGNTOPO;}
 
+	float_t debug_CFL = 0.;
 	
 
 
@@ -482,12 +486,13 @@ public:
 
 	float_t dt_morpho(int i)
 	{
-		if (this->mode_dt_morpho == PARAM_DT_MORPHO::VARIABLE)
-			return this->_dt_morpho[i];
-		else if (this->mode_dt_morpho == PARAM_DT_MORPHO::HYDRO)
-			return this->dt_hydro(i);
-		else
-			return this->_dt_morpho[0];
+		return this->dt_hydro(i);
+		// if (this->mode_dt_morpho == PARAM_DT_MORPHO::VARIABLE)
+		// 	return this->_dt_morpho[i];
+		// else if (this->mode_dt_morpho == PARAM_DT_MORPHO::HYDRO)
+		// 	return this->dt_hydro(i);
+		// else
+		// 	return this->_dt_morpho[0];
 	}
 
 
@@ -524,9 +529,24 @@ public:
 	}
 
 
+	void block_uplift(float_t val)
+	{
+		for (int i=0;i<this->connector->nnodes;++i)
+		{
+			if(this->connector->boundaries.can_out(i) == false)
+				this->_surface[i] += this->dt_morpho(i) * val;
+		}
+	}
+
+
 	// Main running function:
 	void run()
 	{
+
+		if(this->debugntopo)
+			this->DEBUGNTOPO = std::vector<float_t>(this->connector->nnodes, 0);
+
+		this->debug_CFL = 0.;
 
 		// Graph Processing
 		this->graph_automator();
@@ -570,6 +590,7 @@ public:
 
 			// CFL calculator
 			float_t sum_ui_over_dxi = 0.;
+			// float_t debug_sum_uover_dx = 0.;
 
 			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
@@ -605,12 +626,19 @@ public:
 
 				Smax = this->weights_automator(receivers, weights, slopes, node, nrecs, topological_number_v2);
 				if(topological_number_v2 == 0)
+				{
 					topological_number_v2 = 1.;
+				}
 				// for(int j=0; j<nrecs; ++j)
 				// {
 				// 	if(weights[j] > 0 && this->_hw[node] > 0)
 				// 		++nrecs_eff;
 				// }
+
+				if(this->debugntopo)
+				{
+					this->DEBUGNTOPO[node] = topological_number_v2;
+				}
 			}
 			else
 			{
@@ -700,6 +728,13 @@ public:
 				if(SF) 
 				{
 					Sw=this->get_Sw(node,rec,dx,this->minslope);
+					if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+					{
+						dx = this->connector->dx;
+						dw = this->connector->dy;
+						Sw = this->bou_fixed_val;
+					}
+
 					if(this->record_Sw)
 						this->_rec_Sw[node] += Sw;
 				}
@@ -708,15 +743,16 @@ public:
 					Sw = slopes[j];
 					if(this->record_Sw)
 						this->_rec_Sw[node] += Sw * weights[j];
-				}
+				
 
 
-				if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
-				{
-					// Sw = this->bou_fixed_val;
-					// std::cout << "rec is " << rec << " and Sw is " << Sw << " hw is " << this->_hw[node] <<  std::endl;
-					dx = this->connector->dx;
-					dw = this->connector->dy;
+					if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+					{
+						// Sw = this->bou_fixed_val;
+						// std::cout << "rec is " << rec << " and Sw is " << Sw << " hw is " << this->_hw[node] <<  std::endl;
+						dx = this->connector->dx;
+						dw = this->connector->dy;
+					}
 				}
 				
 				float_t tQout = 0.; 
@@ -734,6 +770,9 @@ public:
 
 					// tQout = (Smax > 0) ? this->topological_number * pohw * dw/this->mannings(node) * Sw/Smax:0;
 					tQout = (Smax > 0) ? topological_number_v2 * pohw * dw/this->mannings(node) * Sw/Smax:0;
+					
+
+					// std::cout << topological_number_v2 << "|";
 
 					// tQout = (Smax > 0) ? ttoponum * pohw * dw/this->mannings(node) * Sw/Smax:0;
 					// this->catch_nan(this->mannings(node), "this->mannings(node)");
@@ -741,10 +780,14 @@ public:
 					// this->catch_nan(Smax, "Smax");
 					// this->catch_nan(Sw, "Sw");
 					// this->catch_nan(tQout, "tQwout " + std::to_string(Smax));
-				}
+				}	
+
+
 
 				if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT)
-					sum_ui_over_dxi += tQout/(this->_hw[node] * dw)/dx;
+					// sum_ui_over_dxi += tQout/(this->_hw[node] * dw)/dx;
+					sum_ui_over_dxi += std::pow(this->_hw[node],2./3.)/this->mannings(node) * Sw/Smax /dx;
+
 
 				total_Qout += tQout;
 
@@ -883,6 +926,8 @@ public:
 
 			if(this->record_Qw_out)
 				this->_rec_Qwout[node] += total_Qout;
+			
+			// this->debug_CFL = std::max(this->debug_CFL, sum_ui_over_dxi * this->dt_hydro(node));
 
 		}
 
@@ -893,6 +938,8 @@ public:
 			if(tcourant_dt_hydro > 0 && tcourant_dt_hydro != std::numeric_limits<float_t>::max() )
 				this->courant_dt_hydro = tcourant_dt_hydro;
 		}
+
+
 
 
 		// Applying vmots
@@ -921,7 +968,7 @@ public:
 				this->_surface[i] += vmot[i] * this->dt_morpho(i);
 		}
 
-		// std::cout << "LOL" << std::endl;
+		// std::cout << "CFL::" << this->debug_CFL << std::endl;
 
 	}
 
@@ -1102,7 +1149,6 @@ public:
 		}
 
 		topological_number_v2 = (Smax*dw0max)/sumSdw;
-
 
 		return Smax;
 	}

@@ -38,6 +38,7 @@ B.G. 2022
 #include "utils.hpp"
 // -> Depression solvers
 #include "cordonnier_versatile_2019.hpp"
+#include "depression_hierarchy.hpp"
 // -> The connector classes
 #include "D8connector.hpp"
 #include "priority_flood.hpp"
@@ -231,6 +232,7 @@ public:
 
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
+		bool isDagger = this->is_method_dagger();
 
 
 		//reinit to 0 n+pits
@@ -277,20 +279,29 @@ public:
 
 
 		// manages the Cordonnier method if needed
-		if(isCordonnier)
+		if(isCordonnier || isDagger)
 		{
-			
-			// LMRerouter is the class managing the different cordonnier's mthod
-			LMRerouter<float_t> depsolver;
+			bool need_recompute;
 
-			if(this->opti_sparse_border)
-				depsolver.opti_sparse_border = true;
+			if(isCordonnier)
+			{
+				// LMRerouter is the class managing the different cordonnier's mthod
+				LMRerouter<float_t> depsolver;
 
-			depsolver.minimum_slope = this->minimum_slope;
-			depsolver.slope_randomness = this->slope_randomness;
-			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
-			// Note that faketopo are modified in place.
-			bool need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
+				if(this->opti_sparse_border)
+					depsolver.opti_sparse_border = true;
+
+				depsolver.minimum_slope = this->minimum_slope;
+				depsolver.slope_randomness = this->slope_randomness;
+				// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
+				// Note that faketopo are modified in place.
+				need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
+			}
+			else
+			{
+				need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
+			}
+
 
 			// Right, if reomputed needs to be
 			if(need_recompute)
@@ -829,6 +840,14 @@ public:
 			return false;
 	}
 
+	bool is_method_dagger()
+	{
+		if(this->depression_resolver == DEPRES::dagger_carve || this->depression_resolver == DEPRES::dagger_fill || DEPRES::dagger_simple == this->depression_resolver)
+			return true;
+		else
+			return false;
+	}
+
 
 
 
@@ -1151,6 +1170,7 @@ public:
 
 	std::vector<float_t> _accumulate_constant_downstream_SFD(float_t var)
 	{
+		float_t bal = 0, tot = 0;
 		std::vector<float_t> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
@@ -1159,16 +1179,21 @@ public:
 				continue;
 
 			out[node] += var;
+			bal += var;
+			tot += var;
 
 			if(this->connector->flow_out_or_pit(node))
 			{
-				if(this->connector->is_on_dem_edge(node) == false)
-				{
-					std::cout << "WARNING_DEBUG_45b::FLOW OUTS - NOT ON DEM EDGE " << std::endl;;
-					std::cout << node << "||" << this->connector->Sreceivers[node] << std::endl;
-					this->connector->debug_print_neighbours(node);
+				// if(this->connector->is_on_dem_edge(node) == false)
+				// {
+				// 	std::cout << "WARNING_DEBUG_45b::FLOW OUTS - NOT ON DEM EDGE " << std::endl;;
+				// 	std::cout << node << "||" << this->connector->Sreceivers[node] << std::endl;
+				// 	this->connector->debug_print_neighbours(node);
 					
-				}
+				// }
+				if(this->connector->flow_out_model(node))
+					bal -= out[node];
+	
 				continue;
 			}
 
@@ -1176,6 +1201,9 @@ public:
 			
 		}
 
+		if(abs(bal) > 1e-3)
+			std::cout << "DEBUG BALANCE = " << bal << std::endl;
+		std::cout << "DEBUG TOTOUT " << tot << std::endl;
 		return out;
 	}
 

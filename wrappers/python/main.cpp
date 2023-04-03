@@ -880,6 +880,10 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_max_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
     .def("enable_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
     .def("set_Qwin_crit", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
+    .def("get_nT", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::get_nT)
+
+    .def("block_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::block_uplift)
+
         
     
 
@@ -983,6 +987,7 @@ PYBIND11_MODULE(dagger, m) {
     .value("priority_flood", DEPRES::priority_flood)
     .value("priority_flood_opti", DEPRES::priority_flood_opti)
     .value("none", DEPRES::none)
+    .value("dagger_carve", DEPRES::dagger_carve)
   ;
 
   py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
@@ -1784,6 +1789,12 @@ B.G.
 
 )pbdoc"
      );
+
+
+  m.def(
+    "rayshade",
+    &rayshade< DAGGER::graph<double, DAGGER::D8connector<double> >, D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double> 
+    );
 
   m.def(
     "standalone_priority_flood",
