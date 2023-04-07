@@ -676,6 +676,7 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def_readwrite("connector", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::connector)
     .def("init_random", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::init_random)
     .def("get_topo", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array>)
+    .def("get_hillshade", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_hillshade<py::array>)
     .def("get_h_sed", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_h_sed<py::array>)
     .def("get_Qw", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qw<py::array>)
     .def("get_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_precipitations<py::array>)
@@ -726,6 +727,7 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("run_SFD_implicit",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_implicit)
     .def("lithify",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::lithify)
     .def("strip_sediment",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::strip_sediment)
+
     
     
 
@@ -1812,8 +1814,8 @@ m.def(
   // declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
   declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
   // // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
-  // declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
-  // // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
+  declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
+  // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
 
   py::enum_<RANDNOISE>(m, "NOISE")
     .value("WHITE", RANDNOISE::WHITE)

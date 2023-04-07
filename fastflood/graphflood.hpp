@@ -821,6 +821,18 @@ public:
 				// Now the morpho
 				if(this->morphomode != MORPHO::NONE)
 				{
+
+					// Calculating the sediment flux going through this link
+					float_t tQs = (SF) ? this->_Qs[node] : this->_Qs[node] * weights[j];
+
+					if (this->connector->boundaries.forcing_io(node))
+					{
+						this->_Qs[rec] += tQs;
+						if(this->connector->flow_out_or_pit(rec))
+							this->tot_Qs_output += tQs;
+						continue;
+					}
+
 					// initialising all the variables. e = erosion, d = deposition, _l is for the lateral ones and AB are the 2 lateral nodes
 					float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
 					// Getting the transversal (perpendicular) dx to apply lateral erosion/deposition
@@ -831,30 +843,19 @@ public:
 					// Calculating the shear stress for the given link
 					float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
 
-					// Calculating the sediment flux going through this link
-					float_t tQs = (SF) ? this->_Qs[node] : this->_Qs[node] * weights[j];
+					
 
 
 					// Double checking the orthogonal nodes and if needs be to process them
 					int oA = orthonodes.first;
-					if(this->connector->is_in_bound(oA))
-					{
-						if(this->connector->boundaries.forcing_io(oA)) oA = -1;
-						if(this->connector->boundaries.can_receive(oA) == false || this->connector->boundaries.can_give(oA) == false) oA = -1;
-					}
-					else oA = -1;
-
+					if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA))
+						oA = -1;
 					int oB = orthonodes.second;
-					if(this->connector->is_in_bound(oB))
-					{
-						if(this->connector->boundaries.forcing_io(oB)) oB = -1;
-						if(this->connector->boundaries.can_receive(oB) == false || this->connector->boundaries.can_give(oB) == false) oB = -1;
-					}
-					else oB = -1;
-									
+					if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB))
+						oB = -1;
 
 					// Calculating local erosion rates, which depends on whether the shear stress exceeds the critical one
-					if( tau > this->tau_c(node))
+					if( tau > this->tau_c(node) && this->_hw[node] < 10)
 						edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
 					
 					// And the local deposition, which depends on the transport distance

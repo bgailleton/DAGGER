@@ -45,6 +45,7 @@
 #include "D4connector.hpp"
 #include "popscape_utils.hpp"
 #include "trackscape_utils.hpp"
+#include "hillshading.hpp"
 
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
@@ -837,6 +838,9 @@ public:
 
 	template<class out_t>
 	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->z_surf);}
+
+	template<class out_t>
+	out_t get_hillshade(){return DAGGER::hillshade<Connector_t, std::vector<float_t>&, out_t, float_t>(this->connector,this->z_surf);}
 
 	template<class out_t>
 	out_t get_Qw(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->Qw);}
