@@ -139,7 +139,7 @@ public:
 
 
 	// Global constants:
-	const float_t GRAVITY = 9.81, FIVETHIRD = 5./3., minslope = 1e-6;
+	const float_t GRAVITY = 9.81, FIVETHIRD = 5./3., minslope = 0.;
 
 	bool stochaslope = false;
 	float_t stochaslope_coeff = 1.;
@@ -228,6 +228,31 @@ public:
 	void disable_filling_recording(){this->record_filling = false; this->_rec_filling.clear();};
 	template<class out_t>
 	out_t get_filling_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_filling) ;}
+
+
+
+
+
+
+	// ###################################### 
+	// ###### Morpho monitorers #############
+	// ###################################### 
+
+	bool record_edot = false;
+	std::vector<float_t> _rec_edot;
+	void enable_edot_recording(){this->record_edot = true;};
+	void disable_edot_recording(){this->record_edot = false; this->_rec_edot.clear();};
+	template<class out_t>
+	out_t get_edot_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_edot) ;}
+
+	bool record_ddot = false;
+	std::vector<float_t> _rec_ddot;
+	void enable_ddot_recording(){this->record_ddot = true;};
+	void disable_ddot_recording(){this->record_ddot = false; this->_rec_ddot.clear();};
+	template<class out_t>
+	out_t get_ddot_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_ddot) ;}
+
+
 
 
 	// ###################################### 
@@ -595,9 +620,15 @@ public:
 			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
 				this->tot_Qwin_output += this->_Qw[node];
-				if(this->connector->boundaries.force_giving(node))
-					throw std::runtime_error("Force_giving_is_pit?");
+				
+				if(this->connector->flow_out_model(node) == false)
+				{
+					vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
+				}
+
 				continue;
+
+
 			}
 
 
@@ -728,7 +759,7 @@ public:
 				if(SF) 
 				{
 					Sw=this->get_Sw(node,rec,dx,this->minslope);
-					if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+					if(this->connector->flow_out_model(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
 					{
 						dx = this->connector->dx;
 						dw = this->connector->dy;
@@ -856,10 +887,18 @@ public:
 
 					// Calculating local erosion rates, which depends on whether the shear stress exceeds the critical one
 					if( tau > this->tau_c(node) && this->_hw[node] < 10)
+					{
 						edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
+						
+						if(this->record_edot)
+							this->_rec_edot[node] += edot;
+					}
 					
 					// And the local deposition, which depends on the transport distance
 					ddot = tQs/this->kd(node);
+
+					if(this->record_ddot)
+						this->_rec_ddot[node] += ddot;
 
 					// Dealing with lateral deposition if lS > 0 and erosion if lS <0
 					if(oA >= 0 )
@@ -1027,6 +1066,12 @@ public:
 
 			}
 		}
+
+
+		// Initialising the Qs recorders
+
+		if(this->record_edot)
+			this->_rec_edot = std::vector<float_t>(this->connector->nnodes, 0.);
 
 		this->tot_Qs_output = 0.;
 	}

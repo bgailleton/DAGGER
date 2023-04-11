@@ -859,6 +859,11 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("disable_filling_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
     .def("get_filling_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_filling_recording<py::array_t<double,1> >)
 
+    .def("enable_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
+    .def("disable_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
+    .def("get_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_edot_recording<py::array_t<double,1> >)
+
+
 
     .def("get_tot_Qw_input", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
     .def("get_tot_Qw_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
