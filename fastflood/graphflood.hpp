@@ -237,7 +237,7 @@ public:
 	template<class out_t>
 	out_t get_flowvec_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_flowvec) ;}
 
-
+	float_t tau_max = 0.;
 
 	// EXPERIMENTAL
 	std::vector<float_t> last_dt_prec;
@@ -1043,6 +1043,8 @@ public:
 
 		this->debug_CFL = 0.;
 
+		this->tau_max = 0.;
+
 		// Graph Processing
 		this->graph_automator();
 
@@ -1153,6 +1155,9 @@ public:
 				this->_rec_Qwout[node] += Qwout;
 		}
 
+		if(this->tau_max > 500)
+			std::cout << "WARNING::tau_max is " << this->tau_max << std::endl;
+
 		// END OF MAIN LOOP
 
 		// Computing final courant based dt
@@ -1224,7 +1229,7 @@ public:
 			for(size_t i=0; i<this->_sed_entries.size(); ++i)
 			{
 				int node = this->_sed_entry_nodes[i];				
-				this->_Qs[node] += this->_sed_entries[i];
+				this->_Qs[node] += this->_sed_entries[i] * this->connector->dy;
 				// this->tot_Qw_input += this->_Qs[node];
 
 			}
@@ -1240,6 +1245,9 @@ public:
 	}
 
 
+
+	/// Automates the processing of the graph
+	/// Function of global parameters for flow topology, local minima management, ...
 	void graph_automator()
 	{
 
@@ -1252,8 +1260,6 @@ public:
 
 		if(this->record_filling)
 			this->_rec_filling = std::vector<float_t>(this->graph->nnodes,0.);
-
-		// std::cout << "COMPUTING GRAPH " << only_SD << std::endl;
 
 		// preformatting post-topo
 		std::vector<float_t> post_topo(this->_surface.size(),0);
@@ -1528,7 +1534,11 @@ public:
 			if(this->connector->is_link_valid(lix) == false)
 				continue;
 
-			weights[i] = weights[i]/sumw;
+			if(sumw > 0)
+				weights[i] = weights[i]/sumw;
+			else
+				weights[i] = 1/nrecs;
+
 			sumf += weights[i];
 		}
 
@@ -1566,6 +1576,9 @@ public:
 
 			// Calculating sheer stress
 			float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Smax;
+
+			if(tau>tau_max)
+				this->tau_max = tau;
 			
 			// Double checking the orthogonal nodes and if needs be to process them (basically if flow outs model or has boundary exceptions)
 			int oA = orthonodes.first;
@@ -1627,9 +1640,14 @@ public:
 				dldot_A *= corrqs;
 				ddot *= corrqs;
 			}
-
+			float_t sqs = this->_Qs[node];
 			float_t fbatch = (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
 			this->_Qs[node] -= fbatch;
+			if(std::isfinite(this->_Qs[node]) == false)
+			{
+				std::cout << "QS NAN:" << this->_Qs[node] << " vs " << sqs << std::endl;
+				throw std::runtime_error("BITE");
+			}
 
 			if(this->_Qs[node] < 0) 
 			{
@@ -1637,11 +1655,23 @@ public:
 			}
 
 			vmot[node] += ddot - edot;
-			vmot[oA] += dldot_A;
-			vmot[oA] -= eldot_A;
-			vmot[oB] += dldot_B;
-			vmot[oB] -= eldot_B;
+			if(oA>=0)
+			{
+				vmot[oA] += dldot_A;
+				vmot[oA] -= eldot_A;
+			}
+			if(oB>=0)
+			{
+				vmot[oB] += dldot_B;
+				vmot[oB] -= eldot_B;	
+			}
 
+			if(std::isfinite(vmot[node]) == false)
+			{
+				std::cout << "edot:" << edot << " ddot" << ddot << std::endl;
+				std::cout << "qs:" << sqs << " tau" << tau << std::endl;
+				throw std::runtime_error("Non finite vmot");
+			}
 		}
 
 	}
@@ -1695,7 +1725,16 @@ public:
 
 			if(this->morphomode != MORPHO::NONE)
 			{
+				if(std::isfinite(this->_Qs[node]) == false)
+					throw std::runtime_error("QS NAN");
+				if(std::isfinite(this->_Qs[rec]) == false)
+					throw std::runtime_error("QSREC NAN");
 				this->_Qs[rec] += (SF == false)?weights[j] * this->_Qs[node]:this->_Qs[node] ;
+				if(std::isfinite(this->_Qs[rec]) == false)
+				{
+					std::cout << weights[j] << std::endl;;
+					throw std::runtime_error("QSREC NAN AFTER");
+				}
 			}
 
 		}
@@ -1886,11 +1925,13 @@ public:
 						if(tsw_sel > Sw_sel)
 						{
 							Sw_sel = tsw_sel;
-							Sw = tsw;
 							rec = trec;
 							dx = this->connector->get_dx_from_links_idx(neighbours[j]);
 							dy = this->connector->get_travers_dy_from_dx(dx);
 						}
+
+						if(tsw > Sw)
+							Sw = tsw;
 
 						if(this->connector->boundaries.can_out(trec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
 						{
@@ -1922,29 +1963,20 @@ public:
 							edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
 						
 						ddot = tQs/this->kd(node);
-						if(ddot * dx > tQs)
-							ddot = tQs/dx;
 
-						tQs += (edot - ddot) * dx;
 						if(tQs <0)
 						{
-							std::cout << "happens"; 
+							// std::cout << "happens"; 
 							tQs = 0;
 						}
 
-						// if(edot > 0)
-						// 	std::cout << "|e|" << edot;
-						// if(ddot > 0)
-						// 	std::cout << "|d|" << ddot;
-
-						this->_surface[node] += (ddot - edot) * tdt;
 
 						std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,rec);
 						int oA = orthonodes.first;
-						if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA))
+						if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA) || this->connector->flow_out_model(oA))
 							oA = -1;
 						int oB = orthonodes.second;
-						if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB))
+						if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB) || this->connector->flow_out_model(oB))
 							oB = -1;
 
 						// Dealing with lateral deposition if lS > 0 and erosion if lS <0
@@ -1960,8 +1992,6 @@ public:
 								edot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
 							}
 
-							this->_surface[oA] += (ddot_A -  edot_A) * tdt;
-							tQs += (edot_A - ddot_A) * dy;
 							// std::cout << edot_A << "|" << ddot_A  << std::endl;
 
 						}
@@ -1977,13 +2007,27 @@ public:
 							{
 								edot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
 							}
-
-							this->_surface[oB] += (ddot_B -  edot_B) * tdt;
-							tQs += (edot_B - ddot_B) * dy;
 						}
 
+						float_t totd = ddot + ddot_B + ddot_A;
+						totd *= dx;
+						if(totd>tQs)
+						{
+							auto cor = tQs/totd;
+							ddot*= cor;
+							ddot_B*= cor;
+							ddot_A*= cor;
+						}
 
-
+						tQs += (edot - ddot) * dx;
+						tQs += (edot_B - ddot_B) * dy;
+						tQs += (edot_A - ddot_A) * dy;
+						if(oA>=0)
+							this->_surface[oA] += (ddot_A -  edot_A) * tdt;
+						if(oB >=0)
+							this->_surface[oB] += (ddot_B -  edot_B) * tdt;
+	
+						this->_surface[node] += (ddot - edot) * tdt;
 
 					}
 					// else
@@ -2050,7 +2094,7 @@ public:
 		{
 			for(size_t i=0; i<this->_sed_entries.size(); ++i)
 			{
-				this->Vps+=this->_sed_entries[i] * precdt * this->dt_morpho_multiplier;
+				this->Vps+=this->_sed_entries[i] * this->connector->dy * precdt * this->dt_morpho_multiplier;
 			}
 			// this->dis = std::uniform_int_distribution<> (0,this->_water_entries.size()-1);
 		
