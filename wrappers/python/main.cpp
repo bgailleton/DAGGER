@@ -828,6 +828,8 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("ignore_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::ignore_minima)
     .def("enable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_morpho)
     .def("disable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_morpho)
+    .def("set_dt_morpho_multiplier",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
+
 
     .def("set_dt_morpho", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_dt_morpho)
     .def("set_single_aexp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_aexp)
@@ -836,6 +838,9 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_single_kd", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd)
     .def("set_single_kd_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
     .def("set_single_tau_c", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
+    .def("set_variable_ke", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
+
+
 
     .def("set_water_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
     .def("set_water_input_by_constant_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
@@ -863,8 +868,11 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("disable_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
     .def("get_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_edot_recording<py::array_t<double,1> >)
 
+    .def("enable_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
+    .def("disable_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
+    .def("get_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<py::array_t<double,1> >)
 
-
+  
     .def("get_tot_Qw_input", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
     .def("get_tot_Qw_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
     .def("get_tot_Qwin_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
@@ -890,6 +898,9 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("get_nT", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::get_nT)
 
     .def("block_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::block_uplift)
+    .def("variable_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template variable_uplift<py::array_t<double,1> >)
+
+    .def("run_precipitions",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions)
 
         
     
