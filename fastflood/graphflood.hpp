@@ -1131,152 +1131,31 @@ public:
 			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && this->_hw[node] > 0)
 				sum_ui_over_dxi = u_flow/dx;
 
-
-			if(this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
-			{
-				float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
-				// float_t this->_Qs[node] = this->_Qs[node];
-				float_t tdl = this->connector->get_travers_dy_from_dx(dx);
-				// And gathering the orthogonal nodes
-				std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,recmax);
-				float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Smax;
-				// Double checking the orthogonal nodes and if needs be to process them
-				int oA = orthonodes.first;
-				if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA))
-					oA = -1;
-				int oB = orthonodes.second;
-				if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB))
-					oB = -1;
-
-				if( tau > this->tau_c(node) && this->_hw[node] < 10)
-				{
-					edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
-					
-					if(this->record_edot)
-						this->_rec_edot[node] += edot;
-				}
-
-				ddot = this->_Qs[node]/this->kd(node);
+			// Automates the computation of morpho LEM if needed
+			this->_compute_morpho(node, recmax, dx, Smax, vmot);
 
 
-				// Dealing with lateral deposition if lS > 0 and erosion if lS <0
-				if(oA >= 0 )
-				{
-					float_t tSwl = this->get_Stopo(node,oA, tdl);
-					if(tSwl > 0)
-					{
-						dldot_A = tSwl * this->kd_lateral(node) * ddot;
-					}
-					else
-					{
-						eldot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
-					}
+			// transfer fluxes
+			// Computing the transfer of water and sed
+			this->_compute_transfers(nrecs, recmax, node,  SF, receivers, weights, Qwin, Qwout);
 
-				}
-
-				if(oB >= 0 )
-				{
-					float_t tSwl = this->get_Stopo(node,oB, tdl);
-					if(tSwl > 0)
-					{
-						dldot_B = tSwl * this->kd_lateral(node) * ddot;
-					}
-					else
-					{
-						eldot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
-					}
-				}
-				float_t fbatch = (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
-				this->_Qs[node] -= fbatch;
-
-				// float_t corrector = 1.;
-				float_t totd = ddot + dldot_B + dldot_A;
-				if(this->_Qs[node] < 0) 
-				{
-					// std::cout << "happend?????????" << std::endl;
-					// corrector = totd/(totd + corrector); 
-					this->_Qs[node] = 0;
-				}
-
-				vmot[node] += ddot - edot;
-				vmot[oA] += dldot_A;
-				vmot[oA] -= eldot_A;
-				vmot[oB] += dldot_B;
-				vmot[oB] -= eldot_B;
-
-			}
-
-
-
-			// going through the receiver(s)
-			for(int j =0; j<nrecs; ++j)
-			{
-
-				// Hydro for the link
-				// universal params
-				int rec;
-				if(SF)
-					rec = recmax; 
-				else
-					rec = this->connector->get_to_links(receivers[j]);
-				
-				if(rec < 0) continue;
-
-				if(this->connector->flow_out_model(rec))
-				{
-					if(SF)
-					{
-						this->tot_Qw_output += Qwout; 
-					}
-					else if(weights[j] > 0 && Qwin > 0)
-					{						
-						this->tot_Qw_output += weights[j] * Qwout;
-					}
-				}
-
-				
-
-				if(this->hydrostationary)
-				{
-					if(SF)
-					{
-						this->_Qw[rec] += Qwin; 
-					}
-					else if(weights[j] > 0 && Qwin > 0)
-					{						
-						this->_Qw[rec] += weights[j] * Qwin;
-					}
-
-				}
-				else
-				{
-					this->_Qw[rec] += Qwout * weights[j];
-				}
-
-				if(this->morphomode != MORPHO::NONE)
-				{
-					this->_Qs[rec] += (SF == false)?weights[j] * this->_Qs[node]:this->_Qs[node] ;
-				}
-
-			}
-
+			// Computing courant based dt
 			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && sum_ui_over_dxi > 0)
 			{
 				float_t provisional_dt = this->courant_number_max/(sum_ui_over_dxi);
-				// if(provisional_dt < tcourant_dt_hydro)
 				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
 			}
 
+			// computing hydro vertical motion changes for next time step
 			vmot_hw[node] += (this->_Qw[node] - Qwout)/this->connector->get_area_at_node(node);
 
 			if(this->record_Qw_out)
 				this->_rec_Qwout[node] += Qwout;
-
-
-			
 		}
 
+		// END OF MAIN LOOP
 
+		// Computing final courant based dt
 
 		if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT)
 		{
@@ -1285,32 +1164,8 @@ public:
 		}
 
 
-		// Applying vmots
-		for(int i=0; i<this->graph->nnodes; ++i)
-		{
-
-			if(this->connector->flow_out_or_pit(i) && this->boundhw == BOUNDARY_HW::FIXED_HW)
-				this->_hw[i] = this->bou_fixed_val;
-
-			if(this->connector->boundaries.forcing_io(i)) continue;
-			
-			float_t tvh = vmot_hw[i] * this->dt_hydro(i);
-			if(tvh < - this->_hw[i])
-			{
-				// std::cout << "HAPPENS::" << tvh << " vs " << this->_hw[i] << std::endl;
-				tvh = - this->_hw[i];
-			}
-
-			this->_hw[i] += tvh;
-			if(this->record_dhw)
-				this->_rec_dhw[i] = tvh;
-			
-			this->_surface[i] += tvh;
-
-			if(this->morphomode != MORPHO::NONE)
-				this->_surface[i] += vmot[i] * this->dt_morpho(i);
-		}
-
+		// Applying vmots with the right dt
+		this->_compute_vertical_motions(vmot_hw, vmot);
 
 	}
 
@@ -1694,6 +1549,189 @@ public:
 		return Smax;
 	}
 
+
+	void _compute_morpho(int& node, int& recmax, float_t& dx, float_t& Smax, std::vector<float_t>& vmot)
+	{
+		if(this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
+		{
+
+			// precaching rates
+			float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
+			
+			// Lateral dx for lat e/d
+			float_t dy = this->connector->get_travers_dy_from_dx(dx);
+			
+			// And gathering the orthogonal nodes
+			std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,recmax);
+
+			// Calculating sheer stress
+			float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Smax;
+			
+			// Double checking the orthogonal nodes and if needs be to process them (basically if flow outs model or has boundary exceptions)
+			int oA = orthonodes.first;
+			if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||
+			  this->connector->boundaries.no_data(oA) || this->connector->flow_out_model(oA))
+				oA = -1;
+			int oB = orthonodes.second;
+			if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||
+			  this->connector->boundaries.no_data(oB) || this->connector->flow_out_model(oB))
+				oB = -1;
+
+			// Calculating erosion if sheer stress is above critical
+			if( tau > this->tau_c(node))
+			{
+				// Basal erosion rates
+				edot = this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
+				// if recording stuff
+				if(this->record_edot)
+					this->_rec_edot[node] += edot;
+			}
+
+			// Claculating the deposition rates
+			ddot = this->_Qs[node]/this->kd(node);
+
+			// Dealing with lateral deposition if lS > 0 and erosion if lS <0
+			if(oA >= 0 )
+			{
+				float_t tSwl = this->get_Stopo(node,oA, dy);
+				if(tSwl > 0)
+				{
+					dldot_A = tSwl * this->kd_lateral(node) * ddot;
+				}
+				else
+				{
+					eldot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
+				}
+			}
+
+			if(oB >= 0 )
+			{
+				float_t tSwl = this->get_Stopo(node,oB, dy);
+				if(tSwl > 0)
+				{
+					dldot_B = tSwl * this->kd_lateral(node) * ddot;
+				}
+				else
+				{
+					eldot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
+				}
+			}
+
+			// Am I depositing more than I can chew?
+			float_t totdqs = dx * (dldot_B + dldot_A + ddot);
+			if(totdqs > this->_Qs[node])
+			{
+				// std::cout << " happens??? " << totdqs;
+				float_t corrqs = this->_Qs[node]/totdqs;
+				dldot_B *= corrqs;
+				dldot_A *= corrqs;
+				ddot *= corrqs;
+			}
+
+			float_t fbatch = (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
+			this->_Qs[node] -= fbatch;
+
+			if(this->_Qs[node] < 0) 
+			{
+				this->_Qs[node] = 0;
+			}
+
+			vmot[node] += ddot - edot;
+			vmot[oA] += dldot_A;
+			vmot[oA] -= eldot_A;
+			vmot[oB] += dldot_B;
+			vmot[oB] -= eldot_B;
+
+		}
+
+	}
+
+	void _compute_transfers(int& nrecs, int& recmax, int& node, bool& SF, std::array<int,8>& receivers, std::array<float_t,8>& weights, float_t& Qwin, float_t& Qwout)
+	{
+		// going through the receiver(s)
+		for(int j =0; j<nrecs; ++j)
+		{
+
+			// Hydro for the link
+			// universal params
+			int rec;
+			if(SF)
+				rec = recmax; 
+			else
+				rec = this->connector->get_to_links(receivers[j]);
+			
+			if(rec < 0) continue;
+
+			if(this->connector->flow_out_model(rec))
+			{
+				if(SF)
+				{
+					this->tot_Qw_output += Qwout; 
+				}
+				else if(weights[j] > 0 && Qwin > 0)
+				{						
+					this->tot_Qw_output += weights[j] * Qwout;
+				}
+			}
+
+			
+
+			if(this->hydrostationary)
+			{
+				if(SF)
+				{
+					this->_Qw[rec] += Qwin; 
+				}
+				else if(weights[j] > 0 && Qwin > 0)
+				{						
+					this->_Qw[rec] += weights[j] * Qwin;
+				}
+
+			}
+			else
+			{
+				this->_Qw[rec] += Qwout * weights[j];
+			}
+
+			if(this->morphomode != MORPHO::NONE)
+			{
+				this->_Qs[rec] += (SF == false)?weights[j] * this->_Qs[node]:this->_Qs[node] ;
+			}
+
+		}
+	}
+
+	void _compute_vertical_motions(std::vector<float_t>& vmot_hw, std::vector<float_t>& vmot)
+	{
+
+		for(int i=0; i<this->graph->nnodes; ++i)
+		{
+
+			if(this->connector->flow_out_or_pit(i) && this->boundhw == BOUNDARY_HW::FIXED_HW)
+				this->_hw[i] = this->bou_fixed_val;
+
+			if(this->connector->boundaries.forcing_io(i)) continue;
+			
+			float_t tvh = vmot_hw[i] * this->dt_hydro(i);
+			if(tvh < - this->_hw[i])
+			{
+				tvh = - this->_hw[i];
+			}
+
+			this->_hw[i] += tvh;
+			if(this->record_dhw)
+				this->_rec_dhw[i] = tvh;
+			
+			this->_surface[i] += tvh;
+
+			if(this->morphomode != MORPHO::NONE)
+				this->_surface[i] += vmot[i] * this->dt_morpho(i);
+		}
+
+	}
+
+
+
 	// small helper function returning node index from the right stack
 	int get_istack_node(int i)
 	{
@@ -1874,7 +1912,7 @@ public:
 				
 				if( this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
 				{
-					if(Sw>0 && rec != node)
+					if(Sw>0 && rec != node && dx > 0)
 					{
 						tdt = (this->current_dt_prec_e - this->last_dt_prec_e[node]) * this->dt_morpho_multiplier;
 						this->last_dt_prec_e[node] = this->current_dt_prec_e;
@@ -1888,6 +1926,11 @@ public:
 							ddot = tQs/dx;
 
 						tQs += (edot - ddot) * dx;
+						if(tQs <0)
+						{
+							std::cout << "happens"; 
+							tQs = 0;
+						}
 
 						// if(edot > 0)
 						// 	std::cout << "|e|" << edot;
@@ -1940,7 +1983,6 @@ public:
 						}
 
 
-						if(tQs <0) tQs = 0;
 
 
 					}
