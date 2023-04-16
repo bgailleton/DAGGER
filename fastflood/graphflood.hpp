@@ -139,7 +139,7 @@ public:
 
 
 	// Global constants:
-	const float_t GRAVITY = 9.81, FIVETHIRD = 5./3., minslope = 0.;
+	const float_t GRAVITY = 9.81, FIVETHIRD = 5./3., TWOTHIRD = 2./3., minslope = 0.;
 
 	bool stochaslope = false;
 	float_t stochaslope_coeff = 1.;
@@ -1078,28 +1078,9 @@ public:
 			int node = this->get_istack_node(i);
 			
 			// Processing case where the node is a model edge, or no data
-			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
-			{
-				// Checking mass conservations
-				this->tot_Qwin_output += this->_Qw[node];
-
-				// I encountered a pit, that happened when LM are not preprocessed
-				// Then I fill it slightly, but it does not really work
-				if(this->connector->flow_out_model(node) == false && this->connector->boundaries.no_data(node) ==false )
-				{
-					int nn = this->connector->get_neighbour_idx(node,receivers);
-					float_t hzh = this->_surface[node];
-					for(int j=0; j < nn; ++j)
-					{
-						if(this->_surface[receivers[j]] > hzh)
-							hzh = this->_surface[receivers[j]];
-					}
-					// vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
-					vmot_hw[node] += hzh - this->_surface[node];
-				}
-				continue;
-			}
-
+			// this function  returns true if the node was boundary and does not need to be processed
+			// THis is where all the boundary treatment happens, if you need to add something happening at the boundaries
+			if (this->_initial_check_boundary_pit(node, receivers, vmot_hw)) continue;
 
 			// CFL calculator
 			float_t sum_ui_over_dxi = 0.;
@@ -1131,19 +1112,24 @@ public:
 			float_t Qwin = this->_Qw[node];
 
 			// precalculating the power
-			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
+			float_t pohw = std::pow(this->_hw[node], this->TWOTHIRD);
 
 			// Squarerooting Smax
 			// float_t debug_S = Smax;
 			auto sqrtSmax = std::sqrt(Smax);
 
-			float_t Qwout = dw0max * sqrtSmax * pohw/this->mannings(node);			
+			// Flow Velocity
+			float_t u_flow = pohw * sqrtSmax/this->mannings(node);
+			// Volumetric discahrge
+			float_t Qwout = dw0max * this->_hw[node] * u_flow;			
 
+			// Eventually recording Smax
 			if(this->record_Sw)
 				this->_rec_Sw[node] = Smax;
 
+			// temp calc for courant
 			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && this->_hw[node] > 0)
-				sum_ui_over_dxi = Qwout/(this->_hw[node]*dx*dw0max);
+				sum_ui_over_dxi = u_flow/dx;
 
 
 			if(this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
@@ -1445,6 +1431,33 @@ public:
 				}
 			}
 		}
+	}
+
+	// initial check for boundary conditions and eventually applying relevant changes
+	bool _initial_check_boundary_pit(int& node, std::array<int,8>& receivers, std::vector<float_t>& vmot_hw)
+	{
+		if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
+		{
+			// Checking mass conservations
+			this->tot_Qwin_output += this->_Qw[node];
+
+			// I encountered a pit, that happened when LM are not preprocessed
+			// Then I fill it slightly, but it does not really work
+			if(this->connector->flow_out_model(node) == false && this->connector->boundaries.no_data(node) ==false )
+			{
+				int nn = this->connector->get_neighbour_idx(node,receivers);
+				float_t hzh = this->_surface[node];
+				for(int j=0; j < nn; ++j)
+				{
+					if(this->_surface[receivers[j]] > hzh)
+						hzh = this->_surface[receivers[j]];
+				}
+				// vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
+				vmot_hw[node] += hzh - this->_surface[node];
+			}
+			return true;
+		}
+		return false;
 	}
 
 
