@@ -230,9 +230,29 @@ public:
 	out_t get_filling_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_filling) ;}
 
 
+	bool record_flowvec = false;
+	std::vector<float_t> _rec_flowvec;
+	void enable_flowvec_recording(){this->record_flowvec = true;};
+	void disable_flowvec_recording(){this->record_flowvec = false; this->_rec_flowvec.clear();};
+	template<class out_t>
+	out_t get_flowvec_recording(){ return DAGGER::format_output<std::vector<float_t>, out_t >(this->_rec_flowvec) ;}
 
 
 
+	// EXPERIMENTAL
+	std::vector<float_t> last_dt_prec;
+	std::vector<float_t> last_dt_prec_e;
+	std::vector<float_t> last_sw_prec;
+	std::vector<float_t> last_dx_prec;
+	float_t current_dt_prec = 0.;
+	float_t current_dt_prec_e = 0.;
+	float_t Vp = 0.;
+	float_t Vps = 0.;
+	// Create random device and Mersenne Twister engine
+	std::random_device rd;
+	std::mt19937 gen;
+	// Create uniform integer distribution
+	std::uniform_int_distribution<> dis;
 
 	// ###################################### 
 	// ###### Morpho monitorers #############
@@ -289,6 +309,8 @@ public:
 	
 	// # ke (coefficient for erosion)
 	PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
+	float_t dt_morpho_multiplier = 1.;
+	void set_dt_morpho_multiplier(float_t val){this->dt_morpho_multiplier = val;}
 	std::vector<float_t> _dt_morpho = {1e-3};
 
 	SED_INPUT sed_input_mode = SED_INPUT::NONE;
@@ -331,12 +353,14 @@ public:
 
 
 
-	graphflood(){};
+	graphflood(){this->gen = std::mt19937(this->rd()); };
 	graphflood(Graph_t& graph, Connector_t& connector)
 	{
 		// Ingesting graph and connectors
 		this->graph = &graph;
 		this->connector = &connector;
+
+		this->gen = std::mt19937(this->rd()); 
 	}
 
 	template<class topo_t>
@@ -456,6 +480,14 @@ public:
 	void set_single_kd_lateral(float_t ta){this->mode_kd_lateral = false; this->_kd_lateral = {ta};}
 	void set_single_tau_c(float_t ta){this->mode_tau_c = false; this->_tau_c = {ta};}
 
+	template<class topo_t>
+	void set_variable_ke(topo_t& variable_ke)
+	{
+		auto tke = format_input(variable_ke);
+		this->_ke = to_vec(tke);
+		this->mode_ke = PARAM_KE::VARIABLE;
+	}
+
 
 	float_t aexp(int i)
 	{
@@ -511,7 +543,7 @@ public:
 
 	float_t dt_morpho(int i)
 	{
-		return this->dt_hydro(i);
+		return this->dt_hydro(i) * this->dt_morpho_multiplier;
 		// if (this->mode_dt_morpho == PARAM_DT_MORPHO::VARIABLE)
 		// 	return this->_dt_morpho[i];
 		// else if (this->mode_dt_morpho == PARAM_DT_MORPHO::HYDRO)
@@ -564,8 +596,20 @@ public:
 	}
 
 
+	template<class topo_t>
+	void variable_uplift(topo_t& ival)
+	{	
+		auto val = format_input(ival);
+		for (int i=0;i<this->connector->nnodes;++i)
+		{
+			// if(this->connector->boundaries.can_out(i) == false)
+			this->_surface[i] += this->dt_morpho(i) * val[i];
+		}
+	}
+
+
 	// Main running function:
-	void run()
+	void _run()
 	{
 
 		if(this->debugntopo)
@@ -578,94 +622,88 @@ public:
 
 		// Initialise the water discharge fields according to water input condition and other monitoring features:
 		this->init_Qw();
-		//
+
+		// reinitialising the sediments if needed
 		if(this->morphomode != MORPHO::NONE)
 			this->init_Qs();
-	
+		
+
+		// Am I in SFD or MFD
 		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
 
-		// to be used if courant dt hydro is selected
+
+		// To be used if courant dt hydro is selected
 		float_t tcourant_dt_hydro = std::numeric_limits<float_t>::max();
 
-
-		// std::vector<std::uint8_t> topological_number_helper;
-		// if(SF == false)
-		// 	topological_number_helper = std::vector<std::uint8_t>(this->connector->nnodes, 0);
-
+		// Vertical motions are applied at the end of the timestep
 		std::vector<float_t> vmot, vmot_hw(this->graph->nnodes,0.);
 
+		// -> Only initialising vertical motions for the bedrock if morpho is on
 		if(this->morphomode != MORPHO::NONE)
 			vmot = std::vector<float_t>(this->graph->nnodes,0.);
 
-		// main loop
+		
+		// Caching neighbours, slopes and weights
 		auto receivers = this->connector->get_empty_neighbour();
-		// auto neighbours = this->connector->get_empty_neighbour();
 		std::vector<float_t> weights(receivers.size(),0.), slopes(receivers.size(),0.);
-
-		// std::cout << "main loop" << std::endl;
-
-		// std::cout << "SF::" << SF << std::endl;
+		
+		// main loop
 		for(int i = this->graph->nnodes-1; i>=0; --i)
 		{
-			// std::cout << "i::" << i << std::endl;
-			// getting next node in line
+			
+			// Getting next node in line
 			int node = this->get_istack_node(i);
-			// topological_number_helper[node] = 1;
-			// std::cout << "node::" << node << std::endl;
-
-			// CFL calculator
-			float_t sum_ui_over_dxi = 0.;
-			// float_t debug_sum_uover_dx = 0.;
-
+			
+			// Processing case where the node is a model edge, or no data
 			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
 			{
 				this->tot_Qwin_output += this->_Qw[node];
-				
-				if(this->connector->flow_out_model(node) == false)
+				if(this->connector->flow_out_model(node) == false && this->connector->boundaries.no_data(node) ==false )
 				{
-					vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
+					int nn = this->connector->get_neighbour_idx(node,receivers);
+					float_t hzh = this->_surface[node];
+					for(int j=0; j < nn; ++j)
+					{
+						if(this->_surface[receivers[j]] > hzh)
+							hzh = this->_surface[receivers[j]];
+					}
+					// vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
+					vmot_hw[node] += hzh - this->_surface[node];
 				}
-
 				continue;
-
-
 			}
 
 
+			// CFL calculator
+			float_t sum_ui_over_dxi = 0.;
+
+			// Deprecated test to switch dynamically between SFD and MFD
 			if(this->hydromode == HYDRO::GRAPH_HYBRID)
 				SF = this->_Qw[node] < this->Qwin_crit;
 
 
-			int nvalidneighb = this->connector->get_n_potential_receivers(node);
-
 			// Getting the receivers
-			int nrecs,nrecs_eff = 0; 
+			int nrecs; 
 			if(SF)
-			{ 
 				nrecs = 1;
-			}
 			else
-			{
 				nrecs = this->connector->get_receivers_idx_links(node,receivers);
-			}
 
-
+			// Slope max
 			float_t Smax;
+
+			//NOTE:
+			// No need to calculate the topological number anymore
 			float_t topological_number_v2 = 0.;
+
+			// Calculating the slopes/weights and topological numbers
 			if(SF == false)
 			{
-
 				Smax = this->weights_automator(receivers, weights, slopes, node, nrecs, topological_number_v2);
 				if(topological_number_v2 == 0)
 				{
 					topological_number_v2 = 1.;
 				}
-				// for(int j=0; j<nrecs; ++j)
-				// {
-				// 	if(weights[j] > 0 && this->_hw[node] > 0)
-				// 		++nrecs_eff;
-				// }
-
 				if(this->debugntopo)
 				{
 					this->DEBUGNTOPO[node] = topological_number_v2;
@@ -674,9 +712,9 @@ public:
 			else
 			{
 				Smax = this->get_Sw(node,this->connector->Sreceivers[node],this->connector->Sdistance2receivers[node],this->minslope);
-				// this->catch_nan(Smax, "hw node " + std::to_string(this->_hw[node]) + " and rec " + std::to_string(this->_hw[this->connector->Sreceivers[node]]) + " node: " + std::to_string(node) + " rec: " + std::to_string(this->connector->Sreceivers[node]));
 			}
 
+			// I can only have an hydraulic slope
 			if(this->_hw[node] == 0)
 				Smax = 0;
 
@@ -688,23 +726,6 @@ public:
 
 			// precalculating the power
 			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
-			// std::cout << pohw  << "|" << this->FIVETHIRD << std::endl;
-			
-			// float_t ttoponum = 1.;
-			// if(SF == false)
-			// {
-			// 	// int neff = nrecs_eff + int(topological_number_helper[node]);
-			// 	// int neff = nrecs + int(topological_number_helper[node]);
-			// 	// if(nvalidneighb > 4)
-			// 	// {
-			// 	// 	ttoponum = nrecs/nvalidneighb;
-			// 	// 	// std::cout << "node: " << node << " toponum = " << ttoponum << std::endl;
-			// 	// }
-			// 	// ttoponum = nrecs/8;
-			// 	float_t AAA = 2*this->connector->dx + 2 * this->connector->dy + 4 * this->connector->dxy;
-			// 	// ttoponum =  std::min(int_dw/AAA,1.);
-			// 	ttoponum = (2*this->connector->dx + 2*this->connector->dy)/AAA;
-			// }
 
 			// Squarerooting Smax
 			// float_t debug_S = Smax;
@@ -1012,6 +1033,304 @@ public:
 
 	}
 
+	// Main running function (version 2)
+	void run()
+	{
+
+		// Saving the topological number if needed
+		if(this->debugntopo)
+			this->DEBUGNTOPO = std::vector<float_t>(this->connector->nnodes, 0);
+
+		this->debug_CFL = 0.;
+
+		// Graph Processing
+		this->graph_automator();
+
+		// Initialise the water discharge fields according to water input condition and other monitoring features:
+		this->init_Qw();
+
+		// reinitialising the sediments if needed
+		if(this->morphomode != MORPHO::NONE)
+			this->init_Qs();
+		
+		// Am I in SFD or MFD
+		bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
+
+		// To be used if courant dt hydro is selected
+		float_t tcourant_dt_hydro = std::numeric_limits<float_t>::max();
+
+		// Vertical motions are applied at the end of the timestep
+		std::vector<float_t> vmot, vmot_hw(this->graph->nnodes,0.);
+
+		// -> Only initialising vertical motions for the bedrock if morpho is on
+		if(this->morphomode != MORPHO::NONE)
+			vmot = std::vector<float_t>(this->graph->nnodes,0.);
+
+		// Caching neighbours, slopes and weights
+		auto receivers = this->connector->get_empty_neighbour();
+		std::array<float_t,8> weights, slopes;
+		
+		// main loop
+		for(int i = this->graph->nnodes-1; i>=0; --i)
+		{
+			
+			// Getting next node in line
+			int node = this->get_istack_node(i);
+			
+			// Processing case where the node is a model edge, or no data
+			if(this->connector->boundaries.no_data(node) || this->connector->flow_out_or_pit(node)) 
+			{
+				// Checking mass conservations
+				this->tot_Qwin_output += this->_Qw[node];
+
+				// I encountered a pit, that happened when LM are not preprocessed
+				// Then I fill it slightly, but it does not really work
+				if(this->connector->flow_out_model(node) == false && this->connector->boundaries.no_data(node) ==false )
+				{
+					int nn = this->connector->get_neighbour_idx(node,receivers);
+					float_t hzh = this->_surface[node];
+					for(int j=0; j < nn; ++j)
+					{
+						if(this->_surface[receivers[j]] > hzh)
+							hzh = this->_surface[receivers[j]];
+					}
+					// vmot_hw[node] += this->_Qw[node]/this->connector->get_area_at_node(node);
+					vmot_hw[node] += hzh - this->_surface[node];
+				}
+				continue;
+			}
+
+
+			// CFL calculator
+			float_t sum_ui_over_dxi = 0.;
+
+			// Deprecated test to switch dynamically between SFD and MFD (does not really add anything and is buggy in rivers)
+			if(this->hydromode == HYDRO::GRAPH_HYBRID)
+				SF = this->_Qw[node] < this->Qwin_crit;
+
+			// Getting the receivers
+			int nrecs; 
+			if(SF)
+				nrecs = 1;
+			else
+				nrecs = this->connector->get_receivers_idx_links(node,receivers);
+
+			// Caching Slope max
+			float_t Smax;
+			float_t dw0max;
+			float_t dx;
+			int recmax = node;
+
+			//NOTE:
+			// No need to calculate the topological number anymore, but keeping it for recording its value
+			float_t topological_number_v2 = 0.;
+
+			this->_compute_slopes_weights_et_al( node, SF, Smax, slopes, weights, nrecs, receivers, recmax, dx, dw0max, topological_number_v2);
+
+			// Initialising the total Qout
+			float_t Qwin = this->_Qw[node];
+
+			// precalculating the power
+			float_t pohw = std::pow(this->_hw[node], this->FIVETHIRD);
+
+			// Squarerooting Smax
+			// float_t debug_S = Smax;
+			auto sqrtSmax = std::sqrt(Smax);
+
+			float_t Qwout = dw0max * sqrtSmax * pohw/this->mannings(node);			
+
+			if(this->record_Sw)
+				this->_rec_Sw[node] = Smax;
+
+			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && this->_hw[node] > 0)
+				sum_ui_over_dxi = Qwout/(this->_hw[node]*dx*dw0max);
+
+
+			if(this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
+			{
+				float_t edot = 0., ddot = 0., eldot_A = 0., eldot_B = 0., dldot_A = 0., dldot_B = 0.;
+				// float_t this->_Qs[node] = this->_Qs[node];
+				float_t tdl = this->connector->get_travers_dy_from_dx(dx);
+				// And gathering the orthogonal nodes
+				std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,recmax);
+				float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Smax;
+				// Double checking the orthogonal nodes and if needs be to process them
+				int oA = orthonodes.first;
+				if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA))
+					oA = -1;
+				int oB = orthonodes.second;
+				if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB))
+					oB = -1;
+
+				if( tau > this->tau_c(node) && this->_hw[node] < 10)
+				{
+					edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
+					
+					if(this->record_edot)
+						this->_rec_edot[node] += edot;
+				}
+
+				ddot = this->_Qs[node]/this->kd(node);
+
+
+				// Dealing with lateral deposition if lS > 0 and erosion if lS <0
+				if(oA >= 0 )
+				{
+					float_t tSwl = this->get_Stopo(node,oA, tdl);
+					if(tSwl > 0)
+					{
+						dldot_A = tSwl * this->kd_lateral(node) * ddot;
+					}
+					else
+					{
+						eldot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
+					}
+
+				}
+
+				if(oB >= 0 )
+				{
+					float_t tSwl = this->get_Stopo(node,oB, tdl);
+					if(tSwl > 0)
+					{
+						dldot_B = tSwl * this->kd_lateral(node) * ddot;
+					}
+					else
+					{
+						eldot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
+					}
+				}
+				float_t fbatch = (ddot + dldot_B + dldot_A - edot - eldot_A - eldot_B) * dx;
+				this->_Qs[node] -= fbatch;
+
+				// float_t corrector = 1.;
+				float_t totd = ddot + dldot_B + dldot_A;
+				if(this->_Qs[node] < 0) 
+				{
+					// std::cout << "happend?????????" << std::endl;
+					// corrector = totd/(totd + corrector); 
+					this->_Qs[node] = 0;
+				}
+
+				vmot[node] += ddot - edot;
+				vmot[oA] += dldot_A;
+				vmot[oA] -= eldot_A;
+				vmot[oB] += dldot_B;
+				vmot[oB] -= eldot_B;
+
+			}
+
+
+
+			// going through the receiver(s)
+			for(int j =0; j<nrecs; ++j)
+			{
+
+				// Hydro for the link
+				// universal params
+				int rec;
+				if(SF)
+					rec = recmax; 
+				else
+					rec = this->connector->get_to_links(receivers[j]);
+				
+				if(rec < 0) continue;
+
+				if(this->connector->flow_out_model(rec))
+				{
+					if(SF)
+					{
+						this->tot_Qw_output += Qwout; 
+					}
+					else if(weights[j] > 0 && Qwin > 0)
+					{						
+						this->tot_Qw_output += weights[j] * Qwout;
+					}
+				}
+
+				
+
+				if(this->hydrostationary)
+				{
+					if(SF)
+					{
+						this->_Qw[rec] += Qwin; 
+					}
+					else if(weights[j] > 0 && Qwin > 0)
+					{						
+						this->_Qw[rec] += weights[j] * Qwin;
+					}
+
+				}
+				else
+				{
+					this->_Qw[rec] += Qwout * weights[j];
+				}
+
+				if(this->morphomode != MORPHO::NONE)
+				{
+					this->_Qs[rec] += (SF == false)?weights[j] * this->_Qs[node]:this->_Qs[node] ;
+				}
+
+			}
+
+			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && sum_ui_over_dxi > 0)
+			{
+				float_t provisional_dt = this->courant_number_max/(sum_ui_over_dxi);
+				// if(provisional_dt < tcourant_dt_hydro)
+				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
+			}
+
+			vmot_hw[node] += (this->_Qw[node] - Qwout)/this->connector->get_area_at_node(node);
+
+			if(this->record_Qw_out)
+				this->_rec_Qwout[node] += Qwout;
+
+
+			
+		}
+
+
+
+		if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT)
+		{
+			if(tcourant_dt_hydro > 0 && tcourant_dt_hydro != std::numeric_limits<float_t>::max() )
+				this->courant_dt_hydro = tcourant_dt_hydro;
+		}
+
+
+		// Applying vmots
+		for(int i=0; i<this->graph->nnodes; ++i)
+		{
+
+			if(this->connector->flow_out_or_pit(i) && this->boundhw == BOUNDARY_HW::FIXED_HW)
+				this->_hw[i] = this->bou_fixed_val;
+
+			if(this->connector->boundaries.forcing_io(i)) continue;
+			
+			float_t tvh = vmot_hw[i] * this->dt_hydro(i);
+			if(tvh < - this->_hw[i])
+			{
+				// std::cout << "HAPPENS::" << tvh << " vs " << this->_hw[i] << std::endl;
+				tvh = - this->_hw[i];
+			}
+
+			this->_hw[i] += tvh;
+			if(this->record_dhw)
+				this->_rec_dhw[i] = tvh;
+			
+			this->_surface[i] += tvh;
+
+			if(this->morphomode != MORPHO::NONE)
+				this->_surface[i] += vmot[i] * this->dt_morpho(i);
+		}
+
+
+	}
+
+
+
+
 	void init_Qw()
 	{	
 		// resetting Qwin (needed to be stored at all time)
@@ -1050,7 +1369,10 @@ public:
 		if(this->record_Sw)
 			this->_rec_Sw = std::vector<float_t>(this->graph->nnodes,0.);
 		if(this->record_dhw)
-				this->_rec_dhw = std::vector<float_t>(this->graph->nnodes,0.);;
+				this->_rec_dhw = std::vector<float_t>(this->graph->nnodes,0.);
+
+		if(record_flowvec)
+			this->_rec_flowvec = std::vector<float_t>(this->graph->nnodes * 2,0.);
 	}
 
 	void init_Qs()
@@ -1123,6 +1445,61 @@ public:
 				}
 			}
 		}
+	}
+
+
+	// offsetting some of the calculations from the run to make it more undertandable adn reusable
+	void _compute_slopes_weights_et_al(int& node, bool& SF, float_t& Smax, std::array<float_t,8>& slopes, 
+	std::array<float_t,8>& weights,int& nrecs, std::array<int,8>& receivers, int& recmax, float_t& dx, float_t& dw0max, float_t& topological_number_v2)
+	{
+		// Calculating the slopes/weights and topological numbers
+		if(SF == false)
+		{
+
+			// ROUTINES FOR Multiple FLow Directions
+			// fill the arrays of slopes/weights/.. and calculate Smax, dmax, recmas and all
+			Smax = this->weights_automator_v2(receivers, weights, slopes, node, nrecs, topological_number_v2, dw0max, recmax,dx);
+			
+			// Debugging, I guess deprecated TODO::CHECK
+			if(topological_number_v2 == 0)
+			{
+				topological_number_v2 = 1.;
+			}
+
+			// Check the recording of topological number
+			if(this->debugntopo)
+			{
+				this->DEBUGNTOPO[node] = topological_number_v2;
+			}
+
+		}
+		else
+		{
+
+			// ROUTINES FOR Single FLow Directions
+			// -> Slope
+			Smax = this->get_Sw(node,this->connector->Sreceivers[node],this->connector->Sdistance2receivers[node],this->minslope);
+			// -> rec
+			recmax = this->connector->Sreceivers[node];
+			// -> dy (integrated width)
+			dw0max = this->connector->get_travers_dy_from_dx(this->connector->Sdistance2receivers[node]);
+			// -> dx (flow distance)
+			dx = this->connector->Sdistance2receivers[node];
+			
+			// boundary case
+			if(this->connector->flow_out_model(recmax) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+			{
+				dw0max = this->connector->dy;
+				Smax = this->bou_fixed_val;
+				dx = this->connector->dx;
+			}
+		}
+
+		// I can only have an hydraulic slope if I have water
+		if(this->_hw[node] == 0)
+			Smax = 0;
+
+		// Done
 	}
 
 	float_t weights_automator(std::array<int,8>& receivers, 
@@ -1199,6 +1576,111 @@ public:
 		return Smax;
 	}
 
+	float_t weights_automator_v2(std::array<int,8>& receivers, 
+		std::array<float_t,8>& weights, std::array<float_t,8>& slopes, 
+		int& node, 
+		int& nrecs,
+		float_t& topological_number_v2,
+		float_t& dw0max,
+		int& recmax,
+		float_t& dx
+		)
+	{
+
+		// Placeholders
+		float_t sumw = 0., Smax = this->minslope, sumSdw = 0.;;
+		std::pair<float_t,float_t> fvech;
+
+		for(int i = 0; i < nrecs; ++i)
+		{
+			int lix = receivers[i];
+
+			
+			if(this->connector->is_link_valid(lix) == false)
+			{
+				continue;
+			}
+
+			// int_dw += this->connector->get_dx_from_links_idx(lix);
+			float_t tdw = this->connector->get_traverse_dx_from_links_idx(lix);
+			int rec = this->connector->get_to_links(lix);
+			bool isboud = false;
+			if(this->connector->flow_out_or_pit(rec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+			{
+				slopes[i] = this->bou_fixed_val;		
+				tdw	= this->connector->dy;
+				isboud = true;
+			}
+			else
+				slopes[i] = this->get_Sw(lix, this->minslope);
+
+			sumSdw += slopes[i] * tdw;
+
+			if(this->record_flowvec)
+			{
+				this->connector->get_dxdy_from_links_idx( lix, node, fvech, false);
+				this->_rec_flowvec[node * 2] += slopes[i] * tdw * fvech.first;
+				this->_rec_flowvec[node * 2 + 1] += slopes[i] * tdw * fvech.second;
+			}
+
+			
+			if(slopes[i]>Smax)
+			{
+				Smax = slopes[i];
+				dw0max = tdw;
+				dx = (isboud)?this->connector->dx : this->connector->get_dx_from_links_idx(lix);
+				recmax = rec;
+			}
+			
+			// // slopes[i] = slope;
+			// if(this->stochaslope)
+			// 	weights[i] = this->randu.get();
+
+			if(this->weight_management == MFD_PARTITIONNING::PROPOSLOPE)
+				weights[i] = slopes[i] * tdw;
+			
+			else if(this->weight_management == MFD_PARTITIONNING::SQRTSLOPE)
+				weights[i] = std::sqrt(slopes[i] * tdw);
+			
+			else if(this->weight_management == MFD_PARTITIONNING::PROPOREC)
+				weights[i] = 1.;
+
+			if(this->stochaslope)
+				weights[i] += this->stochaslope_coeff * this->randu.get();
+
+
+			sumw += weights[i];
+		}
+
+		float_t sumf = 0.;
+		for(int i = 0; i<nrecs;++i)
+		{
+			int lix = receivers[i];
+
+			if(this->connector->is_link_valid(lix) == false)
+				continue;
+
+			weights[i] = weights[i]/sumw;
+			sumf += weights[i];
+		}
+
+		if(this->record_flowvec)
+		{
+
+			float_t length = std::sqrt(std::pow(this->_rec_flowvec[node * 2],2) + std::pow(this->_rec_flowvec[node * 2 + 1],2));
+			if(length!=0)
+			{
+				this->_rec_flowvec[node * 2] /= length;
+				this->_rec_flowvec[node * 2 + 1] /= length;
+			}
+		}
+
+
+		topological_number_v2 = (Smax*dw0max)/sumSdw;
+
+		return Smax;
+	}
+
 	// small helper function returning node index from the right stack
 	int get_istack_node(int i)
 	{
@@ -1222,6 +1704,11 @@ public:
 	float_t get_Sw(int node, int rec, float_t dx)
 	{
 		return (this->_surface[node] - this->_surface[rec])/dx; 
+	}
+
+	float_t get_Stopo(int node, int rec, float_t dx)
+	{
+		return (this->_surface[node] - this->_hw[node] - (this->_surface[rec]  - this->_hw[rec]))/dx; 
 	}
 
 
@@ -1257,6 +1744,290 @@ public:
 	{
 		if(std::isfinite(testval) == false)
 			throw std::runtime_error(error_message);
+	}
+
+
+	void run_precipitions(int N, float_t precdt)
+	{
+		if(this->last_dt_prec.size() == 0)
+		{
+			this->last_dt_prec = std::vector<float_t>(this->connector->nnodes,0.);
+			this->last_dt_prec_e = std::vector<float_t>(this->connector->nnodes,0.);
+			this->last_sw_prec = std::vector<float_t>(this->connector->nnodes,0.);
+			this->last_dx_prec = std::vector<float_t>(this->connector->nnodes,0.);
+		}
+
+		this->compute_Vp(precdt);
+
+
+		// current_dt_prec
+		auto neighbours = this->connector->get_empty_neighbour();
+		auto slopes = this->connector->get_empty_neighbour();
+
+
+		for(int _ = 0; _<N; ++_)
+		{
+
+			int node = this->spawn_precipition();
+			// std::cout << "init at " << node << std::endl;
+			
+			this->current_dt_prec += precdt;
+
+			if(this->morphomode != MORPHO::NONE)
+				this->current_dt_prec_e += precdt;
+
+			float_t tQs = this->Vps * this->connector->dy;
+
+			int NMAX = this->connector->nnodes * 2;
+			while(true)
+			{
+				--NMAX;
+				if(this->connector->boundaries.has_to_out(node) || NMAX == 0)
+					break;
+
+				// update step from Qwout
+				float_t tdt = this->current_dt_prec - this->last_dt_prec[node];
+				// this->last_dt_prec[node] = this->current_dt_prec;
+
+				int rec = node;
+				float_t Sw = 0.;
+				float_t Sw_sel = 0.;
+				float_t dx = 0.;
+				float_t dy = 0.;
+				int nn = this->connector->get_neighbour_idx_links(node,neighbours);
+
+				for(int j=0; j<nn; ++j)
+				{
+					int trec = this->connector->get_other_node_from_links(neighbours[j], node);
+					if(this->connector->boundaries.no_data(trec))
+						continue;
+
+					// if(this->last_dt_prec[trec] != this->current_dt_prec)
+					this->update_hw_prec_and_dt(trec);
+				}
+				this->update_hw_prec_and_dt(node);
+
+				float_t deltah = 0.;
+				if(true)
+				{
+					deltah = this->Vp;
+					this->_hw[node] += deltah;
+					if(this->_hw[node] < 0.) 
+					{
+						deltah += this->_hw[node];
+						this->_hw[node] = 0.;
+					}
+				}
+				this->_surface[node] += deltah;
+				
+
+				for(int j=0; j<nn; ++j)
+				{
+					int trec = this->connector->get_other_node_from_links(neighbours[j], node);
+
+					if(this->connector->boundaries.no_data(trec))
+						continue;
+
+					if(this->_surface[trec] <= this->_surface[node])
+					{
+						float_t tsw = (this->_surface[node] - this->_surface[trec])/this->connector->get_dx_from_links_idx(neighbours[j]);
+						float_t tsw_sel = tsw * this->randu.get() * this->stochaslope;
+						if(tsw_sel > Sw_sel)
+						{
+							Sw_sel = tsw_sel;
+							Sw = tsw;
+							rec = trec;
+							dx = this->connector->get_dx_from_links_idx(neighbours[j]);
+							dy = this->connector->get_travers_dy_from_dx(dx);
+						}
+
+						if(this->connector->boundaries.can_out(trec) && this->boundhw == BOUNDARY_HW::FIXED_SLOPE)
+						{
+							Sw_sel = this->bou_fixed_val;
+							Sw = this->bou_fixed_val;
+							rec = trec;
+							dx = this->connector->dx;
+							dy = this->connector->dy;
+						}
+					}
+				}
+
+
+
+				this->last_sw_prec[node] = Sw;
+				this->last_dx_prec[node] = dx;
+
+
+				
+				if( this->morphomode != MORPHO::NONE && this->connector->boundaries.forcing_io(node) == false)
+				{
+					if(Sw>0 && rec != node)
+					{
+						tdt = (this->current_dt_prec_e - this->last_dt_prec_e[node]) * this->dt_morpho_multiplier;
+						this->last_dt_prec_e[node] = this->current_dt_prec_e;
+						float_t tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
+						float_t edot = 0., ddot = 0., edot_A = 0., edot_B = 0, ddot_A = 0, ddot_B = 0.;
+						if(tau > this->tau_c(node))
+							edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
+						
+						ddot = tQs/this->kd(node);
+						if(ddot * dx > tQs)
+							ddot = tQs/dx;
+
+						tQs += (edot - ddot) * dx;
+
+						// if(edot > 0)
+						// 	std::cout << "|e|" << edot;
+						// if(ddot > 0)
+						// 	std::cout << "|d|" << ddot;
+
+						this->_surface[node] += (ddot - edot) * tdt;
+
+						std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,rec);
+						int oA = orthonodes.first;
+						if(this->connector->boundaries.forcing_io(oA) || this->connector->is_in_bound(oA) == false ||  this->connector->boundaries.no_data(oA))
+							oA = -1;
+						int oB = orthonodes.second;
+						if(this->connector->boundaries.forcing_io(oB) || this->connector->is_in_bound(oB) == false ||  this->connector->boundaries.no_data(oB))
+							oB = -1;
+
+						// Dealing with lateral deposition if lS > 0 and erosion if lS <0
+						if(oA >= 0 )
+						{
+							float_t tSwl = this->get_Stopo(node,oA, dy);
+							if(tSwl > 0)
+							{
+								ddot_A = tSwl * this->kd_lateral(node) * ddot;
+							}
+							else
+							{
+								edot_A = std::abs(tSwl) * this->ke_lateral(node) * edot;
+							}
+
+							this->_surface[oA] += (ddot_A -  edot_A) * tdt;
+							tQs += (edot_A - ddot_A) * dy;
+							// std::cout << edot_A << "|" << ddot_A  << std::endl;
+
+						}
+
+						if(oB >= 0 )
+						{
+							float_t tSwl = this->get_Stopo(node,oB, dy);
+							if(tSwl > 0)
+							{
+								ddot_B = tSwl * this->kd_lateral(node) * ddot;
+							}
+							else
+							{
+								edot_B = std::abs(tSwl) * this->ke_lateral(node) * edot;
+							}
+
+							this->_surface[oB] += (ddot_B -  edot_B) * tdt;
+							tQs += (edot_B - ddot_B) * dy;
+						}
+
+
+						if(tQs <0) tQs = 0;
+
+
+					}
+					// else
+					// {
+					// 	this->_surface[node] += this->Vp;
+					// }
+
+				}
+
+				
+
+
+				if(node == rec && this->connector->boundaries.can_out(node))
+					break;
+
+				node = rec;
+			}
+
+		}
+
+
+	}
+
+	void update_hw_prec_and_dt(int node)
+	{
+
+		float_t tdt = this->current_dt_prec - this->last_dt_prec[node];
+		this->last_dt_prec[node] = this->current_dt_prec;
+
+		if(tdt == 0 || this->last_sw_prec[node] == 0 || this->last_dx_prec[node] == 0)
+		{
+			return;
+		}
+		
+		auto delta = tdt * std::pow(this->_hw[node],5./3.) * std::sqrt(this->last_sw_prec[node])/this->mannings(node)/this->last_dx_prec[node];
+		this->_hw[node] -= delta;
+		this->_surface[node] -= delta; 
+	}
+
+	void compute_Vp(float_t precdt)
+	{
+		this->Vp = 0. ; 
+		if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT || this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
+		{
+		
+			for(int i=0;i<this->connector->nnodes; ++i)
+			{
+				this->Vp+=this->precipitations(i) * precdt;
+			}
+			this->dis = std::uniform_int_distribution<> (0,this->connector->nnodes-1);
+		}
+		else if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_H)
+		{
+			for(size_t i=0; i<this->_water_entries.size(); ++i)
+			{
+				this->Vp+=this->_water_entries[i] * precdt;
+			}
+			this->dis = std::uniform_int_distribution<> (0,this->_water_entries.size()-1);
+		
+		}
+
+		this->Vps = 0;
+		if (this->sed_input_mode == SED_INPUT::ENTRY_POINTS_Q)
+		{
+			for(size_t i=0; i<this->_sed_entries.size(); ++i)
+			{
+				this->Vps+=this->_sed_entries[i] * precdt * this->dt_morpho_multiplier;
+			}
+			// this->dis = std::uniform_int_distribution<> (0,this->_water_entries.size()-1);
+		
+		}
+
+
+	}
+
+
+	int spawn_precipition()
+	{
+
+		int node;
+
+		do
+		{
+			
+			if(this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT || this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
+			{
+				node =  this->dis(this->gen);
+			}
+			else if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_H)
+			{
+				node =  this->_water_entry_nodes[this->dis(this->gen)];
+			}
+			else
+				throw std::runtime_error("NOT DEFINED");
+
+		}while(this->connector->boundaries.no_data(node));
+
+		return node;
+
 	}
 
 

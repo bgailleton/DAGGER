@@ -2118,7 +2118,9 @@ public:
 			else if
 			(
 				(this->is_on_rightest_col(a) || this->is_on_bottom_row(a) || i== 4) &&
-				(!this->boundaries.is_periodic(a) && !this->boundaries.is_periodic(b))
+				(!this->boundaries.is_periodic(a) && !this->boundaries.is_periodic(b)) ||
+				(this->boundaries.is_periodic(a) && this->boundaries.forcing_io(b) ) ||
+				(this->boundaries.is_periodic(b) && this->boundaries.forcing_io(a) )
 			)
 			{
 				this->links[i] = 5;
@@ -3618,6 +3620,51 @@ public:
 			return this->dy;
 	}
 
+	template<class i_t>
+	void get_dxdy_from_links_idx( i_t i, i_t node, std::pair<T,T>& dxdy, bool unit = false)
+	{
+		int modi = i%4;
+		// auto sqrt2 = std::sqrt(2.);
+
+		T tdx = this->dx;
+		T tdy = this->dy;
+
+		if(unit)
+		{
+			T normdxdy = std::max(tdx,tdy);
+			tdx /= normdxdy;
+			tdy /= normdxdy;
+		}
+
+		if(modi == 0)
+		{
+			dxdy.first = tdx;
+			dxdy.second = 0.;
+		}
+		else if(modi == 1)
+		{
+			dxdy.first = tdx;
+			dxdy.second =  - tdy;
+		}
+		else if(modi == 2)
+		{
+			dxdy.first = 0. ;
+			dxdy.second =  - tdy;
+		}
+		else if(modi == 3)
+		{
+			dxdy.first = - tdx;
+			dxdy.second = - tdy;
+		}
+
+
+		if(node != static_cast<int>(i/4.))
+		{
+			dxdy.first = -1 * dxdy.first;
+			dxdy.second = -1 * dxdy.second;
+		}
+
+	}
 
 
 

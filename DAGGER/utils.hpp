@@ -448,6 +448,19 @@ constexpr auto Enum2UnderlyingType(E e)
 
 
 
+
+
+// template<T> 
+// class V2
+// {
+// public:
+	
+
+	
+// };
+
+
+
 // end of DAGGER namespace
 };
 

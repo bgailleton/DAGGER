@@ -237,6 +237,15 @@ public:
 		return false;
 	}
 
+	template<class i_t>
+	bool has_to_out(i_t i)
+	{
+		BC tbc = this->codes[i];
+		if(tbc == BC::OUT || tbc == BC::FORCE_OUT)
+			return true;
+		return false;
+	}
+
 
 	// Return true if the boundary needs normal neighbouring
 	// It does not mean the link can be  created, it just means the n eighbour to get and check are "normallay" following the edges
