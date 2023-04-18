@@ -897,10 +897,20 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_Qwin_crit", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
     .def("get_nT", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::get_nT)
 
+
+    .def("enable_hydrostationnary", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_hydrostationnary)
+    .def("disable_hydrostationnary", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_hydrostationnary)
+
+    
+    
+
     .def("block_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::block_uplift)
     .def("variable_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template variable_uplift<py::array_t<double,1> >)
 
     .def("run_precipitions",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions)
+    .def("run_precipitions_exp",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions_exp)
+    .def("run_graphipiton",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_graphipiton)
+    .def("run_exp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_exp)
 
         
     

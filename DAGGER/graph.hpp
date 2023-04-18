@@ -734,7 +734,7 @@ public:
 
 			if(dz <= 0)
 			{
-				topography[node] = topography[rec] + slope + this->randu->get() * 1e-6;// * d2rec;
+				topography[node] = std::nextafter(topography[rec], std::numeric_limits<float_t>::max());// * d2rec;
 			}
 		}
 	}
@@ -901,7 +901,7 @@ public:
 				// Getting the receiver
 				int rec = this->connector->Sreceivers[tnode];
 				// checkng if receiver is visited but not node
-				if(vis[rec] && rec != node)
+				if(vis[rec])
 				{
 					// current noer is visited
 					vis[tnode] = true;
@@ -1075,12 +1075,14 @@ public:
 			if(this->connector->boundaries.no_data(node) == false)
 				continue;
 
+
 			int rec = this->connector->Sreceivers[node];
 			if(this->connector->flow_out_or_pit(node) == false)
 			{
 				flowacc[rec] += flowacc[node] + 1;
 			}
 		}
+		
 		return flowacc;
 	}
 
@@ -1206,6 +1208,8 @@ public:
 		// std::cout << "DEBUG TOTOUT " << tot << std::endl;
 		return out;
 	}
+
+	// std::vector<int> _get_flow_acc
 
 
 	template<class out_t, class topo_t>
@@ -1646,6 +1650,8 @@ public:
 		}
 		return baslab;
 	}
+
+
 	
 
 	
