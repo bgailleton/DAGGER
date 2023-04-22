@@ -591,7 +591,31 @@ B.G.
     // Watershed labelling
     .def(
       "get_SFD_basin_labels",
-      &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<int,1> >,
+      &graph<double,CONNECTOR_T>::template get_SFD_basin_labels< py::array_t<int,1> >,
+      R"pdoc(
+Labels SFD watersheds with unique ID.
+
+Description
+-------------
+
+Uses the SFD stack order to label very efficiently basins.
+
+returns:
+--------
+
+1D array of integer labels
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
+
+
+    .def(
+      "get_drainage_area_SFD",
+      &graph<double,CONNECTOR_T>::template get_drainage_area_SFD< py::array_t<double,1> >,
       R"pdoc(
 Labels SFD watersheds with unique ID.
 
@@ -611,6 +635,30 @@ B.G.
 
 )pdoc"
     )
+
+    .def(
+      "get_drainage_area_MFD",
+      &graph<double,CONNECTOR_T>::template get_drainage_area_MFD< py::array_t<double,1>, py::array_t<double,1> >,
+      R"pdoc(
+Labels MFD watersheds with unique ID.
+
+Description
+-------------
+
+Uses the MFD stack order to label very efficiently basins.
+
+returns:
+--------
+
+1D array of flow distance
+
+Authors:
+--------
+B.G.
+
+)pdoc"
+    )
+    
 
     .def(
       "get_n_pits",
@@ -839,6 +887,12 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_single_kd_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
     .def("set_single_tau_c", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
     .def("set_variable_ke", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
+    
+
+
+    .def("compute_tuqQ", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
+    .def("compute_elemental_transfer", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template compute_elemental_transfer<py::array_t<double,1>, py::array_t<double,1> >)
+
 
 
 
@@ -911,6 +965,8 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("run_precipitions_exp",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions_exp)
     .def("run_graphipiton",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_graphipiton)
     .def("run_exp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_exp)
+
+    .def("define_precipitations_Ath", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::define_precipitations_Ath)
 
         
     

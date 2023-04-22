@@ -1325,6 +1325,77 @@ public:
 	}
 
 
+	template<class out_t>
+	out_t get_drainage_area_SFD()
+	{
+		std::vector<float_t> out = this->_get_drainage_area_SFD();
+		return format_output<decltype(out), out_t>(out);
+	}
+
+
+
+	std::vector<float_t> _get_drainage_area_SFD()
+	{
+		std::vector<float_t> out(this->nnodes,0.);
+		for(int i=this->nnodes-1; i>=0; --i)
+		{
+			int node = this->Sstack[i];
+
+			if(this->connector->boundaries.no_data(node)) continue;
+			
+			out[node] += this->connector->get_area_at_node(node);
+			int rec = this->connector->Sreceivers[node];
+			if(node!=rec) out[rec] += out[node];
+
+		}
+		return out;
+	}
+
+	template<class out_t, class topo_t>
+	out_t get_drainage_area_MFD(topo_t& ttopo, float_t exp_slope)
+	{
+		auto topo = format_input(ttopo);
+		std::vector<float_t> out = this->_get_drainage_area_MFD(topo, exp_slope);
+		return format_output<decltype(out), out_t>(out);
+	}
+
+
+	template<class topo_t>
+	std::vector<float_t> _get_drainage_area_MFD(topo_t& topo, float_t exp_slope)
+	{
+		std::vector<float_t> out(this->nnodes,0.);
+		
+		auto lgrad = this->connector->_get_links_gradient(topo, 1e-6);
+		std::vector<float_t> weights(lgrad.size(),0.);
+		
+		this->connector->_get_link_weights_exp(weights, lgrad, exp_slope);
+
+		auto reclinks = this->connector->get_empty_neighbour();
+		for(int i = this->nnodes - 1; i>=0; --i)
+		{
+			int node = this->stack[i];
+			if(this->connector->boundaries.no_data(node))
+				continue;
+
+			out[node] += this->connector->get_area_at_node(node);
+
+			if(this->connector->flow_out_or_pit(node))
+				continue;
+
+			int nn = this->connector->get_receivers_idx_links(node,reclinks);
+			for (int tr=0; tr<nn;++tr)
+			{
+				int ti = reclinks[tr];
+				int rec = this->connector->get_to_links(ti);
+				if(connector->is_in_bound(rec))
+					out[rec] += out[node] * weights[ti];
+			}
+			
+		}
+
+		return out;
+	}
+
 	/*
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -1642,7 +1713,7 @@ public:
 		for(int i=0; i< this->nnodes; ++i)
 		{
 			int node = this->Sstack[i];
-			if(this->connector->no_data(node))
+			if(this->connector->boundaries.no_data(node))
 				continue;
 			if(this->connector->flow_out_or_pit(node))
 				++label;
@@ -1650,6 +1721,10 @@ public:
 		}
 		return baslab;
 	}
+
+
+
+
 
 
 	
