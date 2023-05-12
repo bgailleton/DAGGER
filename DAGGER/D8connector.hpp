@@ -59,6 +59,7 @@ public:
 		// General informations about the graph
 	// #-> number of nodes (integer and unsized int for loops or list innit).
 	int nnodes = 0;
+	int nlinks() {return this->nnodes * 4;};
 	size_t nnodes_t = 0;
 
 	static const int nneighbours = 8;
@@ -1708,6 +1709,15 @@ public:
 	}
 
 	template<class ti_t>
+	void reverse_link(ti_t i)
+	{
+		if(this->links[i] == 0)
+			this->links[i] = 1;
+		else if (this->links[i] == 1)
+			this->links[i] = 0;
+	}
+
+	template<class ti_t>
 	bool link_needs_processing(ti_t i)
 	{
 		if(this->links[i] >= 2)
@@ -2323,6 +2333,7 @@ public:
 
 		// Finally inverting the Sreceivers into the Sdonors info
 		// Required for several routines
+		// this->compute_SF_donors_from_receivers();
 		this->compute_SF_donors_from_receivers();
 	}
 
@@ -2356,11 +2367,16 @@ public:
 	// Same function than above but without reallocating the memory (can save a bit of time depending on the context)
 	void recompute_SF_donors_from_receivers()
 	{
+		if(this->nSdonors.size() == 0)
+		{
+			this->Sdonors = std::vector<int>(this->nnodes * this->nneighbours,-1);
+			this->nSdonors = std::vector<int>(this->nnodes,0);
+		}
 
 		for(int i=0; i < this->nnodes; ++i)
 		{
-			for(int j=0; j < this->nneighbours; ++j)
-				this->Sdonors[i * this->nneighbours + j] = -1;
+			// for(int j=0; j < this->nneighbours; ++j)
+			// 	this->Sdonors[i * this->nneighbours + j] = -1;
 			this->nSdonors[i] = 0;
 		}
 
@@ -2485,6 +2501,8 @@ public:
 			this->rowcol_from_node_id(r,row,col);
 			std::cout << "Neighbour " << r << " row " << row << " col " << col << " topo " << topography[r] << std::endl;
 		}
+
+		std::cout << "And finally Srec is " << this->Sreceivers[i] << std::endl;;
 	}
 
 	// Returns the number of links stored in the graph 

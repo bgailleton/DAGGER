@@ -279,7 +279,7 @@ public:
 
 
 		// manages the Cordonnier method if needed
-		if(isCordonnier || isDagger)
+		if(isCordonnier)
 		{
 			bool need_recompute;
 
@@ -297,10 +297,11 @@ public:
 				// Note that faketopo are modified in place.
 				need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
 			}
-			else
-			{
-				need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
-			}
+			// else
+			// {
+			// 	// need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
+			// 	need_recompute = simple_depression_solver
+			// }
 
 
 			// Right, if reomputed needs to be
@@ -334,6 +335,17 @@ public:
 
 			}
 		}
+		else if(isDagger)
+		{
+			bool need_recompute = simple_depression_solver( this->connector, faketopo, this->Sstack);
+			if(need_recompute)
+			{
+				this->reinit_graph();
+				this->connector->update_links(faketopo);
+				this->topological_sorting_SF();
+			}
+		}
+
 		// else if (this->depression_resolver == DEPRES::priority_flood)
 		// {
 		// 	PriorityFlood<float_t, Connector_t>(faketopo, *(this->connector));
@@ -374,6 +386,8 @@ public:
 			}
 		}
 	}
+
+	
 
 	
 	// To adapt to the new graph structure
@@ -1724,6 +1738,172 @@ public:
 
 
 
+
+// EXPERIMENTAL SECTION. Trying stuffs. Without breaking the compiler.
+
+
+
+	// // Compute the graph using the cordonnier metod to solve the depressions
+	// // template arguments are the connector type, the wrapper input type for topography and the wrapper output type for topography
+	// template<class topo_t, class int_t, class out_t>
+	// out_t compute_graph_exp(
+	//   topo_t& ttopography, // the input topography
+	//   bool only_SD, // only computes the single flow graph if true
+	//   in_t& tstaters
+	//   )
+	// {
+	// 	// Formatting the input to match all the wrappers
+	// 	auto topography = format_input<topo_t>(ttopography);
+	// 	auto starters = format_input<in_t>(tstaters);
+
+	// 	// Formatting the output topo
+	// 	std::vector<float_t> faketopo(this->nnodes,0);
+
+	// 	for(int i=0; i<this->nnodes; ++i)
+	// 	{
+	// 		faketopo[i] = topography[i];
+	// 	}
+
+	// 	this->_compute_graph_exp(faketopo,only_SD,starters);
+
+
+	// 	// Finally I format the output topography to the right wrapper
+	// 	return format_output<decltype(faketopo), out_t >(faketopo);
+	// }
+
+
+	// // template<class Connector_t>
+	// void _compute_graph_exp(
+	// 	std::vector<float_t>& faketopo,
+	//   bool only_SD, // only computes the single flow graph if true
+	//   std::vector<int>& faketopo, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
+	// 	)
+	// {
+
+	// 	// Checking if the depression method is cordonnier or node
+	// 	bool isCordonnier = this->is_method_cordonnier();
+	// 	bool isDagger = this->is_method_dagger();
+
+
+	// 	//reinit to 0 n+pits
+	// 	this->n_pits = 0;
+
+	// 	if(this->depression_resolver == DEPRES::priority_flood)
+	// 	{
+	// 		PriorityFlood(faketopo,*this->connector);
+	// 	}
+
+	// 	// if the method is not Cordonnier -> apply the other first
+	// 	// if(isCordonnier == false && this->depression_resolver != DEPRES::none)
+	// 	// {
+	// 	// 	// filling the topography with a minimal slope using Wei et al., 2018
+	// 	// 	// if(this->depression_resolver == DEPRES::priority_flood)
+	// 	// 	faketopo = PriorityFlood(faketopo,  *(this));
+	// 	// 	// else
+	// 	// 	// 	faketopo = connector->PriorityFlood(faketopo);
+	// 	// }
+
+
+	// 	// Making sure the graph is not inheriting previous values
+	// 	this->reinit_graph();
+
+
+	// 	// Updates the links vector and the Srecs vector by checking each link new elevation
+	// 	this->connector->update_links(faketopo);
+
+	// 	this->compute_npits();
+
+	// 	// Compute the topological sorting for single stack
+	// 	// Braun and willett 2014 (modified)
+	// 	this->topological_sorting_SF();
+
+	// 	if(this->depression_resolver == DEPRES::priority_flood_opti)
+	// 	{
+	// 		bool need_reco = PriorityFlood_opti(faketopo,*this->connector, this->Sstack);
+	// 		if(need_reco)
+	// 		{
+	// 			this->connector->update_links(faketopo);
+	// 			this->topological_sorting_SF();
+	// 		}
+	// 	}
+
+
+	// 	// manages the Cordonnier method if needed
+	// 	if(isCordonnier || isDagger)
+	// 	{
+	// 		bool need_recompute;
+
+	// 		if(isCordonnier)
+	// 		{
+	// 			// LMRerouter is the class managing the different cordonnier's mthod
+	// 			LMRerouter<float_t> depsolver;
+
+	// 			if(this->opti_sparse_border)
+	// 				depsolver.opti_sparse_border = true;
+
+	// 			depsolver.minimum_slope = this->minimum_slope;
+	// 			depsolver.slope_randomness = this->slope_randomness;
+	// 			// Execute the local minima solving, return true if rerouting was necessary, meaning that some element needs to be recomputed
+	// 			// Note that faketopo are modified in place.
+	// 			need_recompute = depsolver.run(this->depression_resolver, faketopo, this->connector, this->Sstack);		
+	// 		}
+	// 		else
+	// 		{
+	// 			need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
+	// 		}
+
+
+	// 		// Right, if reomputed needs to be
+	// 		if(need_recompute)
+	// 		{
+				
+	// 			// Re-inverting the Sreceivers into Sdonors
+	// 			this->connector->recompute_SF_donors_from_receivers();
+				
+	// 			// Recomputing Braun and willett 2014 (modified)
+	// 			this->topological_sorting_SF();
+
+	// 			// This is a bit confusing and needs to be changed but filling in done in one go while carving needs a second step here
+	// 			if(this->depression_resolver == DEPRES::cordonnier_carve)
+	// 				this->carve_topo_v2(faketopo);
+	// 			else if (this->depression_resolver == DEPRES::cordonnier_fill)
+	// 				this->fill_topo_v2(1e-5, faketopo);
+
+
+	// 			// And updating the receivers (Wether the Sreceivers are updated or not depends on opt_stst_rerouting)
+	// 			if(this->opt_stst_rerouting == false)	
+	// 				this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
+
+	// 			// My work here is done if only SD is needed
+	// 			if(only_SD)
+	// 				return;
+				
+	// 			// if(this->opt_stst_rerouting)
+	// 			this->connector->update_links_MFD_only(faketopo); // up to 30% faster - slightly less accurate for Sgraph
+
+
+	// 		}
+	// 	}
+	// 	// else if (this->depression_resolver == DEPRES::priority_flood)
+	// 	// {
+	// 	// 	PriorityFlood<float_t, Connector_t>(faketopo, *(this->connector));
+	// 	// 	// faketopo = connector->PriorityFlood(faketopo);
+	// 	// 	this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
+
+	// 	// 	this->connector->recompute_SF_donors_from_receivers();
+			
+	// 	// 	this->topological_sorting_SF();
+
+	// 	// }
+
+	// 	// if there is no need to recompute neighbours, then I can only calculate the topological sorting
+	// 	// for multiple as the toposort for SF is already done
+	// 	if (only_SD == false)
+	// 	{
+	// 		this->topological_sorting_dag();
+	// 	}
+
+	// }
 
 
 

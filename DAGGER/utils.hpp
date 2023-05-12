@@ -450,6 +450,81 @@ constexpr auto Enum2UnderlyingType(E e)
 
 
 
+
+class DBBTree
+{
+
+public:
+	// n nodes in the tree
+	int nnodes = 0;
+	// receivers for each nodes (emty if base)
+	std::vector< std::vector<int> > receivers;
+	// 0: building - 1: subtree - 2: open
+	std::vector<std::uint8_t> label;
+	std::vector<int> top;
+	std::vector<int> outlet_node;
+	std::vector<float_t> outlet_Z;
+
+
+	DBBTree(){this->init(200);};
+
+	void init(int resa)
+	{
+		this->receivers.reserve(resa);
+		this->label.reserve(resa);
+		this->top.reserve(resa);
+		this->outlet_node.reserve(resa);
+		this->outlet_Z.reserve(resa);
+	}
+
+	int add()
+	{
+		int tlab = this->nnodes;
+		++this->nnodes;
+		this->receivers.emplace_back(std::vector<int>());
+		this->label.emplace_back(0);
+		this->top.emplace_back(tlab);
+		this->outlet_node.emplace_back(-1);
+		this->outlet_Z.emplace_back(0.);
+		return tlab;
+	}
+
+	template<class CONTAINER>
+	int merge(CONTAINER tomerge)
+	{
+		int tlab = this->nnodes;
+		++this->nnodes;
+		this->receivers.emplace_back(std::vector<int>());
+		this->label.emplace_back(0);
+		this->top.emplace_back(tlab);
+		this->outlet_node.emplace_back(-1);
+		this->outlet_Z.emplace_back(0.);
+
+
+		std::queue<int> mergehelper;
+		for(auto tm:tomerge) mergehelper.emplace(tm);
+
+		while(mergehelper.empty() == false)
+		{
+			int next = mergehelper.front();
+			mergehelper.pop();
+			if(this->top[next] == tlab) continue;
+			this->top[next] = tlab;
+			this->label[next] = 1;
+			this->receivers[tlab].emplace_back(next);
+			for(auto ttm:this->receivers[next]) mergehelper.emplace(ttm);
+		}
+
+		return tlab;
+	
+	}
+
+
+};
+
+
+
+
 // template<T> 
 // class V2
 // {

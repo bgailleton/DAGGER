@@ -452,6 +452,8 @@ public:
 		if(noisetype == RANDNOISE::WHITE)
 			DAGGER::add_noise_to_vector(this->topography,0.,1.);
 
+		this->connector.set_default_boundaries("periodic_EW");
+
 		for(int i = 0; i<nit; ++i)
 		{	
 			// std::cout << "REFINING::" << i << std::endl;
