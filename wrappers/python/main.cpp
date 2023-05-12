@@ -11,6 +11,7 @@
 #include "graphflood.hpp"
 #include "trackscape.hpp"
 #include "utils.hpp"
+#include "simple_depression_solver.hpp"
 
 using namespace DAGGER;
 
@@ -1881,21 +1882,32 @@ B.G.
     );
 
   m.def(
+    "label_depressions_PQ",
+    &label_depressions_PQ< py::array_t<double, 1>, py::array_t<int, 1>, D8connector<double> > 
+    );
+
+  m.def(
+    "label_ocean",
+    &label_ocean< py::array_t<double, 1>, py::array_t<int, 1>, D8connector<double> > 
+    );
+
+
+  m.def(
     "standalone_priority_flood",
     &standalone_priority_flood<D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double >,
    py::arg("topography"), py::arg("connector")
   );
 
-m.def(
+  m.def(
     "standalone_priority_flood_opti",
     &standalone_priority_flood_opti<D8connector<double>,  DAGGER::graph<double, DAGGER::D8connector<double> >, py::array_t<double, 1>, py::array_t<double, 1>, double >,
    py::arg("topography"), py::arg("connector"), py::arg("graph")
   );
 
 
-  // declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
+  declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
   declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
-  // // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
+  // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
   declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
   // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
 
