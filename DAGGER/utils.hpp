@@ -423,7 +423,7 @@ public:
 		double timing = ms_double.count();
 		std::cout << message << " took " << timing << " ms" << std::endl;
 	}
-	float_t tok()
+	double tok()
 	{
 		this->end = std::chrono::high_resolution_clock::now();
 		std::chrono::duration<double, std::milli> ms_double = this->end - this->start;
@@ -464,7 +464,7 @@ public:
 	std::vector<std::uint8_t> label;
 	std::vector<int> top;
 	std::vector<int> outlet_node;
-	std::vector<float_t> outlet_Z;
+	std::vector<double> outlet_Z;
 
 
 	DBBTree(){this->init(200);};

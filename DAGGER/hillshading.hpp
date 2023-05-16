@@ -18,24 +18,24 @@ this file contain the algorithm(s) related to hillshading a dem from a connector
 namespace DAGGER
 {
 
-template<class Connector_t,class topo_t, class out_t, class float_t>
+template<class Connector_t,class topo_t, class out_t, class fT>
 out_t hillshade(Connector_t& connector, topo_t& ttopography)
 {
 	auto topography = format_input(ttopography);
-	float_t altitude = 45;
-	float_t azimuth = 315;
-	float_t z_factor = 1;
-	float_t pi = 3.1415926;
+	fT altitude = 45;
+	fT azimuth = 315;
+	fT z_factor = 1;
+	fT pi = 3.1415926;
 
-	// std::vector<float_t> hillshade(ptr, ptr + connector.nnodes);
-	std::vector<float_t> hillshade(connector.nnodes,0.);
+	// std::vector<fT> hillshade(ptr, ptr + connector.nnodes);
+	std::vector<fT> hillshade(connector.nnodes,0.);
 
 
 	//convert zenith and azimuth into radians for calculation
-	float_t zenith_rad = (90 - altitude) * pi / 180.0;
-	float_t azimuth_math = 360-azimuth + 90;
+	fT zenith_rad = (90 - altitude) * pi / 180.0;
+	fT azimuth_math = 360-azimuth + 90;
 	if (azimuth_math >= 360.0) azimuth_math = azimuth_math - 360;
-	float_t azimuth_rad = azimuth_math * pi /180.0;
+	fT azimuth_rad = azimuth_math * pi /180.0;
 
 	for(int i = 0; i<connector.nnodes; ++i)
 	{
@@ -43,28 +43,28 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 		if(connector.boundaries.no_data(i))
 			continue;
 
-		float_t slope_rad = 0;
-		float_t aspect_rad = 0;
-		float_t dzdx = 0;
-		float_t dzdy = 0;
+		fT slope_rad = 0;
+		fT aspect_rad = 0;
+		fT dzdx = 0;
+		fT dzdy = 0;
 
-		float_t ij = topography[i];
+		fT ij = topography[i];
 		int j = connector.get_right_idx(i);
-		float_t ijp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ijp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_bottom_idx(i);
-		float_t ip1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1j = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_bottomright_idx(i);
-		float_t ip1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_topleft_idx(i);
-		float_t im1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_top_idx(i);
-		float_t im1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1j = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_topright_idx(i);
-		float_t im1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_left_idx(i);
-		float_t ijm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ijm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 		j = connector.get_bottomleft_idx(i);
-		float_t ip1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
 
 
 		if (ij > 0 )
@@ -95,26 +95,26 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 }
 
 
-template<class Graph_t, class Connector_t,class topo_t, class out_t, class float_t>
+template<class Graph_t, class Connector_t,class topo_t, class out_t, class fT>
 out_t rayshade(
 	Graph_t& graph, Connector_t& connector, topo_t& ttopography, 
-	float_t ray_slope, // Slope of the sun
-	float_t shadow_mag, // magnitude of the shadow ray
-	float_t smooth_r, // magnitude of final smoothing 
-	float_t attenuation,
-	float_t diagonals
+	fT ray_slope, // Slope of the sun
+	fT shadow_mag, // magnitude of the shadow ray
+	fT smooth_r, // magnitude of final smoothing 
+	fT attenuation,
+	fT diagonals
 )
 {
 	auto topography = format_input(ttopography);
 
-	std::vector<float_t> shade(connector.nnodes,0.);
-	std::vector<float_t> tshade(connector.nnodes,0.);
+	std::vector<fT> shade(connector.nnodes,0.);
+	std::vector<fT> tshade(connector.nnodes,0.);
 
 	for(int i = connector.nnodes - 1;i >= 0; --i)
 	{
 		int node = graph.stack[i];
-		float_t zcasted = topography[node];
-		float_t oshadowmag = shadow_mag;
+		fT zcasted = topography[node];
+		fT oshadowmag = shadow_mag;
 		
 		while(true)
 		{
@@ -124,10 +124,10 @@ out_t rayshade(
 			if(connector.is_link_valid(link) == false)
 				break;
 
-			float_t dx = connector.get_dx_from_links_idx(link);
+			fT dx = connector.get_dx_from_links_idx(link);
 
 			int onode = connector.get_other_node_from_links(link, node);
-			// float_t ozcaqs = zcasted;
+			// fT ozcaqs = zcasted;
 
 			zcasted -= ray_slope * dx; 
 
@@ -150,13 +150,13 @@ out_t rayshade(
 	
 	if(diagonals>0)
 	{
-		tshade = std::vector<float_t>(connector.nnodes,0.);
+		tshade = std::vector<fT>(connector.nnodes,0.);
 	
 		for(int i = connector.nnodes - 1;i >= 0; --i)
 		{
 			int node = graph.stack[i];
-			float_t zcasted = topography[node];
-			float_t oshadowmag = shadow_mag * diagonals;
+			fT zcasted = topography[node];
+			fT oshadowmag = shadow_mag * diagonals;
 			
 			while(true)
 			{
@@ -166,10 +166,10 @@ out_t rayshade(
 				if(connector.is_link_valid(link) == false)
 					break;
 	
-				float_t dx = connector.get_dx_from_links_idx(link);
+				fT dx = connector.get_dx_from_links_idx(link);
 	
 				int onode = connector.get_other_node_from_links(link, node);
-				// float_t ozcaqs = zcasted;
+				// fT ozcaqs = zcasted;
 	
 				zcasted -= ray_slope * dx; 
 	
@@ -189,13 +189,13 @@ out_t rayshade(
 			shade[i] += tshade[i];
 		}
 	
-		tshade = std::vector<float_t>(connector.nnodes,0.);
+		tshade = std::vector<fT>(connector.nnodes,0.);
 	
 		for(int i = connector.nnodes - 1;i >= 0; --i)
 		{
 			int node = graph.stack[i];
-			float_t zcasted = topography[node];
-			float_t oshadowmag = shadow_mag * diagonals;
+			fT zcasted = topography[node];
+			fT oshadowmag = shadow_mag * diagonals;
 			
 			while(true)
 			{
@@ -205,10 +205,10 @@ out_t rayshade(
 				if(connector.is_link_valid(link) == false)
 					break;
 	
-				float_t dx = connector.get_dx_from_links_idx(link);
+				fT dx = connector.get_dx_from_links_idx(link);
 	
 				int onode = connector.get_other_node_from_links(link, node);
-				// float_t ozcaqs = zcasted;
+				// fT ozcaqs = zcasted;
 	
 				zcasted -= ray_slope * dx; 
 	
@@ -223,7 +223,7 @@ out_t rayshade(
 	
 		}
 
-		float_t tmax = 0;
+		fT tmax = 0;
 		for(int i=0;i<connector.nnodes;++i)
 		{
 			shade[i] += tshade[i];

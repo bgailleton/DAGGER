@@ -47,12 +47,12 @@ public:
 
 
 
-template<class out_t, class float_t, class Connector_t>
-out_t generate_perlin_noise_2D(Connector_t& con, float_t frequency, int octaves, std::uint32_t seed)
+template<class out_t, class fT, class Connector_t>
+out_t generate_perlin_noise_2D(Connector_t& con, fT frequency, int octaves, std::uint32_t seed)
 {
-  std::vector<float_t> noise(con.nx*con.ny, 0.);
-  float_t fx = frequency/con.nx;
-  float_t fy = frequency/con.ny;
+  std::vector<fT> noise(con.nx*con.ny, 0.);
+  fT fx = frequency/con.nx;
+  fT fy = frequency/con.ny;
   siv::PerlinNoise perlin{ seed };
 
   for(int i = 0; i<con.nnodes;++i)
@@ -61,7 +61,7 @@ out_t generate_perlin_noise_2D(Connector_t& con, float_t frequency, int octaves,
     noise[i] = perlin.octave2D_01((xi * fx), (yi * fy), octaves);
   }
 
-  return DAGGER::format_output<std::vector<float_t>, out_t >(noise) ;
+  return DAGGER::format_output<std::vector<fT>, out_t >(noise) ;
 }
 
 

@@ -53,7 +53,7 @@ enum class PARAM_MODE
 
 
 
-template<class float_t,class Graph_t, class Connector_t>
+template<class fT,class Graph_t, class Connector_t>
 class popscape
 {
 
@@ -63,22 +63,22 @@ public:
 	Graph_t graph;
 	Connector_t connector;
 
-	std::vector<float_t> QA;
-	std::vector<float_t> topography;
+	std::vector<fT> QA;
+	std::vector<fT> topography;
 
 	PARAM_MODE Kbase_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _Kbase = {1e-3};
+	std::vector<fT> _Kbase = {1e-3};
 	PARAM_MODE Kmod_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _Kmod = {1.};
+	std::vector<fT> _Kmod = {1.};
 	PARAM_MODE m_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _m = {0.45};
+	std::vector<fT> _m = {0.45};
 	PARAM_MODE n_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _n = {1.};
+	std::vector<fT> _n = {1.};
 	PARAM_MODE precip_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _precip = {1.};
+	std::vector<fT> _precip = {1.};
 
 	PARAM_MODE UE_mode = PARAM_MODE::CONSTANT;
-	std::vector<float_t> _UE = {1e-3};
+	std::vector<fT> _UE = {1e-3};
 
 	std::string boundary_string = "periodic_EW";
 
@@ -103,16 +103,16 @@ public:
 	}
 
 	template<class out_t>
-	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->topography);}
+	out_t get_topo(){return DAGGER::format_output<std::vector<fT>,out_t>(this->topography);}
 	template<class out_t>
-	out_t get_QA(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->QA);}
+	out_t get_QA(){return DAGGER::format_output<std::vector<fT>,out_t>(this->QA);}
 
 	template<class out_t>
-	out_t get_chistar(){std::vector<float_t> chistar = this->_chi_star();return DAGGER::format_output<std::vector<float_t>,out_t>(chistar);}
+	out_t get_chistar(){std::vector<fT> chistar = this->_chi_star();return DAGGER::format_output<std::vector<fT>,out_t>(chistar);}
 
 
 	// Parameters:
-	float_t Kbase(int i)
+	fT Kbase(int i)
 	{
 		if(this->Kbase_mode == PARAM_MODE::CONSTANT)
 			return this->_Kbase[0];
@@ -120,7 +120,7 @@ public:
 			return this->_Kbase[i];
 	}
 
-	float_t Kmod(int i)
+	fT Kmod(int i)
 	{
 		if(this->Kmod_mode == PARAM_MODE::CONSTANT)
 			return this->_Kmod[0];
@@ -128,7 +128,7 @@ public:
 			return this->_Kmod[i];
 	}
 
-	float_t m(int i)
+	fT m(int i)
 	{
 		if(this->m_mode == PARAM_MODE::CONSTANT)
 			return this->_m[0];
@@ -136,7 +136,7 @@ public:
 			return this->_m[i];
 	}
 
-	float_t n(int i)
+	fT n(int i)
 	{
 		if(this->n_mode == PARAM_MODE::CONSTANT)
 			return this->_n[0];
@@ -145,14 +145,14 @@ public:
 	}
 
 	// Parameters:
-	float_t precip(int i)
+	fT precip(int i)
 	{
 		if(this->precip_mode == PARAM_MODE::CONSTANT)
 			return this->_precip[0];
 		else
 			return this->_precip[i];
 	}
-	float_t UE(int i)
+	fT UE(int i)
 	{
 		if(this->UE_mode == PARAM_MODE::CONSTANT)
 			return this->_UE[0];
@@ -160,7 +160,7 @@ public:
 			return this->_UE[i];
 	}
 
-	void _init_vecs(){this->QA = std::vector<float_t>(this->connector.nnodes,0.);}
+	void _init_vecs(){this->QA = std::vector<fT>(this->connector.nnodes,0.);}
 
 
 	void StSt(int n_iterations)
@@ -189,7 +189,7 @@ public:
 		
 	}
 
-	void restriction(float_t noise_intensity)
+	void restriction(fT noise_intensity)
 	{
 		
 		int nxy = 4 * this->graph.nnodes;
@@ -197,7 +197,7 @@ public:
 		int nx = this->connector.nx * 2;
 		int ny = this->connector.ny * 2;
 
-		std::vector<float_t> ntopo(nxy,0.);
+		std::vector<fT> ntopo(nxy,0.);
 
 
 		for(int i=0;i<this->graph.nnodes;++i)
@@ -215,8 +215,8 @@ public:
 		}
 
 		
-		float_t dx = this->connector.dx/2;
-		float_t dy = this->connector.dy/2;
+		fT dx = this->connector.dx/2;
+		fT dy = this->connector.dy/2;
 		// init connector
 		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
 		this->connector.set_default_boundaries(this->boundary_string);
@@ -240,7 +240,7 @@ public:
 		int ny = floor(this->connector.ny / 2);
 		int nxy = nx * ny;
 
-		std::vector<float_t> ntopo(nxy,0.);
+		std::vector<fT> ntopo(nxy,0.);
 
 		D8connector<double> ncon = _create_connector(nx,ny,this->connector.dx*2,this->connector.dy*2,0.,0.);
 		ncon.set_default_boundaries(this->boundary_string);
@@ -252,7 +252,7 @@ public:
 			int row,col;
 			ncon.rowcol_from_node_id(i, row, col);
 			int nid = row*2 * this->connector.nx + col*2;
-			float_t tntopo = 0.;
+			fT tntopo = 0.;
 			tntopo += this->topography[nid];
 			nid = row*2 * this->connector.nx + col*2+1;
 			tntopo += this->topography[nid];
@@ -275,9 +275,9 @@ public:
 
 	}
 
-	void smooth(float_t rr)
+	void smooth(fT rr)
 	{
-		// this->topography = On_gaussian_blur<float_t>(rr, this->topography, this->connector.nx, this->connector.ny);
+		// this->topography = On_gaussian_blur<fT>(rr, this->topography, this->connector.nx, this->connector.ny);
 		this->topography = On_gaussian_blur(rr, this->topography, this->connector.nx, this->connector.ny);
 	}
 
@@ -291,11 +291,11 @@ public:
 	}
 
 
-	std::vector<float_t> _chi_star()
+	std::vector<fT> _chi_star()
 	{
-		std::vector<float_t> A = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
-		std::vector<float_t> chistar(this->graph.nnodes, 0.);
-		float_t chimax = 0;
+		std::vector<fT> A = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));
+		std::vector<fT> chistar(this->graph.nnodes, 0.);
+		fT chimax = 0;
 		for(int i=0;i<this->graph.nnodes; ++i)
 		{
 			int node = this->graph.Sstack[i];
@@ -315,10 +315,10 @@ public:
 		return chistar;
 	}
 
-	std::vector<float_t> _z_star()
+	std::vector<fT> _z_star()
 	{
-		std::vector<float_t> zstar(this->topography);
-		float_t zmax = 0;
+		std::vector<fT> zstar(this->topography);
+		fT zmax = 0;
 		for(int i=0;i<this->graph.nnodes; ++i)
 		{
 			if(zstar[i] > zmax)
@@ -332,13 +332,13 @@ public:
 	}
 
 
-	void simple_Kfchi(float_t tkmod, float_t chimin, float_t chimax)
+	void simple_Kfchi(fT tkmod, fT chimin, fT chimax)
 	{
 
 		auto chistar = this->_chi_star();
 
 		this->Kmod_mode = PARAM_MODE::VARIABLE;
-		this->_Kmod = std::vector<float_t>(this->graph.nnodes, 1.);
+		this->_Kmod = std::vector<fT>(this->graph.nnodes, 1.);
 		for(int i = 0; i<this->graph.nnodes; ++i)
 		{
 			if(chistar[i] > chimin && chistar[i] <chimax)
@@ -353,13 +353,13 @@ public:
 	}
 
 
-	void simple_Kfz(float_t tkmod, float_t zmin, float_t zmax)
+	void simple_Kfz(fT tkmod, fT zmin, fT zmax)
 	{
 
 		auto zstar = this->_z_star();
 
 		this->Kmod_mode = PARAM_MODE::VARIABLE;
-		this->_Kmod = std::vector<float_t>(this->graph.nnodes, 1.);
+		this->_Kmod = std::vector<fT>(this->graph.nnodes, 1.);
 		for(int i = 0; i<this->graph.nnodes; ++i)
 		{
 			if(zstar[i] > zmin && zstar[i] <zmax)
@@ -374,7 +374,7 @@ public:
 	}
 
 
-	// std::vector<float_t> chiculations()
+	// std::vector<fT> chiculations()
 	// {
 		
 	// }
@@ -405,7 +405,7 @@ public:
 
 
 // Former Popscape, to be deprecated soon
-template<class float_t,class Graph_t, class Connector_t>
+template<class fT,class Graph_t, class Connector_t>
 class popscape_old
 {
 public:
@@ -416,7 +416,7 @@ public:
 	Connector_t connector;
 	
 	// Topography
-	std::vector<float_t> topography, QA;
+	std::vector<fT> topography, QA;
 
 	// randomiser helper
 	std::shared_ptr<DAGGER::easyRand> randu = std::make_shared<DAGGER::easyRand>();
@@ -429,7 +429,7 @@ public:
 	// -> noise type is from the RANDOISE enum (white, red, perlin, ...)
 	// -> nx/ny are the number of nodes in the x/y dir
 	// -> dx dy are the related spacing in [L]
-	popscape_old(RANDNOISE noisetype, int start_nx,  int nit, float_t dx, float_t dy)
+	popscape_old(RANDNOISE noisetype, int start_nx,  int nit, fT dx, fT dy)
 	{
 
 		if(start_nx % 8 != 0)
@@ -440,7 +440,7 @@ public:
 		int nxy = nx * ny;
 		
 		// init the topo to 0
-		this->topography = std::vector<float_t>(nxy,0.);
+		this->topography = std::vector<fT>(nxy,0.);
 		
 		// init connector
 		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
@@ -473,10 +473,10 @@ public:
 
 	}
 
-	void _init_vecs(){this->QA = std::vector<float_t>(this->graph.nnodes,0.);}
+	void _init_vecs(){this->QA = std::vector<fT>(this->graph.nnodes,0.);}
 
 
-	void solve_generic(float_t m, float_t n, int n_iterations)
+	void solve_generic(fT m, fT n, int n_iterations)
 	{
 		// std::cout << "REFINING::|||||" <<n_iterations << std::endl;
 		// running the code for n_iterations
@@ -508,7 +508,7 @@ public:
 		
 	}
 
-	void double_res(float_t noise_intensity, RANDNOISE noisetype)
+	void double_res(fT noise_intensity, RANDNOISE noisetype)
 	{
 		
 		int nxy = 4 * this->graph.nnodes;
@@ -516,7 +516,7 @@ public:
 		int nx = this->connector.nx * 2;
 		int ny = this->connector.ny * 2;
 
-		std::vector<float_t> ntopo(nxy,0.);
+		std::vector<fT> ntopo(nxy,0.);
 
 
 		if(noisetype == RANDNOISE::WHITE)
@@ -535,8 +535,8 @@ public:
 		}
 
 		
-		float_t dx = this->connector.dx/2;
-		float_t dy = this->connector.dy/2;
+		fT dx = this->connector.dx/2;
+		fT dy = this->connector.dy/2;
 		// init connector
 		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
 		
@@ -556,7 +556,7 @@ public:
 
 	void compute_DA_SFD(){this->QA = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0));}
 
-	void solve_SFD_SPL_imp(float_t m, float_t n, float_t K, float_t dt)
+	void solve_SFD_SPL_imp(fT m, fT n, fT K, fT dt)
 	{
 
     for (int i=0; i< this->graph.nnodes; ++i)
@@ -569,20 +569,20 @@ public:
 	    if (!this->connector.flow_out_or_pit(node) == false)
 				continue;
 
-	    float_t factor = K * dt * std::pow(this->QA[node],m) / std::pow(this->connector.Sdistance2receivers[node],n);
+	    fT factor = K * dt * std::pow(this->QA[node],m) / std::pow(this->connector.Sdistance2receivers[node],n);
 
-	    float_t ielevation = this->topography[node];
-	    float_t irec_elevation = this->topography[rec];
+	    fT ielevation = this->topography[node];
+	    fT irec_elevation = this->topography[rec];
 
-	    float_t elevation_k = ielevation;
-	    float_t elevation_prev = std::numeric_limits<float_t>::max();
-	    float_t tolerance = 1e-4;
+	    fT elevation_k = ielevation;
+	    fT elevation_prev = std::numeric_limits<fT>::max();
+	    fT tolerance = 1e-4;
 
 	    while (abs(elevation_k - elevation_prev) > tolerance)
 	    {
 				elevation_prev = elevation_k;
-				float_t slope = std::max(elevation_k - irec_elevation,1e-6);
-				float_t diff =  (elevation_k - ielevation + factor * std::pow(slope,n)) / ( 1. + factor * n * std::pow(slope, n - 1) )  ;
+				fT slope = std::max(elevation_k - irec_elevation,1e-6);
+				fT diff =  (elevation_k - ielevation + factor * std::pow(slope,n)) / ( 1. + factor * n * std::pow(slope, n - 1) )  ;
 				elevation_k -= diff;
 	    }
 
@@ -592,11 +592,11 @@ public:
 
 
 	template<class out_t>
-	out_t get_topo(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->topography);}
+	out_t get_topo(){return DAGGER::format_output<std::vector<fT>,out_t>(this->topography);}
 	template<class out_t>
-	out_t get_QA(){return DAGGER::format_output<std::vector<float_t>,out_t>(this->QA);}
+	out_t get_QA(){return DAGGER::format_output<std::vector<fT>,out_t>(this->QA);}
 
-	void apply_uplift(float_t dt, float_t U)
+	void apply_uplift(fT dt, fT U)
 	{
 		for(int i=0; i < this->graph.nnodes;++i)
 		{
@@ -606,7 +606,7 @@ public:
 	}
 
 	template<class out_t>
-	void apply_variable_uplift(float_t dt, out_t tU)
+	void apply_variable_uplift(fT dt, out_t tU)
 	{
 		auto U = DAGGER::format_input(tU);
 		for(int i=0; i < this->graph.nnodes;++i)
@@ -617,14 +617,14 @@ public:
 	}
 
 
-	void hydraulic_erosion_v0(int n_particules, float_t erosor)
+	void hydraulic_erosion_v0(int n_particules, fT erosor)
 	{
 
 		std::random_device rd; // obtain a random number from hardware
 		std::mt19937 gen(rd()); // seed the generator
 		std::uniform_int_distribution<> distr(0, this->graph.nnodes-1); // define the range
 
-		std::vector<float_t> newtopo(this->topography);
+		std::vector<fT> newtopo(this->topography);
 
 		// for(int tnp=0; tnp<n_particules; ++tnp)
 		// {
@@ -671,10 +671,10 @@ public:
 	}
 
 
-	// void precipitSPL(float_t dt, float_t K, float_t m, float_t n, int n_prec)
+	// void precipitSPL(fT dt, fT K, fT m, fT n, int n_prec)
 	// {
 
-	// 	float_t Aprec = std
+	// 	fT Aprec = std
 
 
 	// }
@@ -682,8 +682,8 @@ public:
 
 	void normalise_topography()
 	{
-		float_t mini = std::numeric_limits<float_t>::max();
-		float_t maxi = std::numeric_limits<float_t>::min();
+		fT mini = std::numeric_limits<fT>::max();
+		fT maxi = std::numeric_limits<fT>::min();
 		for(auto v:this->topography)
 		{
 			if(v < mini) mini = v;
@@ -695,11 +695,11 @@ public:
 	}
 
 
-	void run_SFD_exp_latmag(float_t K, float_t m, float_t n, float_t Kl, float_t dt)
+	void run_SFD_exp_latmag(fT K, fT m, fT n, fT Kl, fT dt)
 	{
 		// this->compute_graph(true);
 		// this->compute_DA_SFD();
-		// std::vector<float_t> vmot(this->graph.nnodes,0);
+		// std::vector<fT> vmot(this->graph.nnodes,0);
 
 		// for(int i=this->graph.nnodes-1; i>=0; --i)
 		// {
@@ -708,9 +708,9 @@ public:
 
 		// 	int rec = this->graph.Sreceivers[node];
 
-		// 	float_t S = std::max((this->topography[node] - this->topography[rec])/this->graph.Sdistance2receivers[node], 1e-6);
+		// 	fT S = std::max((this->topography[node] - this->topography[rec])/this->graph.Sdistance2receivers[node], 1e-6);
 
-		// 	float_t E = std::pow(S,n) * std::pow(this->QA[node],m) * K;
+		// 	fT E = std::pow(S,n) * std::pow(this->QA[node],m) * K;
 
 		// 	auto orthonodes = this->connector.get_orthogonal_nodes(node,rec);
 

@@ -7,21 +7,21 @@ namespace DAGGER
 {
 
 
-template<class float_t>
+template<class fT>
 class BasePropStorer
 {
 
 public:
 
-	float_t prop = 0;
+	fT prop = 0;
 
 	BasePropStorer(){;}
-	BasePropStorer(float_t prop){this->prop = prop;}
+	BasePropStorer(fT prop){this->prop = prop;}
 
-	static BasePropStorer<float_t> create(){return BasePropStorer<float_t>();}
-	static BasePropStorer<float_t> create(float_t prop){return BasePropStorer<float_t>(prop);}
+	static BasePropStorer<fT> create(){return BasePropStorer<fT>();}
+	static BasePropStorer<fT> create(fT prop){return BasePropStorer<fT>(prop);}
 	template<class T, class V>
-	static void mix(float_t w1, BasePropStorer<T>& prop1, float_t w2, BasePropStorer<V>& prop2)
+	static void mix(fT w1, BasePropStorer<T>& prop1, fT w2, BasePropStorer<V>& prop2)
 	{
 		if(w1 + w2 == 0) return;
 		prop1.prop =( w1 * prop1.prop + w2 * prop2.prop)/(w1 + w2);
@@ -30,29 +30,29 @@ public:
 };
 
 
-template<class float_t,class stored_t>
+template<class fT,class stored_t>
 class VerticalStorer
 {
 
 public:
 
 	int nnodes = 0;
-	float_t dz = 1.;
-	std::vector<float_t> topcellz;
+	fT dz = 1.;
+	std::vector<fT> topcellz;
 	std::vector<std::vector<stored_t> > pile;
 
 
 	VerticalStorer(){;}
-	VerticalStorer(float_t dz, int nnodes)
+	VerticalStorer(fT dz, int nnodes)
 	{
 		this->nnodes = nnodes;
 		this->dz = dz;
-		this->topcellz = std::vector<float_t>(this->nnodes,0.);
+		this->topcellz = std::vector<fT>(this->nnodes,0.);
 		this->pile = std::vector<std::vector<stored_t> >(this->nnodes, std::vector<stored_t>());
 	}
 
 
-	void pile_up(int i, float_t zadd, stored_t& prop)
+	void pile_up(int i, fT zadd, stored_t& prop)
 	{
 		if(zadd == 0)
 			return;
@@ -62,8 +62,8 @@ public:
 
 		while(zadd > 0)
 		{
-			float_t nextspace = this->dz - this->topcellz[i];
-			float_t tzused = std::min(zadd, nextspace);
+			fT nextspace = this->dz - this->topcellz[i];
+			fT tzused = std::min(zadd, nextspace);
 			zadd -= tzused;
 			stored_t::mix(this->topcellz[i],this->pile[i].back(),tzused, prop);
 
@@ -77,17 +77,17 @@ public:
 		}
 	}
 
-	stored_t remove(int i, float_t zrem)
+	stored_t remove(int i, fT zrem)
 	{
 		auto removed = stored_t::create();
 		if(zrem == 0)
 			return removed;
 
-		float_t cumrem = 0;
+		fT cumrem = 0;
 
 		while(zrem>0)
 		{
-			float_t torem = std::min(zrem,this->topcellz[i]);
+			fT torem = std::min(zrem,this->topcellz[i]);
 			this->topcellz[i] -= torem;
 			stored_t::mix(cumrem, removed, torem, this->pile[i].back());
 			cumrem += torem;

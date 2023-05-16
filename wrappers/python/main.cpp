@@ -672,6 +672,12 @@ B.G.
        &graph<double,CONNECTOR_T>:: get_debug_mask,
        R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc"
     )
+
+    .def(
+      "get_debug_int",
+       &graph<double,CONNECTOR_T>:: get_debug_int,
+       R"pdoc(Ignore. Internal debugging int process. Changes purpose and is mostly deactivated.)pdoc"
+    )
     
   ;
 }
@@ -680,7 +686,7 @@ template<typename CONNECTOR_T>
 void declare_popscape_old(py::module &m, std::string typestr)
 {
   py::class_<popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T > >(m, typestr.c_str())
-    .def(py::init<RANDNOISE,int,int,float_t,float_t>())
+    .def(py::init<RANDNOISE,int,int,double,double>())
     // .def_readwrite("graph",  &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::graph)
     // .def_readwrite("connector",  &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::connector)
     .def("solve_generic", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::solve_generic)
@@ -854,120 +860,120 @@ void declare_ff(py::module &m, std::string typestr)
 }
 
 
-template<typename float_t, typename GRAPH_T, typename CONNECTOR_T>
+template<typename fT, typename GRAPH_T, typename CONNECTOR_T>
 void declare_graphflood(py::module &m, std::string typestr)
 {
-  py::class_< graphflood<float_t, GRAPH_T, CONNECTOR_T> >(m, typestr.c_str())
+  py::class_< graphflood<fT, GRAPH_T, CONNECTOR_T> >(m, typestr.c_str())
     .def(py::init<GRAPH_T&, CONNECTOR_T&>())
-    .def("run", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::run, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("run", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("set_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("set_hw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
     
-    .def("get_hw", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_surface_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_bedrock_topo", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_Qwin", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_SSTACKDEBUG", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG <py::array_t<size_t,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_hw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_surface_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_bedrock_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_Qwin", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("get_SSTACKDEBUG", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG <py::array_t<size_t,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
 
-    .def("enable_MFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_MFD, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("enable_SFD", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_SFD, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_dt_hydro",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
-    .def("fill_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::fill_minima)
-    .def("reroute_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::reroute_minima)
-    .def("ignore_minima",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::ignore_minima)
-    .def("enable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_morpho)
-    .def("disable_morpho",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_morpho)
-    .def("set_dt_morpho_multiplier",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
+    .def("enable_MFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_MFD, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("enable_SFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_SFD, R"pdoc(Main function running the model from all the input params)pdoc")
+    .def("set_dt_hydro",&graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
+    .def("fill_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::fill_minima)
+    .def("reroute_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::reroute_minima)
+    .def("ignore_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::ignore_minima)
+    .def("enable_morpho",&graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_morpho)
+    .def("disable_morpho",&graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_morpho)
+    .def("set_dt_morpho_multiplier",&graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
 
 
-    .def("set_dt_morpho", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_dt_morpho)
-    .def("set_single_aexp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_aexp)
-    .def("set_single_ke", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_ke)
-    .def("set_single_ke_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_ke_lateral)
-    .def("set_single_kd", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd)
-    .def("set_single_kd_lateral", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
-    .def("set_single_tau_c", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
-    .def("set_variable_ke", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
+    .def("set_dt_morpho", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_dt_morpho)
+    .def("set_single_aexp", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_aexp)
+    .def("set_single_ke", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_ke)
+    .def("set_single_ke_lateral", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_ke_lateral)
+    .def("set_single_kd", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd)
+    .def("set_single_kd_lateral", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
+    .def("set_single_tau_c", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
+    .def("set_variable_ke", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
     
 
 
-    .def("compute_tuqQ", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
-    .def("compute_elemental_transfer", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template compute_elemental_transfer<py::array_t<double,1>, py::array_t<double,1> >)
+    .def("compute_tuqQ", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
+    .def("compute_elemental_transfer", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_elemental_transfer<py::array_t<double,1>, py::array_t<double,1> >)
 
 
 
 
-    .def("set_water_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
-    .def("set_water_input_by_constant_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
-    .def("set_water_input_by_variable_precipitation_rate", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template set_water_input_by_variable_precipitation_rate<py::array_t<double,1> >)
+    .def("set_water_input_by_entry_points", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
+    .def("set_water_input_by_constant_precipitation_rate", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
+    .def("set_water_input_by_variable_precipitation_rate", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_water_input_by_variable_precipitation_rate<py::array_t<double,1> >)
     
-    .def("set_sed_input_by_entry_points", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template set_sed_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
+    .def("set_sed_input_by_entry_points", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_sed_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
 
-    .def("enable_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
-    .def("disable_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
-    .def("get_Qwout_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<py::array_t<double,1> >)
+    .def("enable_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
+    .def("disable_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
+    .def("get_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<py::array_t<double,1> >)
 
-    .def("enable_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
-    .def("disable_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
-    .def("get_Sw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<py::array_t<double,1> >)
+    .def("enable_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
+    .def("disable_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
+    .def("get_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<py::array_t<double,1> >)
 
-    .def("enable_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
-    .def("disable_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
-    .def("get_dhw_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<py::array_t<double,1> >)
+    .def("enable_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
+    .def("disable_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
+    .def("get_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<py::array_t<double,1> >)
 
-    .def("enable_filling_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
-    .def("disable_filling_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
-    .def("get_filling_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_filling_recording<py::array_t<double,1> >)
+    .def("enable_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
+    .def("disable_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
+    .def("get_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_filling_recording<py::array_t<double,1> >)
 
-    .def("enable_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
-    .def("disable_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
-    .def("get_edot_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_edot_recording<py::array_t<double,1> >)
+    .def("enable_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
+    .def("disable_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
+    .def("get_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_edot_recording<py::array_t<double,1> >)
 
-    .def("enable_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
-    .def("disable_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
-    .def("get_flowvec_recording", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<py::array_t<double,1> >)
+    .def("enable_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
+    .def("disable_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
+    .def("get_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<py::array_t<double,1> >)
 
   
-    .def("get_tot_Qw_input", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
-    .def("get_tot_Qw_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
-    .def("get_tot_Qwin_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
-    .def("get_tot_Qs_output", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
+    .def("get_tot_Qw_input", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
+    .def("get_tot_Qw_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
+    .def("get_tot_Qwin_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
+    .def("get_tot_Qs_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
 
 
-    .def("set_stochaslope", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_stochaslope)
-    .def("disable_stochaslope", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
-    .def("set_fixed_hw_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
-    .def("set_fixed_slope_at_boundaries", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
-    .def("get_dt_hydro",&graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
+    .def("set_stochaslope", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_stochaslope)
+    .def("disable_stochaslope", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
+    .def("set_fixed_hw_at_boundaries", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
+    .def("set_fixed_slope_at_boundaries", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
+    .def("get_dt_hydro",&graphflood<fT, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
 
-    .def("set_partition_method", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_partition_method)
-    .def("set_topological_number", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_topological_number)
-    .def("get_topological_number", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_topological_number)
-
-
-    .def("get_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
-    .def("set_courant_numer", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_courant_numer)
-    .def("set_max_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
-    .def("enable_courant_dt_hydro", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
-    .def("set_Qwin_crit", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
-    .def("get_nT", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::get_nT)
+    .def("set_partition_method", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_partition_method)
+    .def("set_topological_number", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_topological_number)
+    .def("get_topological_number", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_topological_number)
 
 
-    .def("enable_hydrostationnary", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::enable_hydrostationnary)
-    .def("disable_hydrostationnary", &graphflood<float_t, GRAPH_T, CONNECTOR_T>::disable_hydrostationnary)
+    .def("get_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
+    .def("set_courant_numer", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_numer)
+    .def("set_max_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
+    .def("enable_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
+    .def("set_Qwin_crit", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
+    .def("get_nT", &graphflood<fT,GRAPH_T,CONNECTOR_T>::get_nT)
+
+
+    .def("enable_hydrostationnary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationnary)
+    .def("disable_hydrostationnary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationnary)
 
     
     
 
-    .def("block_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::block_uplift)
-    .def("variable_uplift", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::template variable_uplift<py::array_t<double,1> >)
+    .def("block_uplift", &graphflood<fT,GRAPH_T,CONNECTOR_T>::block_uplift)
+    .def("variable_uplift", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template variable_uplift<py::array_t<double,1> >)
 
-    .def("run_precipitions",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions)
-    .def("run_precipitions_exp",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_precipitions_exp)
-    .def("run_graphipiton",  &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_graphipiton)
-    .def("run_exp", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::run_exp)
+    .def("run_precipitions",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_precipitions)
+    .def("run_precipitions_exp",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_precipitions_exp)
+    .def("run_graphipiton",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_graphipiton)
+    .def("run_exp", &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_exp)
 
-    .def("define_precipitations_Ath", &graphflood<float_t,GRAPH_T,CONNECTOR_T>::define_precipitations_Ath)
+    .def("define_precipitations_Ath", &graphflood<fT,GRAPH_T,CONNECTOR_T>::define_precipitations_Ath)
 
         
     

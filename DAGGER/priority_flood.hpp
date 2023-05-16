@@ -51,20 +51,20 @@ namespace DAGGER
 
 
 
-	template<class Connector_t, class int_t, class out_t, class float_t>
+	template<class Connector_t, class int_t, class out_t, class fT>
 	out_t standalone_priority_flood(int_t& topography, Connector_t& connector)
 	{
 		auto ttopo = format_input(topography);
 		auto vtopo = DAGGER::to_vec(ttopo);
 		PriorityFlood(vtopo, connector);
-		return DAGGER::format_output<std::vector<float_t>, out_t >(vtopo);
+		return DAGGER::format_output<std::vector<fT>, out_t >(vtopo);
 	}
 
 
 
 
-	template <class float_t, class Connector_t>
-	void PriorityFlood(std::vector<float_t>& topography, Connector_t& connector)
+	template <class fT, class Connector_t>
+	void PriorityFlood(std::vector<fT>& topography, Connector_t& connector)
 	{
 		PQFORPF open;
 		std::queue<PQH > pit;
@@ -108,7 +108,7 @@ namespace DAGGER
 			// }
 
 			int nn = connector.get_neighbour_idx(c.node, neighbours);
-			float_t ttopo = topography[c.node];
+			fT ttopo = topography[c.node];
 
 			for(int j=0;j<nn;++j)
 			{
@@ -121,7 +121,7 @@ namespace DAGGER
 
 				closed[n]=true;
 				ttopo += connector.randu->get() * 1e-6 + 1e-8;
-				// float_t ntopo = ; 
+				// fT ntopo = ; 
 				topography[n] = std::max(ttopo, topography[n]);
 				open.emplace(n,topography[n]);
 
@@ -132,8 +132,8 @@ namespace DAGGER
 
 
 
-	template <class float_t, class Connector_t>
-	void _PriorityFool(std::vector<float_t>& topography, Connector_t* connector, std::vector<size_t>& stack, std::vector<size_t>& Sstack)
+	template <class fT, class Connector_t>
+	void _PriorityFool(std::vector<fT>& topography, Connector_t* connector, std::vector<size_t>& stack, std::vector<size_t>& Sstack)
 	{
 		PQFORPF open;
 		std::queue<PQH > pit;
@@ -189,7 +189,7 @@ namespace DAGGER
 			// }
 
 			int nn = connector->get_neighbour_idx_links(c.node, neighbours);
-			float_t ttopo = topography[c.node];
+			fT ttopo = topography[c.node];
 
 			for(int j=0;j<nn;++j)
 			{
@@ -205,7 +205,7 @@ namespace DAGGER
 					// if(closed[n] == 2)
 					// 	connector->update_local_link(lix,topography);
 					ttopo += connector->randu->get() * 1e-6 + 1e-8;
-					// float_t ntopo = ; 
+					// fT ntopo = ; 
 					
 					if(ttopo > topography[n])
 					{
@@ -221,8 +221,8 @@ namespace DAGGER
 
 					open.emplace(n,topography[n]);
 					connector->update_local_link(lix,topography);
-					float_t dx = connector->get_dx_from_links_idx(lix);
-					float_t ts = (topography[n] - topography[c.node])/dx;
+					fT dx = connector->get_dx_from_links_idx(lix);
+					fT ts = (topography[n] - topography[c.node])/dx;
 					if(ts >= connector->SS[n])
 					{
 						connector->SS[n] = ts;
@@ -329,17 +329,17 @@ namespace DAGGER
 
 
 	// DOES NOT WORK!
-	template<class Connector_t,class graph_t, class int_t, class out_t, class float_t>
+	template<class Connector_t,class graph_t, class int_t, class out_t, class fT>
 	out_t standalone_priority_flood_opti(int_t& topography, Connector_t& connector, graph_t& GRAPH)
 	{
 		auto ttopo = format_input(topography);
 		auto vtopo = DAGGER::to_vec(ttopo);
 		PriorityFlood_opti(vtopo, connector, GRAPH.Sstack);
-		return DAGGER::format_output<std::vector<float_t>, out_t >(vtopo);
+		return DAGGER::format_output<std::vector<fT>, out_t >(vtopo);
 	}
 
-	template <class float_t, class Connector_t>
-	bool PriorityFlood_opti(std::vector<float_t>& topography, Connector_t& connector, std::vector<size_t>& Sstack)
+	template <class fT, class Connector_t>
+	bool PriorityFlood_opti(std::vector<fT>& topography, Connector_t& connector, std::vector<size_t>& Sstack)
 	{
 		PQFORPF open;
 		std::queue<PQH > pit;
@@ -442,7 +442,7 @@ namespace DAGGER
 
 				closed[n]=true;
 
-				float_t ntopo = topography[c.node] + connector.randu->get() * 1e-6 + 1e-8; 
+				fT ntopo = topography[c.node] + connector.randu->get() * 1e-6 + 1e-8; 
 
 				if(topography[n]==-9999)
 					pit.emplace(PQH(n,-9999));

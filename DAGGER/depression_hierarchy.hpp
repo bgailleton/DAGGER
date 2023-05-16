@@ -51,7 +51,7 @@ namespace DAGGER
 	};
 
 
-	template<class float_t>
+	template<class fT>
 	class deptree
 	{
 	public:
@@ -66,7 +66,7 @@ namespace DAGGER
 		int motherbranch = -1;
 
 		// level of the tree: increases dynamically during publication to reach its max level
-		float_t level = std::numeric_limits<float_t>::min();
+		fT level = std::numeric_limits<fT>::min();
 
 
 

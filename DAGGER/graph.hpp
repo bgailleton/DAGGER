@@ -50,7 +50,7 @@ namespace DAGGER
 {
 
 
-template<class float_t, class Connector_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
+template<class fT, class Connector_t, class dummy_t = int> // the class type dummy_t is there to bypass pybind11 issue of not being able to bind the same object twice
 class graph
 {
 
@@ -87,10 +87,10 @@ public:
 	// std::vector<int> Sreceivers,nSdonors,Sdonors;
 
 	// // Single graph distance to receivers
-	// std::vector<float_t> Sdistance2receivers;
+	// std::vector<fT> Sdistance2receivers;
 
 	// // Steepest slope
-	// std::vector<float_t> SS;
+	// std::vector<fT> SS;
 
 
 	// // integer vector of 2*links size with the node indices of each link
@@ -112,12 +112,15 @@ public:
 	std::vector<std::uint8_t> _debug_mask; 
 	std::vector<std::uint8_t> get_debug_mask(){return this->_debug_mask;}
 
+	std::vector<int> _debug_int; 
+	std::vector<int> get_debug_int(){return this->_debug_int;}
+
 	// What depression resolver to use when computing the graph
 	DEPRES depression_resolver = DEPRES::cordonnier_carve;
 
 	// hte minimum slope to impose on the fake topography
-	float_t minimum_slope = 1e-4;
-	float_t slope_randomness = 1e-6;
+	fT minimum_slope = 1e-4;
+	fT slope_randomness = 1e-6;
 
 	std::shared_ptr<easyRand> randu;
 
@@ -207,7 +210,7 @@ public:
 		// Formatting the input to match all the wrappers
 		auto topography = format_input<topo_t>(ttopography);
 		// Formatting the output topo
-		std::vector<float_t> faketopo(this->nnodes,0);
+		std::vector<fT> faketopo(this->nnodes,0);
 
 		for(int i=0; i<this->nnodes; ++i)
 		{
@@ -224,7 +227,7 @@ public:
 
 	// template<class Connector_t>
 	void _compute_graph(
-		std::vector<float_t>& faketopo,
+		std::vector<fT>& faketopo,
 	  bool only_SD, // only computes the single flow graph if true
 	  bool quicksort // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
 		)
@@ -243,14 +246,15 @@ public:
 			return;
 		}
 
-		
+
 		if(this->depression_resolver == DEPRES::dagger_fill)
 		{
 			this->reinit_graph();
 			// this->stack = std::vector<size_t>(this->nnodes,0);
-			_dagger_fill(this->connector, faketopo);
+			this-> _debug_int = _dagger_fill(this->connector, faketopo);
 			this->topological_sorting_dag();
-			// this->topological_sorting_SF();
+			this->topological_sorting_SF();
+
 			return;
 		}
 
@@ -306,7 +310,7 @@ public:
 			if(isCordonnier)
 			{
 				// LMRerouter is the class managing the different cordonnier's mthod
-				LMRerouter<float_t> depsolver;
+				LMRerouter<fT> depsolver;
 
 				if(this->opti_sparse_border)
 					depsolver.opti_sparse_border = true;
@@ -319,7 +323,7 @@ public:
 			}
 			// else
 			// {
-			// 	// need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
+			// 	// need_recompute = simple_depression_hierarchy<fT, std::vector<fT>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
 			// 	need_recompute = simple_depression_solver
 			// }
 
@@ -368,7 +372,7 @@ public:
 
 		// else if (this->depression_resolver == DEPRES::priority_flood)
 		// {
-		// 	PriorityFlood<float_t, Connector_t>(faketopo, *(this->connector));
+		// 	PriorityFlood<fT, Connector_t>(faketopo, *(this->connector));
 		// 	// faketopo = connector->PriorityFlood(faketopo);
 		// 	this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
 
@@ -431,7 +435,7 @@ public:
 	// 	timer_by_stuff["TS_SF"] = {0,0.};
 	// 	timer_by_stuff["TS_MF"] = {0,0.};
 	// 	auto topography = format_input<topo_t>(ttopography);
-	// 	std::vector<float_t> faketopo(this->nnodes,0);
+	// 	std::vector<fT> faketopo(this->nnodes,0);
 
 
 	// 	for (int tn = 0; tn<NN ; ++tn)
@@ -444,7 +448,7 @@ public:
 	// 		timer.tik();
 	// 		topography = format_input<topo_t>(ttopography);
 	// 		// Formatting the output topo
-	// 		faketopo = std::vector<float_t>(this->nnodes,0);
+	// 		faketopo = std::vector<fT>(this->nnodes,0);
 
 	// 		for(int i=0; i<this->nnodes; ++i)
 	// 		{
@@ -455,7 +459,7 @@ public:
 	// 		this->_compute_graph_timer(faketopo,only_SD,quicksort,timer, timer_by_stuff);
 	// 	}
 
-	// 	float_t total = 0;
+	// 	fT total = 0;
 	// 	for(auto& kv:timer_by_stuff)total+=kv.second.second;
 
 
@@ -514,10 +518,10 @@ public:
 	void set_LMR_method(DEPRES method){this->depression_resolver = method;}
 
 	// Sets the minimum slope to be imposed by the local minima solver
-	void set_minimum_slope_for_LMR(float_t slope){this->minimum_slope = slope;}
+	void set_minimum_slope_for_LMR(fT slope){this->minimum_slope = slope;}
 	
 	// Sets the magnitude of the random noise within the local minima solver (needs to be order of magnitude lower than the actual minimal slope to make sense)
-	void set_slope_randomness_for_LMR(float_t slope)
+	void set_slope_randomness_for_LMR(fT slope)
 	{
 		if(slope >= this->minimum_slope)
 			throw std::runtime_error("slope randomness cannot be >= to the minimum slope and is even reccomended to be at least one or two order of magnitude lower");
@@ -741,7 +745,7 @@ public:
 			// Getting the single receiver info
 			int rec = this->connector->Sreceivers[node];
 			// Checking the difference in elevation
-			float_t dz = topography[node] - topography[rec];
+			fT dz = topography[node] - topography[rec];
 			// if the difference in elevation is bellow 0 I need to carve
 			if(dz <= 0)
 			{
@@ -755,7 +759,7 @@ public:
 	/// It starts from the most dowstream nodes and climb its way up.
 	/// when a node is bellow its receiver, we correct the slope
 	template<class topo_t>
-	void fill_topo_v2(float_t slope, topo_t& topography)
+	void fill_topo_v2(fT slope, topo_t& topography)
 	{
 		for(int i=0; i < this->nnodes; ++i)
 		{
@@ -764,11 +768,11 @@ public:
 				continue;
 
 			int rec = this->connector->Sreceivers[node];
-			float_t dz = topography[node] - topography[rec];
+			fT dz = topography[node] - topography[rec];
 
 			if(dz <= 0)
 			{
-				topography[node] = std::nextafter(topography[rec], std::numeric_limits<float_t>::max());// * d2rec;
+				topography[node] = std::nextafter(topography[rec], std::numeric_limits<fT>::max());// * d2rec;
 			}
 		}
 	}
@@ -1157,9 +1161,9 @@ public:
 
 
 	template<class topo_t>
-	std::vector<float_t> _get_max_val_link_array(topo_t& array)
+	std::vector<fT> _get_max_val_link_array(topo_t& array)
 	{
-		std::vector<float_t> tmax(this->nnodes,0);
+		std::vector<fT> tmax(this->nnodes,0);
 		for(size_t i=0; i < this->connector->links.size(); ++i)
 		{
 			if(this->connector->is_link_valid(i) ==false)
@@ -1198,16 +1202,16 @@ public:
 	*/
 
 	template<class out_t>
-	out_t accumulate_constant_downstream_SFD(float_t var)
+	out_t accumulate_constant_downstream_SFD(fT var)
 	{
-		std::vector<float_t> out = this->_accumulate_constant_downstream_SFD(var);
+		std::vector<fT> out = this->_accumulate_constant_downstream_SFD(var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
-	std::vector<float_t> _accumulate_constant_downstream_SFD(float_t var)
+	std::vector<fT> _accumulate_constant_downstream_SFD(fT var)
 	{
-		float_t bal = 0, tot = 0;
-		std::vector<float_t> out(this->nnodes, 0);
+		fT bal = 0, tot = 0;
+		std::vector<fT> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
@@ -1250,14 +1254,14 @@ public:
 	out_t accumulate_variable_downstream_SFD(topo_t& tvar)
 	{
 		auto var = format_input<topo_t>(tvar);
-		std::vector<float_t> out = this->_accumulate_variable_downstream_SFD(var);
+		std::vector<fT> out = this->_accumulate_variable_downstream_SFD(var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
 	template< class topo_t>
-	std::vector<float_t> _accumulate_variable_downstream_SFD(topo_t& var)
+	std::vector<fT> _accumulate_variable_downstream_SFD(topo_t& var)
 	{
-		std::vector<float_t> out(this->nnodes, 0);
+		std::vector<fT> out(this->nnodes, 0);
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
@@ -1279,17 +1283,17 @@ public:
 
 
 	template< class topo_t, class out_t>
-	out_t accumulate_constant_downstream_MFD(topo_t& tweights,float_t var)
+	out_t accumulate_constant_downstream_MFD(topo_t& tweights,fT var)
 	{
 		auto weights = format_input<topo_t>(tweights);
-		std::vector<float_t> out = this->_accumulate_constant_downstream_MFD(weights ,var);
+		std::vector<fT> out = this->_accumulate_constant_downstream_MFD(weights ,var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
 	template< class topo_t>
-	std::vector<float_t> _accumulate_constant_downstream_MFD(topo_t& weights, float_t var)
+	std::vector<fT> _accumulate_constant_downstream_MFD(topo_t& weights, fT var)
 	{
-		std::vector<float_t> out(this->nnodes, 0);
+		std::vector<fT> out(this->nnodes, 0);
 		auto reclinks = this->connector->get_empty_neighbour();
  		for(int i = this->nnodes - 1; i>=0; --i)
 		{
@@ -1324,14 +1328,14 @@ public:
 	{
 		auto weights = format_input<topo_t>(tweights);
 		auto var = format_input<topo_t>(tvar);
-		std::vector<float_t> out = this->_accumulate_variable_downstream_MFD(weights ,var);
+		std::vector<fT> out = this->_accumulate_variable_downstream_MFD(weights ,var);
 		return format_output<decltype(out), out_t>(out);
 	}
 
 	template< class topo_t>
-	std::vector<float_t> _accumulate_variable_downstream_MFD(topo_t& weights, topo_t& var)
+	std::vector<fT> _accumulate_variable_downstream_MFD(topo_t& weights, topo_t& var)
 	{
-		std::vector<float_t> out(this->nnodes, 0);
+		std::vector<fT> out(this->nnodes, 0);
 		auto reclinks = this->connector->get_empty_neighbour();
 		for(int i = this->nnodes - 1; i>=0; --i)
 		{
@@ -1362,15 +1366,15 @@ public:
 	template<class out_t>
 	out_t get_drainage_area_SFD()
 	{
-		std::vector<float_t> out = this->_get_drainage_area_SFD();
+		std::vector<fT> out = this->_get_drainage_area_SFD();
 		return format_output<decltype(out), out_t>(out);
 	}
 
 
 
-	std::vector<float_t> _get_drainage_area_SFD()
+	std::vector<fT> _get_drainage_area_SFD()
 	{
-		std::vector<float_t> out(this->nnodes,0.);
+		std::vector<fT> out(this->nnodes,0.);
 		for(int i=this->nnodes-1; i>=0; --i)
 		{
 			int node = this->Sstack[i];
@@ -1386,21 +1390,21 @@ public:
 	}
 
 	template<class out_t, class topo_t>
-	out_t get_drainage_area_MFD(topo_t& ttopo, float_t exp_slope)
+	out_t get_drainage_area_MFD(topo_t& ttopo, fT exp_slope)
 	{
 		auto topo = format_input(ttopo);
-		std::vector<float_t> out = this->_get_drainage_area_MFD(topo, exp_slope);
+		std::vector<fT> out = this->_get_drainage_area_MFD(topo, exp_slope);
 		return format_output<decltype(out), out_t>(out);
 	}
 
 
 	template<class topo_t>
-	std::vector<float_t> _get_drainage_area_MFD(topo_t& topo, float_t exp_slope)
+	std::vector<fT> _get_drainage_area_MFD(topo_t& topo, fT exp_slope)
 	{
-		std::vector<float_t> out(this->nnodes,0.);
+		std::vector<fT> out(this->nnodes,0.);
 		
 		auto lgrad = this->connector->_get_links_gradient(topo, 1e-6);
-		std::vector<float_t> weights(lgrad.size(),0.);
+		std::vector<fT> weights(lgrad.size(),0.);
 		
 		this->connector->_get_link_weights_exp(weights, lgrad, exp_slope);
 
@@ -1482,12 +1486,12 @@ public:
 	template< class out_t>
 	out_t get_SFD_distance_from_outlets()
 	{
-		std::vector<float_t> distfromoutlet(this->nnodes,0.);
+		std::vector<fT> distfromoutlet(this->nnodes,0.);
 		this->_get_SFD_distance_from_outlets(distfromoutlet);
 		return format_output<decltype(distfromoutlet), out_t >(distfromoutlet);
 	}
 
-	void _get_SFD_distance_from_outlets(std::vector<float_t>& distfromoutlet)
+	void _get_SFD_distance_from_outlets(std::vector<fT>& distfromoutlet)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=0; i<this->nnodes; ++i)
@@ -1509,12 +1513,12 @@ public:
 	template< class out_t>
 	out_t get_SFD_min_distance_from_sources()
 	{
-		std::vector<float_t> distfromsources(this->nnodes,0.);
+		std::vector<fT> distfromsources(this->nnodes,0.);
 		this->_get_SFD_min_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	void _get_SFD_min_distance_from_sources(std::vector<float_t>& distfromsources)
+	void _get_SFD_min_distance_from_sources(std::vector<fT>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=this->nnodes - 1; i>=0; --i)
@@ -1536,12 +1540,12 @@ public:
 	template< class out_t>
 	out_t get_SFD_max_distance_from_sources()
 	{
-		std::vector<float_t> distfromsources(this->nnodes,0.);
+		std::vector<fT> distfromsources(this->nnodes,0.);
 		this->_get_SFD_max_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	void _get_SFD_max_distance_from_sources(std::vector<float_t>& distfromsources)
+	void _get_SFD_max_distance_from_sources(std::vector<fT>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		for(int i=this->nnodes - 1; i>=0; --i)
@@ -1562,12 +1566,12 @@ public:
 	template< class out_t>
 	out_t get_MFD_max_distance_from_sources()
 	{
-		std::vector<float_t> distfromsources(this->nnodes,0.);
+		std::vector<fT> distfromsources(this->nnodes,0.);
 		this->_get_MFD_max_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	void _get_MFD_max_distance_from_sources(std::vector<float_t>& distfromsources)
+	void _get_MFD_max_distance_from_sources(std::vector<fT>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		auto receilink = this->connector->get_empty_neighbour();
@@ -1584,7 +1588,7 @@ public:
 			for(int tl =0; tl<nl; ++tl)
 			{
 				int rec = this->connector->get_to_links(receilink[tl]);
-				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
+				fT dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromsources[rec] == 0 || distfromsources[rec] < distfromsources[node] + dx)
 					distfromsources[rec] = distfromsources[node] + dx;
 			}
@@ -1598,12 +1602,12 @@ public:
 	template< class out_t>
 	out_t get_MFD_min_distance_from_sources()
 	{
-		std::vector<float_t> distfromsources(this->nnodes,0.);
+		std::vector<fT> distfromsources(this->nnodes,0.);
 		this->_get_MFD_min_distance_from_sources(distfromsources);
 		return format_output<decltype(distfromsources), out_t >(distfromsources);
 	}
 
-	void _get_MFD_min_distance_from_sources(std::vector<float_t>& distfromsources)
+	void _get_MFD_min_distance_from_sources(std::vector<fT>& distfromsources)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		auto receilink = this->connector->get_empty_neighbour();
@@ -1620,7 +1624,7 @@ public:
 			for(int tl =0; tl<nl; ++tl)
 			{
 				int rec = this->connector->get_to_links(receilink[tl]);
-				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
+				fT dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromsources[rec] == 0 || distfromsources[rec] > distfromsources[node] + dx)
 					distfromsources[rec] = distfromsources[node] + dx;
 			}
@@ -1634,12 +1638,12 @@ public:
 	template< class out_t>
 	out_t get_MFD_max_distance_from_outlets()
 	{
-		std::vector<float_t> distfromoutlets(this->nnodes,0.);
+		std::vector<fT> distfromoutlets(this->nnodes,0.);
 		this->_get_MFD_max_distance_from_outlets(distfromoutlets);
 		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
 	}
 
-	void _get_MFD_max_distance_from_outlets(std::vector<float_t>& distfromoutlets)
+	void _get_MFD_max_distance_from_outlets(std::vector<fT>& distfromoutlets)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		auto receilink = this->connector->get_empty_neighbour();
@@ -1658,7 +1662,7 @@ public:
 			for(int tl =0; tl<nl; ++tl)
 			{
 				int rec = this->connector->get_to_links(receilink[tl]);
-				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
+				fT dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromoutlets[node] == 0 || distfromoutlets[node] < distfromoutlets[rec] + dx)
 					distfromoutlets[node] = distfromoutlets[rec] + dx;
 			}
@@ -1672,12 +1676,12 @@ public:
 	template< class out_t>
 	out_t get_MFD_min_distance_from_outlets()
 	{
-		std::vector<float_t> distfromoutlets(this->nnodes,0.);
+		std::vector<fT> distfromoutlets(this->nnodes,0.);
 		this->_get_MFD_min_distance_from_outlets(distfromoutlets);
 		return format_output<decltype(distfromoutlets), out_t >(distfromoutlets);
 	}
 
-	void _get_MFD_min_distance_from_outlets(std::vector<float_t>& distfromoutlets)
+	void _get_MFD_min_distance_from_outlets(std::vector<fT>& distfromoutlets)
 	{
 		// just iterating through the Sstack in the upstream direction adding dx to the receiver
 		auto receilink = this->connector->get_empty_neighbour();
@@ -1696,7 +1700,7 @@ public:
 			for(int tl =0; tl<nl; ++tl)
 			{
 				int rec = this->connector->get_to_links(receilink[tl]);
-				float_t dx = this->connector->get_dx_from_links_idx(receilink[tl]);
+				fT dx = this->connector->get_dx_from_links_idx(receilink[tl]);
 				if(distfromoutlets[node] == 0 || distfromoutlets[node] > distfromoutlets[rec] + dx)
 					distfromoutlets[node] = distfromoutlets[rec] + dx;
 			}
@@ -1777,7 +1781,7 @@ public:
 	// 	auto starters = format_input<in_t>(tstaters);
 
 	// 	// Formatting the output topo
-	// 	std::vector<float_t> faketopo(this->nnodes,0);
+	// 	std::vector<fT> faketopo(this->nnodes,0);
 
 	// 	for(int i=0; i<this->nnodes; ++i)
 	// 	{
@@ -1794,7 +1798,7 @@ public:
 
 	// // template<class Connector_t>
 	// void _compute_graph_exp(
-	// 	std::vector<float_t>& faketopo,
+	// 	std::vector<fT>& faketopo,
 	//   bool only_SD, // only computes the single flow graph if true
 	//   std::vector<int>& faketopo, // computes the MF toposort with a quicksort algo if true, else uses a BFS-based algorithm (which one is better depends on many things)
 	// 	)
@@ -1856,7 +1860,7 @@ public:
 	// 		if(isCordonnier)
 	// 		{
 	// 			// LMRerouter is the class managing the different cordonnier's mthod
-	// 			LMRerouter<float_t> depsolver;
+	// 			LMRerouter<fT> depsolver;
 
 	// 			if(this->opti_sparse_border)
 	// 				depsolver.opti_sparse_border = true;
@@ -1869,7 +1873,7 @@ public:
 	// 		}
 	// 		else
 	// 		{
-	// 			need_recompute = simple_depression_hierarchy<float_t, std::vector<float_t>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
+	// 			need_recompute = simple_depression_hierarchy<fT, std::vector<fT>, Connector_t >(faketopo, this->connector, this->Sstack, this->connector->Sreceivers);
 	// 		}
 
 
@@ -1906,7 +1910,7 @@ public:
 	// 	}
 	// 	// else if (this->depression_resolver == DEPRES::priority_flood)
 	// 	// {
-	// 	// 	PriorityFlood<float_t, Connector_t>(faketopo, *(this->connector));
+	// 	// 	PriorityFlood<fT, Connector_t>(faketopo, *(this->connector));
 	// 	// 	// faketopo = connector->PriorityFlood(faketopo);
 	// 	// 	this->connector->update_links(faketopo); // up to 30% slower - slightly more accurate for Sgraph
 

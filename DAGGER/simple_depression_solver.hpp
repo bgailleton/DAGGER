@@ -426,14 +426,14 @@ namespace DAGGER
 	}
 
 
-	template<class in_t, class Connector_t>
-	std::vector<int> _dagger_fill(Connector_t* connector, in_t& topography)
+	template<class Connector_t, class topo_t>
+	std::vector<int> _dagger_fill(Connector_t* connector, topo_t& topography)
 	{
 		// Ocean contains label of nodes connected to the ocean (0), not connected to anything yet (-1), temp, unresolved drainage divide (-2) or connected to an unresolved depression (value = node index of the pit)
 		std::vector<int> ocean(connector->nnodes,-1);
 
 		// Precomputing links
-		connector->update_links_MFD_only(topography);
+		connector->update_links(topography);
 
 		// initialising the different stacks (LIFO data structures)
 		// The code juggles between the three to enhance locality and maximise CPU caching
@@ -523,7 +523,7 @@ namespace DAGGER
 					// Otherwise, is connected to dat pit AND EMPLACED TO THE CURRENT SUBlifo whoops cap lock
 					else
 					{
-						ocean[oi] = pit;
+						ocean[oi] = ocean[pit];
 						subLIFO.emplace(oi);
 					}			
 				}
@@ -533,48 +533,76 @@ namespace DAGGER
 		// At that stage I have a fully labelled landscapes where each node is either connected to the ocean or to a pit, and the divides are sorted by ascending elevation in the PQ
 		// note that the labels are valid in MFD but only represent ONE of the possible state of the nodes: an ocean node can be connected to a pit, it's just that we jsut want to know if it is connected to the ocean and hence can outlet
 		// this is also valid for the pit labels: in MFD nodes can be (and will be) connected to multiple pits, but again as we are interested by the FIRST nodes connected to another pit/ocean it's fine
-
+		// return ocean;
+		// std::cout << "DEBUGSS4" << ocean[649605] << std::endl;
 		// Starting with the lowest divide
 		while(divide_PQ.empty() == false)
 		{
 			// next node
 			int tirnext = divide_PQ.top().node; divide_PQ.pop();
+			// std::cout << topography[tirnext] << std::endl;
 
 			// if the node is not a divide anymore: skip - it has already been processed
 			if(ocean[tirnext] != -2) continue;
-			phil_collins.emplace(tirnext);
+			// fT ttopo = topography[tirnext];;
 
+			phil_collins.emplace(tirnext);
 			while(phil_collins.empty() == false)
 			{
 				int next = phil_collins.front(); phil_collins.pop();
+
 				if(ocean[next]>0)
 					if(isopened[ocean[next]] == 0)
 						isopened[ocean[next]] = 1;
 
+				ocean[next] = 0;
+
 				int nn = connector->get_neighbour_idx_links(next, neighbours);
-				float_t ttopo = topography[next];
+				double ttopo = topography[next];
+				bool cyclicity = false;
+				int Srec = next;
 				for(int j=0;j<nn;++j)
 				{
 					int lix = neighbours[j];
 					if(connector->is_link_valid(lix) == false)
 						continue;
+
 					int onix = connector->get_other_node_from_links(lix,next);
-					if(ocean[onix] > 0)
+					// 
+					// if(onix == 649605) std::cout << "DEBUGSS2::rec::" << ocean[onix] << " vs " << ocean[next] << std::endl;
+					if(ocean[onix] > 0 || ocean[onix] == -2)
 					{
 						if(topography[onix] > ttopo)
 						{
-							ocean[onix] = -1;
+							ocean[onix] = 0;
 							oc_LIFO.emplace(onix);
 						}
 						else
 						{
-							ttopo += 1e-6*connector->randu->get() + 1e-8;
+							ttopo =  ttopo + 1e-6 * connector->randu->get() + 1e-8;
+							// std::cout << std::setprecision(12);
+							// std::cout << topography[onix] << "||" << ttopo << "|" << typeid(ttopo).name() << "}{";
 							topography[onix] = ttopo;
-							ocean[onix] = 0;
-							connector->update_local_link(lix,topography);
+							// std::cout << topography[onix];
+							// std::cout << std::endl;
+
+							connector->Sreceivers[onix] = next;
+							// if(onix == 649605) std::cout << "DEBUGSS2::" << Srec << std::endl;
+							if(connector->Sreceivers[next] == onix) cyclicity = true;//throw std::runtime_error("Cyclicity in dagger_fill Srec builder");
+							ocean[onix] = -1;
 							phil_collins.emplace(onix);
 						}
 					}
+					else if (topography[onix] < topography[next] && ocean[onix] == 0)
+						Srec = onix;
+					// if(onix == 649605) std::cout << "DEBUGSS3::rec::" << topography[onix] << std::endl;
+
+					connector->update_local_link(lix,topography);
+				}
+				if(cyclicity) 
+				{
+					// if(next == 649605) std::cout << "DEBUGSS1::" << Srec << std::endl;
+					connector->Sreceivers[next] = Srec;
 				}
 			}
 
@@ -620,7 +648,7 @@ namespace DAGGER
 
 
 
-
+		connector->recompute_SF_donors_from_receivers();
 		return ocean;
 
 	}
@@ -724,8 +752,8 @@ namespace DAGGER
 
 
 
-	template<class Connector_t, class float_t>
-	bool simple_depression_solver(Connector_t* connector, std::vector<float_t>& topography, std::vector<size_t>& Sstack)
+	template<class Connector_t, class fT>
+	bool simple_depression_solver(Connector_t* connector, std::vector<fT>& topography, std::vector<size_t>& Sstack)
 	{
 		int ndep = 0;
 		DBBTree tree;
@@ -744,11 +772,11 @@ namespace DAGGER
 
 				filler.emplace(outnode);
 				inQ[outnode] = true;
-				float_t topo = std::nextafter(tree.outlet_Z[bas], std::numeric_limits<float_t>::max());
+				fT topo = std::nextafter(tree.outlet_Z[bas], std::numeric_limits<fT>::max());
 				topography[outnode] = topo;
 				// topo = topo + 1e-7 + connector->randu->get() * 1e-8;
-				topo = std::nextafter(topo, std::numeric_limits<float_t>::max());
-				// topo = std::nextafter(topo, std::numeric_limits<float_t>::max()) + 1e-7 + connector->randu->get() * 1e-8;
+				topo = std::nextafter(topo, std::numeric_limits<fT>::max());
+				// topo = std::nextafter(topo, std::numeric_limits<fT>::max()) + 1e-7 + connector->randu->get() * 1e-8;
 
 				while(filler.empty() == false)
 				{
@@ -762,7 +790,7 @@ namespace DAGGER
 						inQ[nei] = true;
 						topography[nei] = topo;
 						// topo = topo + 1e-7 + connector->randu->get() * 1e-8;
-						topo = std::nextafter(topo, std::numeric_limits<float_t>::max());
+						topo = std::nextafter(topo, std::numeric_limits<fT>::max());
 						filler.emplace(nei);
 					}
 				}
@@ -790,7 +818,7 @@ namespace DAGGER
 
 
 
-		// std::vector<float_t> minscore(connector->nnodes, std::numeric_limits<float_t>::max());
+		// std::vector<fT> minscore(connector->nnodes, std::numeric_limits<fT>::max());
 		// std::vector<int> minnode(connector->nnodes, -1);
 		// std::vector<std::uint8_t> processed(connector->nnodes, false);
 		// for(auto node:Sstack)
@@ -808,7 +836,7 @@ namespace DAGGER
 		// 	int A,B;connector->node_idx_from_link_idx_nocheck(i,A,B);
 		// 	if(baslab[A] != baslab[B])
 		// 	{
-		// 		float_t score = std::min(topography[A],topography[B]);
+		// 		fT score = std::min(topography[A],topography[B]);
 		// 		if(baslab[A] > 0)
 		// 		{
 		// 			if(minscore[baslab[A]] > score )
@@ -846,9 +874,9 @@ namespace DAGGER
 		// 	nexus.pop();
 
 		// 	filler.emplace(next.node);
-		// 	float_t topo = std::nextafter(next.score,std::numeric_limits<float_t>::max());
+		// 	fT topo = std::nextafter(next.score,std::numeric_limits<fT>::max());
 		// 	topography[next.node] = topo;
-		// 	topo = std::nextafter(topo,std::numeric_limits<float_t>::max());
+		// 	topo = std::nextafter(topo,std::numeric_limits<fT>::max());
 		// 	int targbas = baslab[next.node];
 		// 	// baslab[next.node] = 0;
 
@@ -870,7 +898,7 @@ namespace DAGGER
 
 		// 				// baslab[nei1] = 0;
 		// 				topography[nei1] = topo;
-		// 				topo = std::nextafter(topo,std::numeric_limits<float_t>::max());
+		// 				topo = std::nextafter(topo,std::numeric_limits<fT>::max());
 		// 				filler.emplace(nei1);
 		// 				processed[nei1] = true;
 
@@ -891,7 +919,7 @@ namespace DAGGER
 		// 			// 	{
 		// 			// 	// baslab[neighbours[j]] = 0;
 		// 			// 		topography[nei1] = topo;
-		// 					// topo = std::nextafter(topo,std::numeric_limits<float_t>::max());
+		// 					// topo = std::nextafter(topo,std::numeric_limits<fT>::max());
 		// 			// 		filler.emplace(nei1);
 		// 			// 		processed[nei1] = true;
 		// 			// 	}
@@ -954,7 +982,7 @@ namespace DAGGER
 		// {
 			
 		// 	int nn = connector->get_neighbour_idx(next.node,neighbours);
-		// 	float_t mintopo = topography[next.node];
+		// 	fT mintopo = topography[next.node];
 		// 	for(int j=0; j< nn ; ++j)
 		// 	{
 		// 		int oi = neighbours[j];
@@ -967,7 +995,7 @@ namespace DAGGER
 
 		// 	}
 		// 	baslab[next.node] = 0;
-		// 	topography[next.node] = std::nextafter(mintopo, std::numeric_limits<float_t>::max());
+		// 	topography[next.node] = std::nextafter(mintopo, std::numeric_limits<fT>::max());
 
 		// }
 
@@ -1007,7 +1035,7 @@ namespace DAGGER
 	// 	std::vector<int> connode(n_basins, -1);
 	// 	std::vector<std::uint8_t> isopened(n_basins, 0);
 	// 	isopened[0] = 1;
-	// 	std::vector<float_t> connode_z(n_basins, std::numeric_limits<float_t>::max());
+	// 	std::vector<fT> connode_z(n_basins, std::numeric_limits<fT>::max());
 
 	// 	while( lab > 0 )
 	// 	{
@@ -1020,7 +1048,7 @@ namespace DAGGER
 	// 			if(isopened[ba] != isopened[bb])
 	// 			{
 	// 				int tclosed = (isopened[ba] == 1) ? bb : ba;
-	// 				float_t tmitopo = std::min(topography[a],topography[b]);
+	// 				fT tmitopo = std::min(topography[a],topography[b]);
 	// 				if(connode_z[tclosed] > tmitopo)
 	// 				{
 	// 					connode//...
