@@ -430,7 +430,8 @@ namespace DAGGER
 	std::vector<int> _dagger_fill(Connector_t* connector, topo_t& topography)
 	{
 		// Ocean contains label of nodes connected to the ocean (0), not connected to anything yet (-1), temp, unresolved drainage divide (-2) or connected to an unresolved depression (value = node index of the pit)
-		std::vector<int> ocean(connector->nnodes,-1);
+		std::vector<std::int8_t> ocean(connector->nnodes,-1);
+		std::vector<std::int8_t> inQ(connector->nnodes,false);
 
 		// Precomputing links
 		// connector->update_links(topography);
@@ -459,22 +460,23 @@ namespace DAGGER
 				oc_LIFO.emplace(i);
 				ocean[i] = 0;
 			}
-			// If pit -> labels with the number of the pit and emplace in pit LIFO
-			else if (connector->flow_out_or_pit(i))
-			{
-				pit_LIFO.emplace(i);
-				++npits;
-				ocean[i] = npits;
-			}
+			// // If pit -> labels with the number of the pit and emplace in pit LIFO
+			// else if (connector->flow_out_or_pit(i))
+			// {
+			// 	pit_LIFO.emplace(i);
+			// 	++npits;
+			// 	ocean[i] = npits;
+			// }
 		}
 		
 		
-		++npits;
-		std::vector<std::uint8_t> isopened(npits, 0);
+		// ++npits;
+		// std::vector<std::uint8_t> isopened(npits, 0);
 
 		// Step II) DFS traversal from ocean nodes to the donors direction to label ocean cells
 
 		auto neighbours = connector->get_empty_neighbour();
+		auto neighbours_links = connector->get_empty_neighbour();
 		while(oc_LIFO.empty() == false)
 		{
 			// Getting the first main node from the parent LIFO queue
@@ -484,53 +486,70 @@ namespace DAGGER
 			while(subLIFO.empty() == false)
 			{
 				int next = subLIFO.top(); subLIFO.pop();
-				int nn = connector->get_donors_idx(next, neighbours);
+				int nn = connector->get_neighbour_idx_nodes_and_links(next, neighbours, neighbours_links);
 				for(int j=0; j<nn;++j)
 				{
 					int oi = neighbours[j];
+					int lix = neighbours_links[j];
+					connector->update_local_link(lix, topography);
+					if(ocean[oi] == 0) continue;
+					// if(ocean[oi] == -1)	connector->update_local_link(lix, topography);
 					// basically if the donors is not labelled yet as ocean, I label it and emplace it in the LIFO
-					if(connector->boundaries.no_data(oi) || ocean[oi] == 0) continue;
-					ocean[oi] = 0;
-					// if(topography[oi] == topography[next]) topography[oi] += connector->randu->get() * 1e-8;
-					subLIFO.emplace(oi);
+					if(topography[oi] > topography[next])
+					{
+						if(ocean[oi] == -1)
+							subLIFO.emplace(oi);
+						ocean[oi] = 0;
+					}
+					else if (ocean[oi] == -1) ocean[oi] = -2;
 				}
 			}
 		}
 		// Done, all the primary ocean cells are labelled
-		
-		// Now I need to label the cells connected to their respective pits
-		while(pit_LIFO.empty() == false)
+		for(int i=0; i<connector->nnodes; ++i)
 		{
-			// getting next pit
-			int pit = pit_LIFO.top(); pit_LIFO.pop();
-			
-			// reusing the subLIFO to enhance locality
-			subLIFO.emplace(pit);
-			while(subLIFO.empty() == false)
+			if(ocean[i] == -2)
 			{
-				int next = subLIFO.top();
-				subLIFO.pop();
-				int nn = connector->get_donors_idx(next, neighbours);
-				for(int j=0; j<nn;++j)
-				{
-					int oi = neighbours[j];
-					// Ignoring nodes already labelled as divide or other pit
-					if(connector->boundaries.no_data(oi) || ocean[oi] > 0 || ocean[oi] == -2) continue;
-					// If the node is connected to the ocean I push it into the divide PQ and label it as divide
-					if(ocean[oi] == 0)
-					{
-						ocean[oi] = -2;
-						divide_PQ.emplace(PQH(oi,topography[oi]));
-					}
-					// Otherwise, is connected to dat pit AND EMPLACED TO THE CURRENT SUBlifo whoops cap lock
-					else
-					{
-						ocean[oi] = ocean[pit];
-						subLIFO.emplace(oi);
-					}			
-				}
+				divide_PQ.emplace(i,topography[i]);
+				ocean[i] = -1;
+				inQ[i] = true;
 			}
 		}
+
+		
+		// // Now I need to label the cells connected to their respective pits
+		// while(pit_LIFO.empty() == false)
+		// {
+		// 	// getting next pit
+		// 	int pit = pit_LIFO.top(); pit_LIFO.pop();
+			
+		// 	// reusing the subLIFO to enhance locality
+		// 	subLIFO.emplace(pit);
+		// 	while(subLIFO.empty() == false)
+		// 	{
+		// 		int next = subLIFO.top();
+		// 		subLIFO.pop();
+		// 		int nn = connector->get_donors_idx(next, neighbours);
+		// 		for(int j=0; j<nn;++j)
+		// 		{
+		// 			int oi = neighbours[j];
+		// 			// Ignoring nodes already labelled as divide or other pit
+		// 			if(connector->boundaries.no_data(oi) || ocean[oi] > 0 || ocean[oi] == -2) continue;
+		// 			// If the node is connected to the ocean I push it into the divide PQ and label it as divide
+		// 			if(ocean[oi] == 0)
+		// 			{
+		// 				ocean[oi] = -2;
+		// 				divide_PQ.emplace(PQH(oi,topography[oi]));
+		// 			}
+		// 			// Otherwise, is connected to dat pit AND EMPLACED TO THE CURRENT SUBlifo whoops cap lock
+		// 			else
+		// 			{
+		// 				ocean[oi] = ocean[pit];
+		// 				subLIFO.emplace(oi);
+		// 			}			
+		// 		}
+		// 	}
+		// }
 
 		// At that stage I have a fully labelled landscapes where each node is either connected to the ocean or to a pit, and the divides are sorted by ascending elevation in the PQ
 		// note that the labels are valid in MFD but only represent ONE of the possible state of the nodes: an ocean node can be connected to a pit, it's just that we jsut want to know if it is connected to the ocean and hence can outlet
@@ -545,117 +564,84 @@ namespace DAGGER
 			// std::cout << topography[tirnext] << std::endl;
 
 			// if the node is not a divide anymore: skip - it has already been processed
-			if(ocean[tirnext] != -2) continue;
-			// fT ttopo = topography[tirnext];;
-			// if(tirnext == 639522) std::cout << "I was right" << std::endl;
-			// if(tirnext == 639522) connector->print_receivers(639522,topography);
-
+			if(ocean[tirnext] == 0) continue;
 			phil_collins.emplace(tirnext);
 			// phil_collins.emplace(PQH(tirnext, topography[tirnext]));
 			while(phil_collins.empty() == false)
 			{
 				int next = phil_collins.front(); phil_collins.pop();
-				// int next = phil_collins.top().node; phil_collins.pop();
-
-				if(ocean[next]>0)
-					if(isopened[ocean[next]] == 0)
-						isopened[ocean[next]] = 1;
-
 				ocean[next] = 0;
 
-				int nn = connector->get_neighbour_idx_links(next, neighbours);
+				int nn = connector->get_neighbour_idx_nodes_and_links(next, neighbours, neighbours_links);
 				double ttopo = topography[next];
-				bool cyclicity = false;
-				int Srec = next;
+
 				for(int j=0;j<nn;++j)
 				{
-					int lix = neighbours[j];
-					if(connector->is_link_valid(lix) == false)
-						continue;
-
-					int onix = connector->get_other_node_from_links(lix,next);
-					// 
-					// if(onix == 649605) std::cout << "DEBUGSS2::rec::" << ocean[onix] << " vs " << ocean[next] << std::endl;
-					if(ocean[onix] > 0 || ocean[onix] == -2)
+					int oi = neighbours[j];
+					int lix = neighbours_links[j];
+					if(ocean[oi] == 0)
 					{
-						if(topography[onix] > ttopo)
-						{
-							ocean[onix] = 0;
-							oc_LIFO.emplace(onix);
-						}
-						else
-						{
-							ttopo =  ttopo + 1e-6 * connector->randu->get() + 1e-8;
-							// std::cout << std::setprecision(12);
-							// std::cout << topography[onix] << "||" << ttopo << "|" << typeid(ttopo).name() << "}{";
-							topography[onix] = ttopo;
-							// std::cout << topography[onix];
-							// std::cout << std::endl;
-
-							connector->Sreceivers[onix] = next;
-							// if(onix == 649605) std::cout << "DEBUGSS2::" << Srec << std::endl;
-							if(connector->Sreceivers[next] == onix) cyclicity = true;//throw std::runtime_error("Cyclicity in dagger_fill Srec builder");
-							ocean[onix] = -1;
-							// phil_collins.emplace(PQH(onix,topography[onix]));
-							phil_collins.emplace(onix);
-						}
+						connector->update_local_link(lix, topography);
+						continue;
 					}
-					else if (topography[onix] < topography[next] && ocean[onix] == 0)
-						Srec = onix;
-					// if(onix == 649605) std::cout << "DEBUGSS3::rec::" << topography[onix] << std::endl;
-
+					if(topography[oi] =< ttopo)
+					{
+						ttopo =  ttopo + 1e-6 * connector->randu->get() + 1e-8;
+						topography[oi] = ttopo;
+						phil_collins.emplace(oi);
+					}
+					else
+					{
+						oc_LIFO.emplace(oi);
+					}
+					ocean[oi] = 0;
 					connector->update_local_link(lix,topography);
 				}
-				if(cyclicity) 
-				{
-					// if(next == 649605) std::cout << "DEBUGSS1::" << Srec << std::endl;
-					connector->Sreceivers[next] = Srec;
-				}
 			}
-
-			// collins is empty(), this area has been philled, now propagating up
-
-			// OK I NEED TO THINK THAT THROUGH: the DFS might need to be changed to a BFS in order to identify the internal drainage divides
-			// Other option (might be better), I have an array of npits size that track which pit has been resolved
-			// so that I can propagate the DFS until a receivers belongs to an unresolved pit
-			// I might need to relabel the pit nodes
 
 			while(oc_LIFO.empty() == false)
 			{
 				int tirnext = oc_LIFO.top(); oc_LIFO.pop();
 				subLIFO.emplace(tirnext);
+				// Sub-DFS traversal to label ocean cells linked to dat one
 				while(subLIFO.empty() == false)
 				{
-					int next = subLIFO.top();	subLIFO.pop();
-					ocean[next] = 0;
-					int nn = connector->get_neighbour_idx(next, neighbours);
+					int next = subLIFO.top(); subLIFO.pop();
+					int nn = connector->get_neighbour_idx_nodes_and_links(next, neighbours, neighbours_links);
 					for(int j=0; j<nn;++j)
 					{
 						int oi = neighbours[j];
-						if(connector->boundaries.no_data(oi) || ocean[oi] == 0 || ocean[oi] == -1) continue;
-						if(isopened[ocean[oi]])
+						int lix = neighbours_links[j];
+						if(ocean[oi] != 0)
 						{
-							ocean[oi] = 0;
-							subLIFO.emplace(oi);
+							if(topography[oi] > topography[next])
+							{
+								if(ocean[oi] == -1)
+									subLIFO.emplace(oi);
+								ocean[oi] = 0;
+							}
+							else if (ocean[oi] == -1) ocean[oi] = -2;
 						}
-						else
-						{
-							ocean[oi] = -2;
-							divide_PQ.emplace(PQH(oi,topography[oi]));
-						}
-
+						connector->update_local_link(lix, topography);
 					}
-					// if(subLIFO.size() > maxsize) maxsize = subLIFO.size();
-
 				}
 			}
-			
 
+			// Done, all the primary ocean cells are labelled
+			for(int i=0; i<connector->nnodes; ++i)
+			{
+				if(ocean[i] == -2 && inQ[i] == false)
+				{
+					divide_PQ.emplace(i,topography[i]);
+					ocean[i] = -1;
+					inQ[i] = true;
+				}
+			}
 		}
 
 
 
-		connector->recompute_SF_donors_from_receivers();
+		// connector->recompute_SF_donors_from_receivers();
 		return ocean;
 
 	}

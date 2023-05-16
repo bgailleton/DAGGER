@@ -1731,6 +1731,21 @@ public:
 	}
 
 
+	// This version informs in place O and A, the two link nodes
+	template<class ti_t, class topo_t>
+	void update_local_link(ti_t i, topo_t& topo, int& O, int& A)
+	{
+		
+		if(this->link_needs_processing(i) == false) return;
+
+		this->node_idx_from_link_idx(i,O,A);
+		if(topo[O] > topo[A])
+			this->links[i] = 1;
+		else
+			this->links[i] = 0;
+	}
+
+
 	template<class ti_t>
 	bool link_needs_processing(ti_t i)
 	{
@@ -1774,6 +1789,30 @@ public:
 			if(this->is_link_valid(oli))
 			{
 				tin[size] = oli;
+				++size;
+			}
+		}
+		return size;
+	}
+
+	int get_neighbour_idx_nodes_and_links(int i, std::array<int,8>& tin_node, std::array<int,8>& tin_links)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li))
+			{
+				tin_links[size] = li;
+				tin_nodes[size] = i + this->neighbourer[this->linkdir[li]];
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli))
+			{
+				tin_links[size] = oli;
+				tin_nodes[size] = i + this->reruobhgien[this->ridknil[li]];;
 				++size;
 			}
 		}
