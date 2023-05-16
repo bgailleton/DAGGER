@@ -234,6 +234,26 @@ public:
 		bool isCordonnier = this->is_method_cordonnier();
 		bool isDagger = this->is_method_dagger();
 
+		if(this->depression_resolver == DEPRES::priority_full_MFD)
+		{
+			this->reinit_graph();
+			this->stack = std::vector<size_t>(this->nnodes,0);
+			_PriorityFool(faketopo, this->connector, this->stack, this->Sstack);
+			this->topological_sorting_SF();
+			return;
+		}
+
+		
+		if(this->depression_resolver == DEPRES::dagger_fill)
+		{
+			this->reinit_graph();
+			// this->stack = std::vector<size_t>(this->nnodes,0);
+			_dagger_fill(this->connector, faketopo);
+			this->topological_sorting_dag();
+			// this->topological_sorting_SF();
+			return;
+		}
+
 
 		//reinit to 0 n+pits
 		this->n_pits = 0;

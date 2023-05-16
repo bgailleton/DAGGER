@@ -29,16 +29,27 @@
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
 
-
-
-
+// #ifdef BOOST_AVAILABLE
+// #include "boost/heap/priority_queue.hpp"
+// #include "boost/heap/binomial_heap.hpp"
+// #include "boost/heap/fibonacci_heap.hpp"
+// #include "boost/heap/pairing_heap.hpp"
+// #include "boost/heap/skew_heap.hpp"
+// #endif
 
 namespace DAGGER
 {
 
 	// Useful namespace for my priority queue
-	using PQ_i_d =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
+	using PQFORPF =  std::priority_queue< PQ_helper<int,double>, std::vector<PQ_helper<int,double> >, std::greater<PQ_helper<int,double> > >;
 	using PQH = PQ_helper<int,double>;
+	// using PQFORPF = boost::heap::priority_queue<PQH, boost::heap::compare<std::greater<PQH> > >;
+	// using PQFORPF = boost::heap::binomial_heap<PQH, boost::heap::compare<std::greater<PQH> > >;
+	// using PQFORPF = boost::heap::fibonacci_heap<PQH, boost::heap::compare<std::greater<PQH> > >;
+	// using PQFORPF = boost::heap::pairing_heap<PQH, boost::heap::compare<std::greater<PQH> > >;
+	// using PQFORPF = boost::heap::skew_heap<PQH, boost::heap::compare<std::greater<PQH> > >;
+
+
 
 	template<class Connector_t, class int_t, class out_t, class float_t>
 	out_t standalone_priority_flood(int_t& topography, Connector_t& connector)
@@ -55,7 +66,7 @@ namespace DAGGER
 	template <class float_t, class Connector_t>
 	void PriorityFlood(std::vector<float_t>& topography, Connector_t& connector)
 	{
-		PQ_i_d open;
+		PQFORPF open;
 		std::queue<PQH > pit;
 		
 		// auto topography = format_input(ttopography);
@@ -121,9 +132,115 @@ namespace DAGGER
 
 
 
+	template <class float_t, class Connector_t>
+	void _PriorityFool(std::vector<float_t>& topography, Connector_t* connector, std::vector<size_t>& stack, std::vector<size_t>& Sstack)
+	{
+		PQFORPF open;
+		std::queue<PQH > pit;
+		// std::cout << "DEBUGDEBUG1" << std::endl;
+		// connector->update_links_MFD_only(topography);
 
-// Grayscale morphological reconstruction algorithm
-void morphologicalReconstruction(std::vector<double>& data, int width, int height) {
+		// std::cout << "DEBUGDEBUG2" << std::endl;
+		
+		// auto topography = format_input(ttopography);
+		uint64_t pitc            = 0;
+		auto     PitTop          = -9999;
+		int      false_pit_cells = 0; 
+	 
+		std::vector<int8_t> closed(connector->nnodes,0);
+
+		for(int i=0; i<connector->nnodes;++i)
+		{
+			if(connector->boundaries.can_out(i) == false)
+			{
+				// connector->Sreceivers[i] = i+1;
+				continue;
+			}
+			
+			open.emplace(PQH(i,topography[i]));
+			closed[i]=1;
+		}
+
+		// std::cout << "DEBUGDEBUG3" << std::endl;
+		int stack_incrementor = 0;
+		auto neighbours = connector->get_empty_neighbour();
+		while(open.size()>0 || pit.size()>0)
+		{
+			// std::cout << "DEBUGDEBUGstack_incrementor:" << stack_incrementor << "|" << connector->nnodes << std::endl;
+			PQH c;
+			// if(pit.size()>0 && open.size()>0 && open.top().score == pit.front().score)
+			// {
+			// 	c=open.top();
+			// 	open.pop();
+			// 	PitTop=-9999;
+			// } 
+			// else if(pit.size()>0)
+			// {
+			// 	c=pit.front();
+			// 	pit.pop();
+			// 	if(PitTop==-9999)
+			// 		PitTop=topography[c.node];
+			// // } else {
+			c=open.top();
+			open.pop();
+			PitTop=topography[c.node];
+			stack[stack_incrementor] = c.node;
+			++stack_incrementor;
+			// }
+
+			int nn = connector->get_neighbour_idx_links(c.node, neighbours);
+			float_t ttopo = topography[c.node];
+
+			for(int j=0;j<nn;++j)
+			{
+				int lix = neighbours[j];
+				if(connector->is_link_valid(lix) == false)
+					continue;
+
+				int n = connector->get_other_node_from_links(lix,c.node);
+
+				
+				if(closed[n] == 0)
+				{
+					// if(closed[n] == 2)
+					// 	connector->update_local_link(lix,topography);
+					ttopo += connector->randu->get() * 1e-6 + 1e-8;
+					// float_t ntopo = ; 
+					
+					if(ttopo > topography[n])
+					{
+						topography[n] = ttopo;
+						// connector->update_local_link(lix,topography);
+						closed[n] = 2;
+						
+					}
+					else
+					{
+						closed[n] = 1;
+					}
+
+					open.emplace(n,topography[n]);
+					connector->update_local_link(lix,topography);
+					float_t dx = connector->get_dx_from_links_idx(lix);
+					float_t ts = (topography[n] - topography[c.node])/dx;
+					if(ts >= connector->SS[n])
+					{
+						connector->SS[n] = ts;
+						connector->Sreceivers[n] = c.node;
+						connector->Sdistance2receivers[n] = dx;
+					}
+				}
+			}
+		}
+		connector->compute_SF_donors_from_receivers();
+	}
+
+
+
+
+
+	// Grayscale morphological reconstruction algorithm
+	void morphologicalReconstruction(std::vector<double>& data, int width, int height) {
     // Initialize the marker image with the original data
     std::vector<double> marker(data);
 
@@ -224,7 +341,7 @@ void morphologicalReconstruction(std::vector<double>& data, int width, int heigh
 	template <class float_t, class Connector_t>
 	bool PriorityFlood_opti(std::vector<float_t>& topography, Connector_t& connector, std::vector<size_t>& Sstack)
 	{
-		PQ_i_d open;
+		PQFORPF open;
 		std::queue<PQH > pit;
 		
 		// auto topography = format_input(ttopography);
@@ -357,7 +474,7 @@ void morphologicalReconstruction(std::vector<double>& data, int width, int heigh
 	std::vector<double> PriorityFlood_old(topo_t& ttopography, Connector_t& connector)
 	{
 
-		PQ_i_d open;
+		PQFORPF open;
 		std::queue<PQ_helper<int,double> > pit;
 
 		double PitTop = -9999; 
@@ -434,7 +551,7 @@ void morphologicalReconstruction(std::vector<double>& data, int width, int heigh
 		auto tttopography = format_input(ttopography);
 		std::vector<double> topography = to_vec(tttopography);
 
-		PQ_i_d open;
+		PQFORPF open;
 		std::queue<PQ_helper<int,double> > pit;
 
 		uint64_t processed_cells = 0;

@@ -38,6 +38,7 @@ enum class DEPRES
 	cordonnier_simple,
 	// Using the Wei et al 2018 variation of Barnes 2014 priority flood algorithm
 	priority_flood,
+	priority_full_MFD,
 	priority_flood_opti,
 	// Using the Barnes et al., 2014 priority flood algorithm
 	priority_flood_2014,

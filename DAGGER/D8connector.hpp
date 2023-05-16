@@ -1717,6 +1717,20 @@ public:
 			this->links[i] = 0;
 	}
 
+	template<class ti_t, class topo_t>
+	void update_local_link(ti_t i, topo_t& topo)
+	{
+		
+		if(this->link_needs_processing(i) == false) return;
+
+		int O,A; this->node_idx_from_link_idx(i,O,A);
+		if(topo[O] > topo[A])
+			this->links[i] = 1;
+		else
+			this->links[i] = 0;
+	}
+
+
 	template<class ti_t>
 	bool link_needs_processing(ti_t i)
 	{

@@ -285,7 +285,7 @@ namespace DAGGER
 		// std::queue<int > _, OcQ, PiQ;
 		// std::queue<int, boost::circular_buffer<int> > OcQ(boost::circular_buffer<int>(1000));
 
-		PQ_i_d tirailleur;
+		PQ_i_d divide_PQ;
 		int npits = 0;
 		// vecQ<int> OcQ(5000);
 		for(int i=0; i<connector->nnodes; ++i)
@@ -351,7 +351,7 @@ namespace DAGGER
 					if(ocean[oi] == 0)
 					{
 						ocean[oi] = -2;
-						tirailleur.emplace(PQH(oi,topography[oi]));
+						divide_PQ.emplace(PQH(oi,topography[oi]));
 					}
 					else
 					{
@@ -366,14 +366,14 @@ namespace DAGGER
 
 		}
 
-		// std::cout << "tirailleur size is " << tirailleur.size() << " " << std::endl;;
+		// std::cout << "divide_PQ size is " << divide_PQ.size() << " " << std::endl;;
 		// std::cout << "max size is " << maxsize << " " << std::endl;;
 
-		while(tirailleur.empty() == false)
+		while(divide_PQ.empty() == false)
 		{
-			int tirnext = tirailleur.top().node;
+			int tirnext = divide_PQ.top().node;
 			
-			tirailleur.pop();
+			divide_PQ.pop();
 			int rec = -1;
 			while(rec != tirnext)
 			{
@@ -392,7 +392,7 @@ namespace DAGGER
 						connector->reverse_link(lix);
 					}
 				}
-				if(tirnext == 150050) std::cout << "GBAA" << std::endl;
+				// if(tirnext == 150050) std::cout << "GBAA" << std::endl;
 
 				if(rec == -1)
 					break;
@@ -415,6 +415,206 @@ namespace DAGGER
 				// if(OcQ.size() > maxsize) maxsize = OcQ.size();
 
 			}
+
+		}
+
+
+
+
+		return ocean;
+
+	}
+
+
+	template<class in_t, class Connector_t>
+	std::vector<int> _dagger_fill(Connector_t* connector, in_t& topography)
+	{
+		// Ocean contains label of nodes connected to the ocean (0), not connected to anything yet (-1), temp, unresolved drainage divide (-2) or connected to an unresolved depression (value = node index of the pit)
+		std::vector<int> ocean(connector->nnodes,-1);
+
+		// Precomputing links
+		connector->update_links_MFD_only(topography);
+
+		// initialising the different stacks (LIFO data structures)
+		// The code juggles between the three to enhance locality and maximise CPU caching
+		// Not sure I understand the subbtleties, but it is definitly faster than a single, bigger stack (I benchmarked)
+		std::stack<int, std::vector<int> > oc_LIFO, subLIFO, pit_LIFO;
+
+		// Readying a Queue for the filling
+		std::queue<int> phil_collins;
+
+		// Stores the drainage edges
+		PQ_i_d divide_PQ;
+
+
+		// Step I) pushing to the Queue the ocean/pit cells and labelling them accordingly
+
+		int npits = 0;
+		for(int i=0; i<connector->nnodes; ++i)
+		{
+			// If flow can out the cell -> labels as ocean, emplace in the ocean LIFO
+			if(connector->boundaries.can_out(i)) 
+			{
+				oc_LIFO.emplace(i);
+				ocean[i] = 0;
+			}
+			// If pit -> labels with the number of the pit and emplace in pit LIFO
+			else if (connector->flow_out_or_pit(i))
+			{
+				pit_LIFO.emplace(i);
+				++npits;
+				ocean[i] = npits;
+			}
+		}
+		
+		
+		++npits;
+		std::vector<std::uint8_t> isopened(npits, 0);
+
+		// Step II) DFS traversal from ocean nodes to the donors direction to label ocean cells
+
+		auto neighbours = connector->get_empty_neighbour();
+		while(oc_LIFO.empty() == false)
+		{
+			// Getting the first main node from the parent LIFO queue
+			subLIFO.emplace(oc_LIFO.top()); oc_LIFO.pop();
+
+			// Sub-DFS traversal to label ocean cells linked to dat one
+			while(subLIFO.empty() == false)
+			{
+				int next = subLIFO.top(); subLIFO.pop();
+				int nn = connector->get_donors_idx(next, neighbours);
+				for(int j=0; j<nn;++j)
+				{
+					int oi = neighbours[j];
+					// basically if the donors is not labelled yet as ocean, I label it and emplace it in the LIFO
+					if(connector->boundaries.no_data(oi) || ocean[oi] == 0) continue;
+					ocean[oi] = 0;
+					subLIFO.emplace(oi);
+				}
+			}
+		}
+		// Done, all the primary ocean cells are labelled
+		
+		// Now I need to label the cells connected to their respective pits
+		while(pit_LIFO.empty() == false)
+		{
+			// getting next pit
+			int pit = pit_LIFO.top(); pit_LIFO.pop();
+			
+			// reusing the subLIFO to enhance locality
+			subLIFO.emplace(pit);
+			while(subLIFO.empty() == false)
+			{
+				int next = subLIFO.top();
+				subLIFO.pop();
+				int nn = connector->get_donors_idx(next, neighbours);
+				for(int j=0; j<nn;++j)
+				{
+					int oi = neighbours[j];
+					// Ignoring nodes already labelled as divide or other pit
+					if(connector->boundaries.no_data(oi) || ocean[oi] > 0 || ocean[oi] == -2) continue;
+					// If the node is connected to the ocean I push it into the divide PQ and label it as divide
+					if(ocean[oi] == 0)
+					{
+						ocean[oi] = -2;
+						divide_PQ.emplace(PQH(oi,topography[oi]));
+					}
+					// Otherwise, is connected to dat pit AND EMPLACED TO THE CURRENT SUBlifo whoops cap lock
+					else
+					{
+						ocean[oi] = pit;
+						subLIFO.emplace(oi);
+					}			
+				}
+			}
+		}
+
+		// At that stage I have a fully labelled landscapes where each node is either connected to the ocean or to a pit, and the divides are sorted by ascending elevation in the PQ
+		// note that the labels are valid in MFD but only represent ONE of the possible state of the nodes: an ocean node can be connected to a pit, it's just that we jsut want to know if it is connected to the ocean and hence can outlet
+		// this is also valid for the pit labels: in MFD nodes can be (and will be) connected to multiple pits, but again as we are interested by the FIRST nodes connected to another pit/ocean it's fine
+
+		// Starting with the lowest divide
+		while(divide_PQ.empty() == false)
+		{
+			// next node
+			int tirnext = divide_PQ.top().node; divide_PQ.pop();
+
+			// if the node is not a divide anymore: skip - it has already been processed
+			if(ocean[tirnext] != -2) continue;
+			phil_collins.emplace(tirnext);
+
+			while(phil_collins.empty() == false)
+			{
+				int next = phil_collins.front(); phil_collins.pop();
+				if(ocean[next]>0)
+					if(isopened[ocean[next]] == 0)
+						isopened[ocean[next]] = 1;
+
+				int nn = connector->get_neighbour_idx_links(next, neighbours);
+				float_t ttopo = topography[next];
+				for(int j=0;j<nn;++j)
+				{
+					int lix = neighbours[j];
+					if(connector->is_link_valid(lix) == false)
+						continue;
+					int onix = connector->get_other_node_from_links(lix,next);
+					if(ocean[onix] > 0)
+					{
+						if(topography[onix] > ttopo)
+						{
+							ocean[onix] = -1;
+							oc_LIFO.emplace(onix);
+						}
+						else
+						{
+							ttopo += 1e-6*connector->randu->get() + 1e-8;
+							topography[onix] = ttopo;
+							ocean[onix] = 0;
+							connector->update_local_link(lix,topography);
+							phil_collins.emplace(onix);
+						}
+					}
+				}
+			}
+
+			// collins is empty(), this area has been philled, now propagating up
+
+			// OK I NEED TO THINK THAT THROUGH: the DFS might need to be changed to a BFS in order to identify the internal drainage divides
+			// Other option (might be better), I have an array of npits size that track which pit has been resolved
+			// so that I can propagate the DFS until a receivers belongs to an unresolved pit
+			// I might need to relabel the pit nodes
+
+			while(oc_LIFO.empty() == false)
+			{
+				int tirnext = oc_LIFO.top(); oc_LIFO.pop();
+				subLIFO.emplace(tirnext);
+				while(subLIFO.empty() == false)
+				{
+					int next = subLIFO.top();	subLIFO.pop();
+					ocean[next] = 0;
+					int nn = connector->get_neighbour_idx(next, neighbours);
+					for(int j=0; j<nn;++j)
+					{
+						int oi = neighbours[j];
+						if(connector->boundaries.no_data(oi) || ocean[oi] == 0 || ocean[oi] == -1) continue;
+						if(isopened[ocean[oi]])
+						{
+							ocean[oi] = 0;
+							subLIFO.emplace(oi);
+						}
+						else
+						{
+							ocean[oi] = -2;
+							divide_PQ.emplace(PQH(oi,topography[oi]));
+						}
+
+					}
+					// if(subLIFO.size() > maxsize) maxsize = subLIFO.size();
+
+				}
+			}
+			
 
 		}
 
