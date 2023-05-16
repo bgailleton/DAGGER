@@ -433,7 +433,7 @@ namespace DAGGER
 		std::vector<int> ocean(connector->nnodes,-1);
 
 		// Precomputing links
-		connector->update_links(topography);
+		// connector->update_links(topography);
 
 		// initialising the different stacks (LIFO data structures)
 		// The code juggles between the three to enhance locality and maximise CPU caching
@@ -442,6 +442,7 @@ namespace DAGGER
 
 		// Readying a Queue for the filling
 		std::queue<int> phil_collins;
+		// PQ_i_d phil_collins;
 
 		// Stores the drainage edges
 		PQ_i_d divide_PQ;
@@ -490,6 +491,7 @@ namespace DAGGER
 					// basically if the donors is not labelled yet as ocean, I label it and emplace it in the LIFO
 					if(connector->boundaries.no_data(oi) || ocean[oi] == 0) continue;
 					ocean[oi] = 0;
+					// if(topography[oi] == topography[next]) topography[oi] += connector->randu->get() * 1e-8;
 					subLIFO.emplace(oi);
 				}
 			}
@@ -545,11 +547,15 @@ namespace DAGGER
 			// if the node is not a divide anymore: skip - it has already been processed
 			if(ocean[tirnext] != -2) continue;
 			// fT ttopo = topography[tirnext];;
+			// if(tirnext == 639522) std::cout << "I was right" << std::endl;
+			// if(tirnext == 639522) connector->print_receivers(639522,topography);
 
 			phil_collins.emplace(tirnext);
+			// phil_collins.emplace(PQH(tirnext, topography[tirnext]));
 			while(phil_collins.empty() == false)
 			{
 				int next = phil_collins.front(); phil_collins.pop();
+				// int next = phil_collins.top().node; phil_collins.pop();
 
 				if(ocean[next]>0)
 					if(isopened[ocean[next]] == 0)
@@ -590,6 +596,7 @@ namespace DAGGER
 							// if(onix == 649605) std::cout << "DEBUGSS2::" << Srec << std::endl;
 							if(connector->Sreceivers[next] == onix) cyclicity = true;//throw std::runtime_error("Cyclicity in dagger_fill Srec builder");
 							ocean[onix] = -1;
+							// phil_collins.emplace(PQH(onix,topography[onix]));
 							phil_collins.emplace(onix);
 						}
 					}
