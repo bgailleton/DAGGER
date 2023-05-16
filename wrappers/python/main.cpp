@@ -1071,8 +1071,11 @@ PYBIND11_MODULE(dagger, m) {
     .value("cordonnier_simple", DEPRES::cordonnier_simple)
     .value("priority_flood", DEPRES::priority_flood)
     .value("priority_flood_opti", DEPRES::priority_flood_opti)
+    .value("priority_full_MFD", DEPRES::priority_full_MFD)
+    
     .value("none", DEPRES::none)
     .value("dagger_carve", DEPRES::dagger_carve)
+    .value("dagger_fill", DEPRES::dagger_fill)
   ;
 
   py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
