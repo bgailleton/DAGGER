@@ -427,7 +427,7 @@ namespace DAGGER
 
 
 	template<class Connector_t, class topo_t>
-	std::vector<int> _dagger_fill(Connector_t* connector, topo_t& topography)
+	std::vector<int> _dagger_fill(Connector_t* connector, topo_t& topography, std::vector<size_t>& stack)
 	{
 		// Ocean contains label of nodes connected to the ocean (0), not connected to anything yet (-1), temp, unresolved drainage divide (-2) or connected to an unresolved depression (value = node index of the pit)
 		std::vector<std::int8_t> ocean(connector->nnodes,-1);
@@ -435,6 +435,7 @@ namespace DAGGER
 
 		// Precomputing links
 		// connector->update_links(topography);
+		int stackindex = 0;
 
 		// initialising the different stacks (LIFO data structures)
 		// The code juggles between the three to enhance locality and maximise CPU caching
@@ -448,35 +449,39 @@ namespace DAGGER
 		// Stores the drainage edges
 		PQ_i_d divide_PQ;
 
+		std::vector<std::int8_t> trackneighb(connector->nnodes, 0);
+
+
+		auto neighbours = connector->get_empty_neighbour();
+		auto neighbours_links = connector->get_empty_neighbour();
+		auto neighbours_Z = connector->get_empty_neighbour<fT>();
 
 		// Step I) pushing to the Queue the ocean/pit cells and labelling them accordingly
 
 		int npits = 0;
 		for(int i=0; i<connector->nnodes; ++i)
 		{
+			int nn = connector->get_neighbour_idx_nodes_and_links(i, neighbours, neighbours_links);
+			trackneighb[i] += nn;
 			// If flow can out the cell -> labels as ocean, emplace in the ocean LIFO
 			if(connector->boundaries.can_out(i)) 
 			{
 				oc_LIFO.emplace(i);
 				ocean[i] = 0;
+				stack[stackindex] = i;
+				++stackindex;
+				for(int j=0; j<nn;++j)
+				{
+					--trackneighb[i];
+					--trackneighb[i];
+				}
 			}
-			// // If pit -> labels with the number of the pit and emplace in pit LIFO
-			// else if (connector->flow_out_or_pit(i))
-			// {
-			// 	pit_LIFO.emplace(i);
-			// 	++npits;
-			// 	ocean[i] = npits;
-			// }
+
 		}
 		
-		
-		// ++npits;
-		// std::vector<std::uint8_t> isopened(npits, 0);
-
 		// Step II) DFS traversal from ocean nodes to the donors direction to label ocean cells
 
-		auto neighbours = connector->get_empty_neighbour();
-		auto neighbours_links = connector->get_empty_neighbour();
+		
 		while(oc_LIFO.empty() == false)
 		{
 			// Getting the first main node from the parent LIFO queue
@@ -486,7 +491,7 @@ namespace DAGGER
 			while(subLIFO.empty() == false)
 			{
 				int next = subLIFO.top(); subLIFO.pop();
-				int nn = connector->get_neighbour_idx_nodes_and_links(next, neighbours, neighbours_links);
+				int nn = connector->get_neighbour_idx_nodes_links_external_array(next, neighbours, neighbours_links, neighbours_Z, topography);
 				for(int j=0; j<nn;++j)
 				{
 					int oi = neighbours[j];

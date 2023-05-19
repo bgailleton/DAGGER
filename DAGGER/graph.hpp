@@ -247,16 +247,16 @@ public:
 		}
 
 
-		if(this->depression_resolver == DEPRES::dagger_fill)
-		{
-			this->reinit_graph();
-			// this->stack = std::vector<size_t>(this->nnodes,0);
-			this-> _debug_int = _dagger_fill(this->connector, faketopo);
-			this->topological_sorting_dag();
-			this->topological_sorting_SF();
+		// if(this->depression_resolver == DEPRES::dagger_fill)
+		// {
+		// 	this->reinit_graph();
+		// 	// this->stack = std::vector<size_t>(this->nnodes,0);
+		// 	this-> _debug_int = _dagger_fill(this->connector, faketopo);
+		// 	this->topological_sorting_dag();
+		// 	this->topological_sorting_SF();
 
-			return;
-		}
+		// 	return;
+		// }
 
 
 		//reinit to 0 n+pits
@@ -355,20 +355,19 @@ public:
 				
 				// if(this->opt_stst_rerouting)
 				this->connector->update_links_MFD_only(faketopo); // up to 30% faster - slightly less accurate for Sgraph
-
-
 			}
+			
 		}
-		else if(isDagger)
-		{
-			bool need_recompute = simple_depression_solver( this->connector, faketopo, this->Sstack);
-			if(need_recompute)
-			{
-				this->reinit_graph();
-				this->connector->update_links(faketopo);
-				this->topological_sorting_SF();
-			}
-		}
+		// else if(isDagger)
+		// {
+		// 	bool need_recompute = simple_depression_solver( this->connector, faketopo, this->Sstack);
+		// 	if(need_recompute)
+		// 	{
+		// 		this->reinit_graph();
+		// 		this->connector->update_links(faketopo);
+		// 		this->topological_sorting_SF();
+		// 	}
+		// }
 
 		// else if (this->depression_resolver == DEPRES::priority_flood)
 		// {

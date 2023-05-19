@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <memory>
+#include "npy.hpp"
 
 
 namespace DAGGER
@@ -522,6 +523,14 @@ public:
 
 
 };
+
+template<class fT>
+void save_vec_to_2Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
+{
+	const std::vector<long unsigned> shape{std::uint64_t(ny), std::uint64_t(nx)};
+  const bool fortran_order{false};
+  npy::SaveArrayAsNumpy(fname, fortran_order, shape.size(), shape.data(), data);
+}
 
 
 

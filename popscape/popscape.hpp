@@ -53,6 +53,7 @@ enum class PARAM_MODE
 
 
 
+
 template<class fT,class Graph_t, class Connector_t>
 class popscape
 {
@@ -619,66 +620,8 @@ public:
 
 	void hydraulic_erosion_v0(int n_particules, fT erosor)
 	{
-
-		std::random_device rd; // obtain a random number from hardware
-		std::mt19937 gen(rd()); // seed the generator
-		std::uniform_int_distribution<> distr(0, this->graph.nnodes-1); // define the range
-
-		std::vector<fT> newtopo(this->topography);
-
-		// for(int tnp=0; tnp<n_particules; ++tnp)
-		// {
-		// 	// spawning the particle
-		// 	Particle tpart(distr(gen));
-		// 	// std::cout << tpart.pos << std::endl;
-		// 	std::vector<int> nelinks(8,0);
-		// 	while(true)
-		// 	{
-		// 		// Increment the speed
-		// 		int NnN = this->connector.get_neighbour_idx_links(tpart.pos, nelinks);
-		// 		int nrecs = 0;
-		// 		for(int i =0; i<NnN ; ++i)
-		// 		{
-		// 			// std::cout << "A" << std::endl;
-		// 			int li = nelinks[i];
-		// 			int n1 = this->graph.linknodes[li*2];
-		// 			int n2 = this->graph.linknodes[li*2 + 1];
-		// 			// std::cout << "B" << std::endl;
-		// 			if((n1 == tpart.pos && this->topography[n1] <= this->topography[n2]) || (n2 == tpart.pos && this->topography[n2] < this->topography[n1]))
-		// 				continue;
-		// 			++nrecs;
-		// 			auto dxdy = this->connector.get_directed_dxdy_from_links_idx( li, tpart.pos, n1, n2);
-		// 			auto grad = std::abs(this->topography[n1] + this->topography[n2])/this->connector.get_dx_from_links_idx(li);
-		// 			// std::cout << "C" << std::endl;
-		// 			tpart.speed_up(dxdy,grad);
-		// 		}
-		// 		// int col,row; this->connector.rowcol_from_node_id(tpart.pos, row, col);
-		// 		auto dirxy = tpart.get_normalised_speed();
-		// 		int newpos = this->connector.get_neighbour_idx_from_normalised_dxdy(tpart.pos,dirxy.first, dirxy.second);
-		// 		// std::cout << newpos << "|" << dirxy.first << "|"  << dirxy.second << std::endl;
-				
-		// 		// temp erosion
-		// 		newtopo[tpart.pos] -= erosor;
-		// 		if(!this->graph.flow_out_or_pit(tpart.pos,this->connector) == false || nrecs == 0 || newpos < 0 || newpos > this->graph.nnodes - 1 )
-		// 			break;
-
-		// 		tpart.pos = newpos;
-		// 	}
-		// }
-
-		this->topography = std::move(newtopo);
-
+		// old test
 	}
-
-
-	// void precipitSPL(fT dt, fT K, fT m, fT n, int n_prec)
-	// {
-
-	// 	fT Aprec = std
-
-
-	// }
-
 
 	void normalise_topography()
 	{
@@ -695,42 +638,41 @@ public:
 	}
 
 
-	void run_SFD_exp_latmag(fT K, fT m, fT n, fT Kl, fT dt)
-	{
-		// this->compute_graph(true);
-		// this->compute_DA_SFD();
-		// std::vector<fT> vmot(this->graph.nnodes,0);
-
-		// for(int i=this->graph.nnodes-1; i>=0; --i)
-		// {
-		// 	int node = this->graph.Sstack[i];
-		// 	if(!this->graph.flow_out_or_pit(node, this->connector) == false) continue;
-
-		// 	int rec = this->graph.Sreceivers[node];
-
-		// 	fT S = std::max((this->topography[node] - this->topography[rec])/this->graph.Sdistance2receivers[node], 1e-6);
-
-		// 	fT E = std::pow(S,n) * std::pow(this->QA[node],m) * K;
-
-		// 	auto orthonodes = this->connector.get_orthogonal_nodes(node,rec);
-
-		// 	if(this->topography[orthonodes.first] - this->topography[node] > 0) vmot[orthonodes.first] -= Kl * E * dt;
-		// 	if(this->topography[orthonodes.second] - this->topography[node] > 0) vmot[orthonodes.second] -= Kl * E * dt;
-
-		// 	vmot[node] -= E * dt;
-		// }
-
-		// for(int i=0; i<this->graph.nnodes; ++i)
-		// 	this->topography[i] += vmot[i];
-	}
-
-	
-	
-
 
 };
 
 
+
+
+// generates a quick and dirty fluvial SFD topo for testing purposes
+// uses a multigrid analytical solution to the SPL (see saleve algorithm from Steer (2022) on which I applied multigrid methods using random noise and cordonnier carving for the projections)
+// final size is 16 * 2^ncycles
+// boundaries are "4edges" "periodic_EW" or "periodic_NW"
+template<class fT>
+std::vector<fT> _quick_fluvial_topo(int ncycles, std::string boundaries)
+{	
+	// init dx to get a final one = 50
+	fT dx = std::pow(2,ncycles) * 50;
+	// init connector and boundary conditions
+	D8connector<fT> con(16,16,dx,dx,0,0);
+	con.set_default_boundaries(boundaries);
+	// init graph
+	graph<fT, D8connector<fT> > gf(con);
+	// init Popscape
+	popscape<fT, graph< fT, D8connector<fT> >, D8connector<fT> > psc(gf,con);
+	// init randomnoise
+	std::vector<fT> topo(16*16, 0.);
+	add_noise_to_vector(topo,0,1);
+	psc.set_topo(topo);
+
+	for(int i =0; i<ncycles+1; ++i)
+	{
+		psc.StSt(10);
+		if(i < ncycles) psc.restriction(5);
+	}
+
+	return psc.topography;
+}
 
 
 

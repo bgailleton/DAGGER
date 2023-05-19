@@ -1795,7 +1795,7 @@ public:
 		return size;
 	}
 
-	int get_neighbour_idx_nodes_and_links(int i, std::array<int,8>& tin_node, std::array<int,8>& tin_links)
+	int get_neighbour_idx_nodes_and_links(int i, std::array<int,8>& tin_nodes, std::array<int,8>& tin_links)
 	{
 		int size = 0;
 
@@ -1813,6 +1813,34 @@ public:
 			{
 				tin_links[size] = oli;
 				tin_nodes[size] = i + this->reruobhgien[this->ridknil[li]];;
+				++size;
+			}
+		}
+		return size;
+	}
+
+
+	template<class tfT, class topo_t>
+	int get_neighbour_idx_nodes_links_external_array(int i, std::array<int,8>& tin_nodes, std::array<int,8>& tin_links, std::array<tfT,8>& tin_arr, topo_t& datat)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li))
+			{
+				tin_links[size] = li;
+				tin_nodes[size] = i + this->neighbourer[this->linkdir[li]];
+				tin_arr[size] = datat[tin_nodes[size]];
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli))
+			{
+				tin_links[size] = oli;
+				tin_nodes[size] = i + this->reruobhgien[this->ridknil[li]];;
+				tin_arr[size] = datat[tin_nodes[size]];
 				++size;
 			}
 		}
