@@ -235,7 +235,7 @@ public:
 
 		// Checking if the depression method is cordonnier or node
 		bool isCordonnier = this->is_method_cordonnier();
-		bool isDagger = this->is_method_dagger();
+		// bool isDagger = this->is_method_dagger();
 
 		if(this->depression_resolver == DEPRES::priority_full_MFD)
 		{

@@ -1659,7 +1659,7 @@ public:
 		auto bound = format_input(tbound);
 
 		std::vector<BC> ubound(bound.size(), BC::FLOW);
-		for(int i=0; i<tbound.size(); ++i)
+		for(size_t i=0; i<ubound.size(); ++i)
 			ubound[i] = static_cast<BC>(bound[i]);
 
 		this->boundaries.set_codes(ubound);
@@ -2208,8 +2208,8 @@ public:
 			}
 			else if
 			(
-				(this->is_on_rightest_col(a) || this->is_on_bottom_row(a) || i== 4) &&
-				(!this->boundaries.is_periodic(a) && !this->boundaries.is_periodic(b)) ||
+				((this->is_on_rightest_col(a) || this->is_on_bottom_row(a) || i== 4) &&
+				 				(!this->boundaries.is_periodic(a) && !this->boundaries.is_periodic(b))) ||
 				(this->boundaries.is_periodic(a) && this->boundaries.forcing_io(b) ) ||
 				(this->boundaries.is_periodic(b) && this->boundaries.forcing_io(a) )
 			)

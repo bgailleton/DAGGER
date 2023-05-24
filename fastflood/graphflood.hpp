@@ -126,8 +126,11 @@ public:
 
 	fT courant_number  = 5e-4;
 	fT max_courant_dt_hydro = 1e3;
+	fT min_courant_dt_hydro = 1e-4;
 	void set_courant_numer(fT val){this->courant_number = val;};
 	void set_max_courant_dt_hydro(fT val){this->max_courant_dt_hydro = val;};
+	void set_min_courant_dt_hydro(fT val){this->min_courant_dt_hydro = val;};
+
 	fT courant_dt_hydro = -1;
 	fT get_courant_dt_hydro(){return this->courant_dt_hydro;}
 	void enable_courant_dt_hydro(){this->mode_dt_hydro = PARAM_DT_HYDRO::COURANT;}
@@ -988,6 +991,7 @@ public:
 				fT provisional_dt = this->courant_number/(sum_ui_over_dxi);
 				// if(provisional_dt < tcourant_dt_hydro)
 				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
+				tcourant_dt_hydro = std::max(provisional_dt, this->min_courant_dt_hydro);
 			}
 
 			vmot_hw[node] += (this->_Qw[node] - total_Qout)/this->connector->get_area_at_node(node);
@@ -1114,7 +1118,7 @@ public:
 			// }
 
 			// CFL calculator
-			fT sum_ui_over_dxi = 0.;
+			// fT sum_ui_over_dxi = 0.;
 
 			// Deprecated test to switch dynamically between SFD and MFD (does not really add anything and is buggy in rivers)
 			// if(this->hydromode == HYDRO::GRAPH_HYBRID)
@@ -1177,6 +1181,7 @@ public:
 			{
 				fT provisional_dt =  (this->courant_number * dx)/u_flow;
 				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
+				tcourant_dt_hydro = std::max(provisional_dt, this->min_courant_dt_hydro);
 			}
 
 			// computing hydro vertical motion changes for next time step
@@ -1270,8 +1275,8 @@ public:
 			vmot = std::vector<fT>(this->graph->nnodes,0.);
 
 		// Caching neighbours, slopes and weights
-		auto receivers = this->connector->get_empty_neighbour();
-		std::array<fT,8> weights, slopes;
+		// auto receivers = this->connector->get_empty_neighbour();
+		// std::array<fT,8> weights, slopes;
 		
 		// main loop
 		for(int i = this->graph->nnodes-1; i>=0; --i)
@@ -1330,7 +1335,7 @@ public:
 			// this->_compute_slopes_weights_et_al( node, SF, Smax, slopes, weights, nrecs, receivers, recmax, dx, dw0max, topological_number_v2);
 
 			// Initialising the total Qout
-			fT Qwin = this->_Qw[node];
+			// fT Qwin = this->_Qw[node];
 
 			// precalculating the power
 			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
@@ -1368,6 +1373,7 @@ public:
 			{
 				provisional_dt =  this->courant_number/(sum_ui_over_dxi * nrecs);
 				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
+				tcourant_dt_hydro = std::max(provisional_dt, this->min_courant_dt_hydro);
 			}
 
 			// computing hydro vertical motion changes for next time step
@@ -2206,7 +2212,6 @@ public:
 		// current_dt_prec
 		// caching neighbours and slopes
 		auto neighbours = this->connector->get_empty_neighbour();
-		auto slopes = this->connector->get_empty_neighbour();
 
 		// launching n precipitons
 		for(int _ = 0; _<N; ++_)
@@ -2215,7 +2220,7 @@ public:
 			// Spawn location
 			int node = this->spawn_precipition();
 			// caching the starting point for debugging
-			int onode = node;
+			// int onode = node;
 
 			// increment the global chronometer
 			this->current_dt_prec += precdt;
@@ -2555,15 +2560,13 @@ public:
 
 		// current_dt_prec
 		auto neighbours = this->connector->get_empty_neighbour();
-		auto slopes = this->connector->get_empty_neighbour();
-
 
 		for(int _ = 0; _<N; ++_)
 		{
 
 			// int node = this->spawn_precipition();
 			int node = starters[this->dis(this->gen)];
-			int onode = node;
+			// int onode = node;
 			// std::cout << "init at " << node << std::endl;
 			
 			this->current_dt_prec += precdt;
@@ -2571,7 +2574,7 @@ public:
 			if(this->morphomode != MORPHO::NONE)
 				this->current_dt_prec_e += precdt;
 
-			fT tQs = this->Vps * this->connector->dy;
+			// fT tQs = this->Vps * this->connector->dy;
 
 			int NMAX = this->connector->nnodes * 2;
 			while(true)
@@ -2580,15 +2583,15 @@ public:
 				if(this->connector->boundaries.has_to_out(node) || NMAX == 0)
 					break;
 
-				// update step from Qwout
-				fT tdt = this->current_dt_prec - this->last_dt_prec[node];
-				// this->last_dt_prec[node] = this->current_dt_prec;
+				// // update step from Qwout
+				// fT tdt = this->current_dt_prec - this->last_dt_prec[node];
+				// // this->last_dt_prec[node] = this->current_dt_prec;
 
 				int rec = node;
 				fT Sw = 0.;
 				fT Sw_sel = 0.;
 				fT dx = 0.;
-				fT dy = 0.;
+				// fT dy = 0.;
 				int nn = this->connector->get_neighbour_idx_links(node,neighbours);
 
 				for(int j=0; j<nn; ++j)
@@ -2636,7 +2639,7 @@ public:
 							Sw_sel = tsw_sel;
 							rec = trec;
 							dx = this->connector->get_dx_from_links_idx(neighbours[j]);
-							dy = this->connector->get_travers_dy_from_dx(dx);
+							// dy = this->connector->get_travers_dy_from_dx(dx);
 						}
 
 						if(tsw > Sw)
@@ -2648,7 +2651,7 @@ public:
 							Sw = this->bou_fixed_val;
 							rec = trec;
 							dx = this->connector->dx;
-							dy = this->connector->dy;
+							// dy = this->connector->dy;
 						}
 					}
 

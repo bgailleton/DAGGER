@@ -68,11 +68,8 @@ namespace DAGGER
 	{
 		PQFORPF open;
 		std::queue<PQH > pit;
-		
-		// auto topography = format_input(ttopography);
-		uint64_t pitc            = 0;
-		auto     PitTop          = -9999;
-		int      false_pit_cells = 0; 
+
+
 	 
 		std::vector<int8_t> closed(connector.nnodes,false);
 
@@ -104,7 +101,7 @@ namespace DAGGER
 			// // } else {
 			c=open.top();
 			open.pop();
-			PitTop=topography[c.node];
+			// fT PitTop = topography[c.node];
 			// }
 
 			int nn = connector.get_neighbour_idx(c.node, neighbours);
@@ -143,9 +140,9 @@ namespace DAGGER
 		// std::cout << "DEBUGDEBUG2" << std::endl;
 		
 		// auto topography = format_input(ttopography);
-		uint64_t pitc            = 0;
-		auto     PitTop          = -9999;
-		int      false_pit_cells = 0; 
+		// uint64_t pitc            = 0;
+		// auto     PitTop          = -9999;
+		// int      false_pit_cells = 0; 
 	 
 		std::vector<int8_t> closed(connector->nnodes,0);
 
@@ -183,7 +180,7 @@ namespace DAGGER
 			// // } else {
 			c=open.top();
 			open.pop();
-			PitTop=topography[c.node];
+			// PitTop=topography[c.node];
 			stack[stack_incrementor] = c.node;
 			++stack_incrementor;
 			// }
@@ -301,8 +298,9 @@ namespace DAGGER
     }
 
     // Copy the marker image back into the original data
-    for (int i = 0; i < data.size(); i++) {
-        data[i] = marker[i];
+    for (size_t i = 0; i < data.size(); i++) 
+    {
+      data[i] = marker[i];
     }
 }
 

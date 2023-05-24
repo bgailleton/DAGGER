@@ -89,7 +89,7 @@ public:
 	popscape(Graph_t& graph, Connector_t& con)
 	{
 		
-		this->connector = _create_connector(con.nx,con.ny,con.dx,con.dy,0.,0.);
+		this->connector = _create_connector(con.nx,con.ny,con.dx,con.dy,fT(0.),fT(0.));
 		_create_graph(graph.nnodes, this->connector,this->graph);
 		
 		// this->graph = graph;
@@ -219,7 +219,7 @@ public:
 		fT dx = this->connector.dx/2;
 		fT dy = this->connector.dy/2;
 		// init connector
-		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+		this->connector = _create_connector(nx,ny,dx,dy,fT(0.),fT(0.));
 		this->connector.set_default_boundaries(this->boundary_string);
 		
 		// init graph
@@ -243,7 +243,7 @@ public:
 
 		std::vector<fT> ntopo(nxy,0.);
 
-		D8connector<double> ncon = _create_connector(nx,ny,this->connector.dx*2,this->connector.dy*2,0.,0.);
+		D8connector<double> ncon = _create_connector(nx,ny,this->connector.dx*2,this->connector.dy*2,fT(0.),fT(0.));
 		ncon.set_default_boundaries(this->boundary_string);
 
 
@@ -374,6 +374,20 @@ public:
 
 	}
 
+	void normalise_topography()
+	{
+		fT mini = std::numeric_limits<fT>::max();
+		fT maxi = std::numeric_limits<fT>::min();
+		for(auto v:this->topography)
+		{
+			if(v < mini) mini = v;
+			if(v > maxi) maxi = v;
+		}
+		maxi -= mini;
+		for(auto& v:this->topography)
+			v = (v - mini)/maxi;
+	}
+
 
 	// std::vector<fT> chiculations()
 	// {
@@ -444,7 +458,7 @@ public:
 		this->topography = std::vector<fT>(nxy,0.);
 		
 		// init connector
-		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+		this->connector = _create_connector(nx,ny,dx,dy,fT(0.),fT(0.));
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);
@@ -539,7 +553,7 @@ public:
 		fT dx = this->connector.dx/2;
 		fT dy = this->connector.dy/2;
 		// init connector
-		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+		this->connector = _create_connector(nx,ny,dx,dy,fT(0.),fT(0.));
 		
 		// init graph
 		_create_graph(nxy, this->connector,this->graph);

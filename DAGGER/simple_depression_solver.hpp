@@ -426,8 +426,8 @@ namespace DAGGER
 	}
 
 
-	template<class Connector_t, class topo_t>
-	std::vector<int> _dagger_fill(Connector_t* connector, topo_t& topography, std::vector<size_t>& stack)
+	template<class Connector_t, class topo_t, class fT>
+	std::vector<std::int8_t> _dagger_fill(Connector_t* connector, topo_t& topography, std::vector<size_t>& stack)
 	{
 		// Ocean contains label of nodes connected to the ocean (0), not connected to anything yet (-1), temp, unresolved drainage divide (-2) or connected to an unresolved depression (value = node index of the pit)
 		std::vector<std::int8_t> ocean(connector->nnodes,-1);
@@ -454,7 +454,7 @@ namespace DAGGER
 
 		auto neighbours = connector->get_empty_neighbour();
 		auto neighbours_links = connector->get_empty_neighbour();
-		auto neighbours_Z = connector->get_empty_neighbour<fT>();
+		auto neighbours_Z = connector->template get_empty_neighbour<fT>();
 
 		// Step I) pushing to the Queue the ocean/pit cells and labelling them accordingly
 
@@ -589,7 +589,7 @@ namespace DAGGER
 						connector->update_local_link(lix, topography);
 						continue;
 					}
-					if(topography[oi] =< ttopo)
+					if(topography[oi] <= ttopo)
 					{
 						ttopo =  ttopo + 1e-6 * connector->randu->get() + 1e-8;
 						topography[oi] = ttopo;
