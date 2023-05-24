@@ -754,8 +754,7 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("set_single_Sc_M", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Sc_M)
     .def("set_single_lambda", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_lambda)
     .def("set_single_sea_level", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_sea_level)
-    .def("hillslopes_on", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::hillslopes_on)
-    .def("hillslopes_off", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::hillslopes_off)
+    .def("set_hillslopes_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_hillslopes_mode)
     .def("fluvial_on", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::fluvial_on)
     .def("fluvial_off", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::fluvial_off)
     .def("marine_on", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::marine_on)
@@ -1089,6 +1088,13 @@ PYBIND11_MODULE(dagger, m) {
     .value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
     .value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
     .value("PROPOREC", MFD_PARTITIONNING::PROPOREC)
+  ;
+
+  py::enum_<TSC_HILLSLOPE>(m, "TSC_HILLSLOPE")
+    .value("NONE", TSC_HILLSLOPE::NONE)
+    .value("LINEAR", TSC_HILLSLOPE::LINEAR)
+    .value("CIDRE", TSC_HILLSLOPE::CIDRE)
+    .value("HYLANDS", TSC_HILLSLOPE::HYLANDS)
   ;
 
 

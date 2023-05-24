@@ -44,8 +44,11 @@
 #include "D8connector.hpp"
 #include "D4connector.hpp"
 #include "popscape_utils.hpp"
-#include "trackscape_utils.hpp"
 #include "hillshading.hpp"
+
+
+#include "trackscape_enum.hpp"
+#include "trackscape_utils.hpp"
 
 // defines all the format_input depnding on the eventual wrapper
 #include "wrap_helper.hpp"
@@ -99,10 +102,13 @@ public:
 	std::vector<fT> _sea_level;
 
 	// SPL exponents
-	fT mexp = 0.45,nexp = 1;
+	fT mexp = 0.45;
+	fT nexp = 1;
 
 	// Switching on and/or off the hillslope and/or fluvial 
-	bool hillslopes = true, fluvial = true, marine = false;
+	TSC_HILLSLOPE hillslopes = TSC_HILLSLOPE::NONE;
+
+	bool fluvial = true, marine = false;
 
 	// Switching on and/or off the spatiality of the different parameters
 	bool variable_Ks = false;
@@ -200,8 +206,9 @@ public:
 
 
 	// switch on and off the hillslopes and fluvial processes
-	void hillslopes_on(){this->hillslopes = true;}
-	void hillslopes_off(){this->hillslopes = false;}
+	void set_hillslopes_mode(TSC_HILLSLOPE mode){this->hillslopes = mode;};
+
+
 	void fluvial_on(){this->fluvial = true;}
 	void fluvial_off(){this->fluvial = false;}
 	void marine_on(){this->marine = true;}
@@ -514,7 +521,7 @@ public:
 			this->Qs_sed = std::vector<fT>(this->graph.nnodes,0.);
 		}
 
-		if(this->hillslopes || this->marine)
+		if(this->hillslopes != TSC_HILLSLOPE::NONE || this->marine)
 		{
 			this->Qs_hs = std::vector<fT>(this->graph.nnodes,0.);
 		}
@@ -578,7 +585,7 @@ public:
 			if(isNodeContinental)
 			{
 				// Running the hillslope processes
-				if(this->hillslopes)
+				if(this->hillslopes == TSC_HILLSLOPE::CIDRE)
 				{
 					this->_compute_SFD_hillslopes(node, rec, S, hEs, hEr, hDs, dt, dx, cellarea);
 				}
@@ -913,7 +920,7 @@ public:
 	{
 		if(this->fluvial)
 			this->TSP_Qsf = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>()); 
-		if(this->hillslopes)
+		if(this->hillslopes != TSC_HILLSLOPE::NONE)
 			this->TSP_Qsh = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>());
 	}
 
@@ -1076,7 +1083,7 @@ public:
 	{
 		if(this->fluvial)
 			this->Ch_MTSI_Qsf = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>()); 
-		if(this->hillslopes)
+		if(this->hillslopes != TSC_HILLSLOPE::NONE)
 			this->Ch_MTSI_Qsh = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>());
 	}
 
