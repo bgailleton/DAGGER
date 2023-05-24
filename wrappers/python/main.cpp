@@ -699,7 +699,7 @@ void declare_popscape_old(py::module &m, std::string typestr)
     .def("solve_SFD_SPL_imp", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::solve_SFD_SPL_imp)
     .def("hydraulic_erosion_v0", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::hydraulic_erosion_v0)
     .def("normalise_topography", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::normalise_topography)
-    .def("run_SFD_exp_latmag", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_exp_latmag)
+    // .def("run_SFD_exp_latmag", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_exp_latmag)
     
   ;
 }
@@ -954,6 +954,7 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("get_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
     .def("set_courant_numer", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_numer)
     .def("set_max_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
+    .def("set_min_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_min_courant_dt_hydro)
     .def("enable_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
     .def("set_Qwin_crit", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
     .def("get_nT", &graphflood<fT,GRAPH_T,CONNECTOR_T>::get_nT)
