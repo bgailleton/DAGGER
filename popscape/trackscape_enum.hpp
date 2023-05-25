@@ -22,7 +22,17 @@ enum class TSC_FLUVIAL
 	DAVY2009
 };
 
+enum class TSC_MARINE
+{
+	NONE,
+	CHARLIE
+};
 
+enum class TSC_FLOW_TOPOLOGY
+{
+	SFD,
+	MFD
+};
 
 
 

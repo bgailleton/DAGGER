@@ -108,9 +108,7 @@ public:
 	// Switching on and/or off the hillslope and/or fluvial 
 	TSC_HILLSLOPE hillslopes = TSC_HILLSLOPE::NONE;
 	TSC_FLUVIAL fluvial = TSC_FLUVIAL::DAVY2009;
-
-
-	bool marine = false;
+	TSC_MARINE marine = TSC_MARINE::NONE;
 
 	// Switching on and/or off the spatiality of the different parameters
 	bool variable_Ks = false;
@@ -210,11 +208,9 @@ public:
 	// switch on and off the hillslopes and fluvial processes
 	void set_hillslopes_mode(TSC_HILLSLOPE mode){this->hillslopes = mode;};
 	void set_fluvial_mode(TSC_FLUVIAL mode){this->fluvial = mode;};
+	void set_marine_mode(TSC_MARINE mode){this->marine = mode;}
 
 
-
-	void marine_on(){this->marine = true;}
-	void marine_off(){this->marine = false;}
 
 	// Set the single parameters
 	void set_single_Ks(fT tks){this->_Ks = {tks}; this->variable_Ks = false;}
@@ -523,7 +519,7 @@ public:
 			this->Qs_sed = std::vector<fT>(this->graph.nnodes,0.);
 		}
 
-		if(this->hillslopes != TSC_HILLSLOPE::NONE || this->marine)
+		if(this->hillslopes != TSC_HILLSLOPE::NONE || this->marine != TSC_MARINE::NONE)
 		{
 			this->Qs_hs = std::vector<fT>(this->graph.nnodes,0.);
 		}
@@ -578,7 +574,7 @@ public:
 			fT fEs = 0., fEr = 0., fDs = 0., hEs = 0., hEr = 0., hDs = 0., mEs = 0., mEr = 0., mDs = 0.;
 
 			bool isNodeContinental = true;
-			if(this->marine)
+			if(this->marine != TSC_MARINE::NONE)
 			{
 				if(this->z_surf[node] + this->h_sed[node] < this->sea_level(node))
 					isNodeContinental = false;
