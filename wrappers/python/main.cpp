@@ -756,8 +756,7 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("set_single_sea_level", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_sea_level)
     .def("set_hillslopes_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_hillslopes_mode)
     .def("set_fluvial_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_fluvial_mode)
-    .def("marine_on", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::marine_on)
-    .def("marine_off", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::marine_off)
+    .def("set_marine_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_marine_mode)
     .def("fill_up", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::fill_up)
     .def("init_Ch_MTSI", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::init_Ch_MTSI)
     .def("rise_boundary_by", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::rise_boundary_by)
@@ -1098,9 +1097,18 @@ PYBIND11_MODULE(dagger, m) {
 
   py::enum_<TSC_FLUVIAL>(m, "TSC_FLUVIAL")
     .value("NONE", TSC_FLUVIAL::NONE)
-    .value("CIDRE", TSC_FLUVIAL::DAVY2009)
+    .value("DAVY2009", TSC_FLUVIAL::DAVY2009)
   ;
 
+  py::enum_<TSC_MARINE>(m, "TSC_MARINE")
+    .value("NONE", TSC_MARINE::NONE)
+    .value("CHARLIE", TSC_MARINE::CHARLIE)
+  ;
+
+  py::enum_<TSC_FLOW_TOPOLOGY>(m, "TSC_FLOW_TOPOLOGY")
+    .value("SFD", TSC_FLOW_TOPOLOGY::SFD)
+    .value("MFD", TSC_FLOW_TOPOLOGY::MFD)
+  ;
 
 
 
