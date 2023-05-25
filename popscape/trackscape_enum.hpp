@@ -16,6 +16,13 @@ enum class TSC_HILLSLOPE
 };
 
 
+enum class TSC_FLUVIAL
+{
+	NONE,
+	DAVY2009
+};
+
+
 
 
 

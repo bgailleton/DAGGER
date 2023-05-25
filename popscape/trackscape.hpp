@@ -107,8 +107,10 @@ public:
 
 	// Switching on and/or off the hillslope and/or fluvial 
 	TSC_HILLSLOPE hillslopes = TSC_HILLSLOPE::NONE;
+	TSC_FLUVIAL fluvial = TSC_FLUVIAL::DAVY2009;
 
-	bool fluvial = true, marine = false;
+
+	bool marine = false;
 
 	// Switching on and/or off the spatiality of the different parameters
 	bool variable_Ks = false;
@@ -207,10 +209,10 @@ public:
 
 	// switch on and off the hillslopes and fluvial processes
 	void set_hillslopes_mode(TSC_HILLSLOPE mode){this->hillslopes = mode;};
+	void set_fluvial_mode(TSC_FLUVIAL mode){this->fluvial = mode;};
 
 
-	void fluvial_on(){this->fluvial = true;}
-	void fluvial_off(){this->fluvial = false;}
+
 	void marine_on(){this->marine = true;}
 	void marine_off(){this->marine = false;}
 
@@ -516,7 +518,7 @@ public:
 	{
 		this->Qw = std::vector<fT>(this->graph.nnodes,0.);
 
-		if(this->fluvial)
+		if(this->fluvial != TSC_FLUVIAL::NONE)
 		{
 			this->Qs_sed = std::vector<fT>(this->graph.nnodes,0.);
 		}
@@ -591,7 +593,7 @@ public:
 				}
 
 				// Fluvial processes
-				if(this->fluvial)
+				if(this->fluvial != TSC_FLUVIAL::NONE)
 				{
 					this->_compute_SFD_fluvial(node,rec,S,fEs,fEr,fDs,dt,dx,cellarea);
 				}
@@ -918,7 +920,7 @@ public:
 	// Function reinitialising the trackers for the TSP module
 	void init_Qs_TSP()
 	{
-		if(this->fluvial)
+		if(this->fluvial != TSC_FLUVIAL::NONE)
 			this->TSP_Qsf = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>()); 
 		if(this->hillslopes != TSC_HILLSLOPE::NONE)
 			this->TSP_Qsh = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>());
@@ -1081,7 +1083,7 @@ public:
 	// Function reinitialising the trackers for the Ch_MTSI module
 	void init_Qs_Ch_MTSI()
 	{
-		if(this->fluvial)
+		if(this->fluvial != TSC_FLUVIAL::NONE)
 			this->Ch_MTSI_Qsf = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>()); 
 		if(this->hillslopes != TSC_HILLSLOPE::NONE)
 			this->Ch_MTSI_Qsh = std::vector<BasePropStorer<fT> >(this->graph.nnodes,BasePropStorer<fT>());
