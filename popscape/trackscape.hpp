@@ -112,6 +112,9 @@ public:
 	// Spatial critical slope
 	std::vector<fT> _Sc;
 
+	// TSD_HILLSLOPES::HYLANDS
+
+
 	// Spatial precipitations
 	std::vector<fT> _precipitations;
 	
@@ -152,6 +155,11 @@ public:
 	// at least one tracking module is actiated if this is true
 	// and it can conflict with some functions
 	bool at_least_one_tracking_module_is_activated = false;
+
+
+
+	// Hylands-specific parameters
+	std::vector<std::uint32_t> landslidesid;
 
 
 	// Module TSP: 
@@ -207,6 +215,7 @@ private:
 	std::array<fT,8> tslopes;
 
 	// int ( trackscape<fT,Graph_t, Connector_t>::* ) (int) stackgetter;
+	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > prefuncs;
 	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > downstreamfuncs;
 	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > upstreamfuncs;
 	// std::array<fT,8> tfneighbours, tfneighboursA,tfneighboursB;
@@ -667,6 +676,9 @@ public:
 
 		this->graph._compute_graph(this->z_surf, !need_mfrecs, false);
 
+		if(this->prefuncs.size() > 0)
+			for(auto& v:this->prefuncs) (this->*v)();
+
 		if(this->downstreamfuncs.size() > 0)
 		{
 			for(int i = this->graph.nnodes -1; i>=0; --i)
@@ -765,6 +777,12 @@ public:
 
 		this->downstreamfuncs.clear();
 		this->upstreamfuncs.clear();
+		this->prefuncs.clear();
+
+
+		if(this->hillslopes == TSC_HILLSLOPE::HYLANDS)
+			this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::hillslopes_label_ldsl_hylands);
+
 
 
 		bool need_Qw = this->fluvial != TSC_FLUVIAL::NONE;
@@ -1083,6 +1101,104 @@ public:
 
 
 
+/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	prefuncs functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/	
+
+
+	void hillslopes_label_ldsl_hylands()
+	{
+		if(this->flowtopo != TSC_FLOW_TOPOLOGY::MFD) throw std::runtime_error("Not compatible SFD at the moment (WIP, there is a fatal bug)");
+
+		// reinit the landslides ID
+		this->landslidesid = std::vector<std::uint32_t>(this->connector.nnodes, 0);
+		std::uint32_t id_ldsl = 1;
+
+		// Readying stack helper
+		std::stack<int, std::vector<int> > stackhelper;
+
+		auto neighbours_nodes = this->connector.get_empty_neighbour(); 
+		auto neighbours_links = this->connector.get_empty_neighbour(); 
+		for(int i=0; i < this->connector.nnodes; ++i)
+		{
+			
+			int node = this->get_istack_node_MFD(i);
+			
+			if(this->landslidesid[node] > 0) continue;
+
+			int nn = this->connector.get_donors_idx_nodes_and_links(node, neighbours_nodes, neighbours_links);
+			bool init_landslide = false;
+			for(int j=0; j<nn; ++j)
+			{
+
+				int tdo = neighbours_nodes[j];
+
+				if(this->landslidesid[tdo] > 0) continue;
+
+				fT tdx = this->connector.get_dx_from_links_idx(neighbours_links[j]);
+				fT tS = (this->z_surf[tdo] - this->z_surf[node])/tdx;
+
+				if(tS >= this->Sc(node))
+				{
+					init_landslide = true;
+					stackhelper.emplace(tdo);
+					this->landslidesid[tdo] = 1;
+
+				}
+			}
+
+			if(init_landslide)
+			{
+				++id_ldsl;
+				this->landslidesid[node] = id_ldsl;
+				while(stackhelper.empty() == false)
+				{
+					int next = stackhelper.top(); 
+					stackhelper.pop();
+					this->landslidesid[next] = id_ldsl;
+					int nn = this->connector.get_donors_idx_nodes_and_links(next, neighbours_nodes, neighbours_links);
+					bool init_landslide = false;
+					for(int j=0; j<nn; ++j)
+					{
+
+						int tdo = neighbours_nodes[j];
+
+						if(this->landslidesid[tdo] > 0) continue;
+
+						fT tdx = this->connector.get_dx_from_links_idx(neighbours_links[j]);
+						fT tS = (this->z_surf[tdo] - this->z_surf[next])/tdx;
+
+						if(tS >= this->Sc(next))
+						{
+							init_landslide = true;
+							stackhelper.emplace(tdo);
+							this->landslidesid[tdo] = 1;
+						}
+					}
+				}
+			}
+
+		}
+
+	}
 
 
 
