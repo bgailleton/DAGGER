@@ -1971,6 +1971,30 @@ public:
 		return size;
 	}
 
+	int get_receivers_idx_nodes_and_links(int i, std::array<int,8>& tin, std::array<int,8>& tlin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && this->is_link_normal(li))
+			{
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				tlin[size] = li;
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && !this->is_link_normal(oli))
+			{
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				tlin[size] = oli;
+				++size;
+			}
+		}
+		return size;
+	}
+
 	int get_donors_idx(int i, std::array<int,8>& tin)
 	{
 		int size = 0;
@@ -1987,6 +2011,30 @@ public:
 			if(this->is_link_valid(oli) && this->is_link_normal(oli))
 			{
 				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				++size;
+			}
+		}
+		return size;
+	}
+
+	int get_donors_idx_nodes_and_links(int i, std::array<int,8>& tin, std::array<int,8>& tlin)
+	{
+		int size = 0;
+
+		for(int j=0; j<4; ++j)
+		{
+			int li = i*4 + j;
+			if(this->is_link_valid(li) && !this->is_link_normal(li))
+			{
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				tlin[size] = li;
+				++size;
+			}
+			int oli = (i + this->reruobhgien[this->ridknil[li]] )* 4 + j;
+			if(this->is_link_valid(oli) && this->is_link_normal(oli))
+			{
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				tlin[size] = oli;
 				++size;
 			}
 		}

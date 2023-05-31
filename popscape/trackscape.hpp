@@ -59,6 +59,9 @@
 
 namespace DAGGER
 {
+// {
+// 	typedef void (*tscfunc)();
+// 	typedef int (*tscfuncstack)(int);
 
 
 // templates are: floating point type, graph type (DAGGER graph) and connector type (DAGGER connector)
@@ -66,6 +69,13 @@ template<class fT,class Graph_t, class Connector_t>
 class trackscape
 {
 public:
+
+
+	// ###############################################
+	// ###############################################
+	// Fluxes and quantities
+	// ###############################################
+	// ###############################################
 
 	// Surface topography (top of bedrock + sediment)
 	std::vector<fT> z_surf;
@@ -76,22 +86,35 @@ public:
 	// Hillslope sediment flux
 	std::vector<fT> Qs_hs;
 	// Fluvial sediment flux
-	std::vector<fT> Qs_sed;
+	std::vector<fT> Qs_fluvial;
 	
+
+	// ###############################################
+	// ###############################################
+	// parameters for the different functions
+	// ###############################################
+	// ###############################################
+
+	// TSD_FLUVIAL::DAVY2019
 	// Spatial erodibility (sediments)
 	std::vector<fT> _Ks;
 	// Spatial erodibility (bedrock)
 	std::vector<fT> _Kr;
+	// Spatial deposition coefficient
+	std::vector<fT> _depcoeff;
+
+
+	// TSD_HILLSLOPES::CIDRE
 	// Spatial diffusivity (sediments)
 	std::vector<fT> _kappa_s;
 	// Spatial diffusivity (bedrock)
 	std::vector<fT> _kappa_r;
-	// Spatial precipitations
-	std::vector<fT> _precipitations;
-	// Spatial deposition coefficient
-	std::vector<fT> _depcoeff;
 	// Spatial critical slope
 	std::vector<fT> _Sc;
+
+	// Spatial precipitations
+	std::vector<fT> _precipitations;
+	
 	// Spatial marine _Sc
 	std::vector<fT> _Sc_M;
 	// Spatial marine Ke
@@ -105,10 +128,13 @@ public:
 	fT mexp = 0.45;
 	fT nexp = 1;
 
-	// Switching on and/or off the hillslope and/or fluvial 
+	// Switching on and/or off the hillslope and/or fluvial
+	TSC_FLOW_TOPOLOGY flowtopo = TSC_FLOW_TOPOLOGY::SFD;
 	TSC_HILLSLOPE hillslopes = TSC_HILLSLOPE::NONE;
 	TSC_FLUVIAL fluvial = TSC_FLUVIAL::DAVY2009;
 	TSC_MARINE marine = TSC_MARINE::NONE;
+
+
 
 	// Switching on and/or off the spatiality of the different parameters
 	bool variable_Ks = false;
@@ -155,6 +181,41 @@ public:
 	// The connector (DAGGER)
 	Connector_t connector;
 
+
+	// Other params
+	fT noise_magnitude = 1.;
+
+
+	fT tdt = 1e2;
+	void set_dt(fT dt){this->tdt = dt;};
+
+
+	// Private parameters for local processing
+	// Basically they simplify my life when juggling between function so ignore them
+private:
+
+	fT tdx,tdy,tZ,tSS,ths,tqs,tqw;
+
+	fT thEs, thEr, thDs, tfEs, tfEr, tfDs;
+
+	int tnode, tSrec;
+
+	int tnn, trn, tdb;
+
+	std::array<int,8> tneighbours_node, tneighbours_links, treceivers_nodes, treceivers_links, tdonors_nodes, tdonors_links;
+
+	std::array<fT,8> tslopes;
+
+	// int ( trackscape<fT,Graph_t, Connector_t>::* ) (int) stackgetter;
+	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > downstreamfuncs;
+	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > upstreamfuncs;
+	// std::array<fT,8> tfneighbours, tfneighboursA,tfneighboursB;
+
+
+public:
+
+
+
 	// empty constructor with default values for the different param (default = non spatial)
 	trackscape()
 	{
@@ -173,10 +234,10 @@ public:
 	};
 
 	// constructor 1:
-	// -> noise type is from the RANDOISE enum (white, red, perlin, ...)
+	// -> DEPRECATED: NOW THIS FUNCTION ONLY DOES WHITE NOISE noise type is from the RANDOISE enum (white, red, perlin, ...)
 	// -> nx/ny are the number of nodes in the x/y dir
 	// -> dx dy are the related spacing in [L]
-	void init_random(RANDNOISE noisetype, int nx, int ny, fT dx, fT dy, std::string boundary_conditions)
+	void init_random( int nx, int ny, fT dx, fT dy, std::string boundary_conditions)
 	{
 		
 		// total number of nodes (so far assuming only regular grids)
@@ -196,10 +257,53 @@ public:
 		// this->graph.init_graph(this->connector);
 		
 		// init random noise
-		if(noisetype == RANDNOISE::WHITE)
-			DAGGER::add_noise_to_vector(this->z_surf,0.,1.);
+		DAGGER::add_noise_to_vector(this->z_surf,0.,noise_magnitude);
 
 		this->h_sed = std::vector<fT>(this->graph.nnodes, 0.);
+
+		for(int i=0;i<this->connector.nnodes;++i)
+		{
+			if(this->connector.boundaries.can_out(i)) this->z_surf[i] = 0;
+		}
+	}
+
+
+	// constructor 1:
+	// -> DEPRECATED: NOW THIS FUNCTION ONLY DOES WHITE NOISE noise type is from the RANDOISE enum (white, red, perlin, ...)
+	// -> nx/ny are the number of nodes in the x/y dir
+	// -> dx dy are the related spacing in [L]
+	void init_perlin( int nx, int ny, fT dx, fT dy, std::string boundary_conditions, fT frequency, int octaves, fT Zmax, std::uint32_t seed, bool noise_on_top)
+	{
+		
+		// total number of nodes (so far assuming only regular grids)
+		int nxy = nx * ny;
+		
+		// init the topo to 0
+		
+		// init connector
+		this->connector = _create_connector(nx,ny,dx,dy,0.,0.);
+
+		// boundary conditions:
+		this->connector.set_default_boundaries(boundary_conditions);
+
+		this->z_surf = _generate_perlin_noise_2D(this->connector, frequency, octaves, seed) ;
+		for(auto&v:this->z_surf) v*= Zmax;
+
+		
+		// init graph
+		_create_graph(nxy, this->connector,this->graph);
+		// this->graph.init_graph(this->connector);
+		
+		// init random noise
+		if(noise_on_top)
+			DAGGER::add_noise_to_vector(this->z_surf,0.,noise_magnitude);
+
+		this->h_sed = std::vector<fT>(this->graph.nnodes, 0.);
+
+		for(int i=0;i<this->connector.nnodes;++i)
+		{
+			if(this->connector.boundaries.can_out(i)) this->z_surf[i] = 0;
+		}
 	}
 
 
@@ -209,6 +313,7 @@ public:
 	void set_hillslopes_mode(TSC_HILLSLOPE mode){this->hillslopes = mode;};
 	void set_fluvial_mode(TSC_FLUVIAL mode){this->fluvial = mode;};
 	void set_marine_mode(TSC_MARINE mode){this->marine = mode;}
+	void set_flowtopo_mode(TSC_FLOW_TOPOLOGY mode){this->flowtopo = mode;}
 
 
 
@@ -516,7 +621,7 @@ public:
 
 		if(this->fluvial != TSC_FLUVIAL::NONE)
 		{
-			this->Qs_sed = std::vector<fT>(this->graph.nnodes,0.);
+			this->Qs_fluvial = std::vector<fT>(this->graph.nnodes,0.);
 		}
 
 		if(this->hillslopes != TSC_HILLSLOPE::NONE || this->marine != TSC_MARINE::NONE)
@@ -530,9 +635,501 @@ public:
 		
 		if(this->Ch_MTSI)
 			this->init_Qs_Ch_MTSI();
+
+		this->downstreamfuncs.clear();
+		this->upstreamfuncs.clear();
 	}
 
 
+	// ------------------------------------------------
+	//	                             	              __
+	//                                             / _)
+	//                                    _.----._/ /
+	//   Run METHODS          /         /
+	//                                __/ (  | (  |
+	//                               /__.-'|_|--|_|
+	//
+	// All the methods related to running a timestep
+	// ------------------------------------------------
+
+
+	void run()
+	{
+		// Initialising the data vectors
+		this->init_vectors();
+
+		bool need_mfrecs = this->do_I_need_MFD();
+
+		// Setting up the function pointers
+		this->determine_functors();
+		auto stackgetter = (this->flowtopo == TSC_FLOW_TOPOLOGY::SFD) ? &trackscape<fT,Graph_t, Connector_t>::get_istack_node_SFD : &trackscape<fT,Graph_t, Connector_t>::get_istack_node_MFD;
+
+
+		this->graph._compute_graph(this->z_surf, !need_mfrecs, false);
+
+		if(this->downstreamfuncs.size() > 0)
+		{
+			for(int i = this->graph.nnodes -1; i>=0; --i)
+			{
+				// std::cout << std::endl << "RUN" << std::endl;
+
+				// Getting the next node in line
+				this->tnode = (this->*stackgetter)(i);
+				
+				// Check if no data
+				if(this->connector.boundaries.no_data(this->tnode)) continue;
+
+				// Check if base level
+				if(this->connector.flow_out_or_pit(this->tnode)) 
+				{
+					// manage the base level evolution here
+					continue;
+				}
+
+				this->tSrec = this->connector.Sreceivers[this->tnode];
+
+				// feeding the local private variables
+				this->tdx = this->connector.Sdistance2receivers[this->tnode];
+				this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
+				this->tZ = this->z_surf[this->tnode];
+				// this->tSS = this->connector.SS[this->tnode];
+				this->tSS = std::max(1e-6,(tZ - this->z_surf[this->tSrec])/this->tdx);
+				this->ths = this->h_sed[this->tnode];
+				
+				if(need_mfrecs)
+					this->trn = this->connector.get_receivers_idx_nodes_and_links(this->tnode, this->treceivers_nodes,this->treceivers_links);
+
+				this->reset_fhED();
+
+				for(auto& v:this->downstreamfuncs) (this->*v)();
+
+				// Applying the fluxes
+				this->h_sed[this->tnode] += (this->thDs + this->tfDs - this->thEs - this->tfEs) * this->tdt;
+				this->z_surf[this->tnode] += (this->thDs + this->tfDs - this->thEs - this->thEr - this->tfEs - this->tfEr) * this->tdt;
+				// std::cout << (this->thDs + this->tfDs - this->thEs - this->thEr - this->tfEs - this->tfEr) * this->tdt << std::endl;
+				// if((this->thDs + this->tfDs - this->thEs - this->thEr - this->tfEs - this->tfEr) * this->tdt > 1e-1) std::cout << this->Qs_fluvial[this->tnode]/this->Qw[this->tnode] << "|" << this->tfDs << "|" << this->tfEs << "|" << tfEr << std::endl;;
+			}
+		}
+
+		// fT tmax = 0.;
+		// for(auto v:this->h_sed)
+		// {
+		// 	if(std::abs(v) >tmax) tmax = v;
+		// }
+		// std::cout << "maxelev:" << tmax << std::endl;
+		// std::cout  << std::endl;
+
+	
+
+		if(this->upstreamfuncs.size() > 0)
+		{
+			for(int i = 0; i< this->graph.nnodes; ++i)
+			{
+				// Getting the next node in line
+				this->tnode = (this->*stackgetter)(i);
+				
+				// Check if no data
+				if(this->connector.boundaries.no_data(this->tnode)) continue;
+
+				// Check if base level
+				if(this->connector.flow_out_or_pit(this->tnode)) 
+				{
+					// manage the base level evolution here
+					continue;
+				}
+
+				this->tSrec = this->connector.Sreceivers[this->tnode];
+
+				// feeding the local private variables
+				this->tdx = this->connector.Sdistance2receivers[this->tnode];
+				this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
+				this->tZ = this->z_surf[this->tnode];
+				// this->tSS = this->connector.SS[this->tnode];
+				this->tSS = std::max(1e-6,(tZ - this->z_surf[this->tSrec])/this->tdx);
+				this->ths = this->h_sed[this->tnode];
+
+				if(need_mfrecs)
+					this->trn = this->connector.get_receivers_idx_nodes_and_links(this->tnode, this->treceivers_nodes,this->treceivers_links);
+
+				this->reset_fhED();
+
+				for(auto& v:this->upstreamfuncs) (this->*v)();
+
+			}
+		}
+	}
+
+
+	void determine_functors()
+	{
+
+		this->downstreamfuncs.clear();
+		this->upstreamfuncs.clear();
+
+
+		bool need_Qw = this->fluvial != TSC_FLUVIAL::NONE;
+		bool need_Qs = this->fluvial == TSC_FLUVIAL::DAVY2009 || this->hillslopes != TSC_HILLSLOPE::NONE;
+		bool SFD = this->flowtopo == TSC_FLOW_TOPOLOGY::SFD;
+
+		if(need_Qw)
+		{
+			if(SFD) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_Qw_SFD); 
+			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_Qw_MFD);
+		}
+
+		
+		if(this->hillslopes == TSC_HILLSLOPE::CIDRE)
+			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre);
+
+		if(this->fluvial == TSC_FLUVIAL::FASTSCAPE)
+			this->upstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_fastscape_SFD);
+		else if (this->fluvial == TSC_FLUVIAL::DAVY2009)
+			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_davy2009);
+
+
+
+
+		if(need_Qw && !need_Qs)
+		{
+			if(SFD) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_SFD); 
+			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_MFD);
+		}
+		else if (need_Qw && need_Qs)
+		{
+			if(SFD) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_SFD); 
+			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_MFD);
+		}
+	}
+
+
+
+		
+
+	// this function will get more sophisticated as I add processes. It returns true if some processes needs to cache multiple neighbours.
+	bool do_I_need_MFD()
+	{
+		if(this->flowtopo == TSC_FLOW_TOPOLOGY::MFD)
+			return true;
+		else
+			return false;
+	}
+
+	// this function will get more sophisticated as I add processes. It returns true if some processes needs to cache multiple neighbours.
+	bool do_I_need_preprocess_Qw()
+	{
+		if(this->fluvial == TSC_FLUVIAL::FASTSCAPE)
+			return true;
+		else
+			return false;
+	}
+
+	bool do_I_need_upstream_traversal()
+	{
+		if(this->fluvial == TSC_FLUVIAL::FASTSCAPE)
+			return true;
+		return false;
+	}
+
+	bool do_I_need_downstream_traversal()
+	{
+		if(this->hillslopes != TSC_HILLSLOPE::NONE || this->fluvial == TSC_FLUVIAL::DAVY2009)
+			return true;
+		return false;		
+	}
+
+
+	void reset_fhED()
+	{
+		this->thEs = 0.;
+		this->thEr = 0.;
+		this->thDs = 0.;
+		this->tfEs = 0.;
+		this->tfEr = 0.;
+		this->tfDs = 0.;
+	}
+
+	
+
+
+
+
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Process functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
+
+	// no proc function, used when a process is deactivated
+	void noproc(){return;}
+
+	void fluvial_davy2009()
+	{
+		// std::cout << "fluvial_davy2009" << std::endl;
+		// Erosion
+		fT stream_power = std::pow(this->Qw[this->tnode],this->mexp) * std::pow(std::max(1e-6,this->tSS),this->nexp);
+		
+		fT propused = 0;
+		if(this->h_sed[this->tnode] > 0)
+		{
+			this->tfEs = Ks(this->tnode) * stream_power;
+			if(this->h_sed[this->tnode] < this->tfEs * this->tdt)
+			{
+				propused = this->h_sed[this->tnode] / this->tdt / this->tfEs;
+				this->tfEs = this->h_sed[this->tnode] / this->tdt;
+			}
+			else
+			{
+				propused = 1.;
+			}
+		}
+
+		this->tfEr = (1. - propused) * Kr(this->tnode) * stream_power;
+
+		// Deposition
+		// fT L = std::max(this->depcoeff(this->tnode) * this->Qw[this->tnode],this->connector.get_area_at_node(this->tnode));
+		// fT L = 
+
+		this->tfDs = std::min(this->depcoeff(this->tnode) * this->Qs_fluvial[this->tnode]/(this->Qw[this->tnode]),  this->Qs_fluvial[this->tnode]/(this->connector.get_area_at_node(this->tnode)));
+		
+		// if(this->TSP_module)
+		// 	this->apply_TSP(this->tnode, rec, fEs, fEr, fDs, this->tdt, false);
+
+		// if(this->Ch_MTSI)
+		// 	this->apply_Ch_MTSI_SFD(this->tnode, rec, fEs, fEr, fDs, this->tdt, false);
+	
+		// // Applying the fluxes
+		// this->h_sed[this->tnode] += (this->tfDs - this->tfEs) * this->tdt;
+		// this->z_surf[this->tnode] += (this->tfDs - this->tfEs - this->tfEr) * this->tdt;
+		this->Qs_fluvial[this->tnode] += (this->tfEs + this->tfEr - this->tfDs) * this->connector.get_area_at_node(this->tnode);
+
+		if(this->Qs_fluvial[this->tnode] < 0) this->Qs_fluvial[this->tnode] = 0;
+
+		// // Transferring to receivers
+		// this->Qw[rec] += this->Qw[tnode];
+		// this->Qs_fluvial[rec] += this->Qs_fluvial[tnode];
+		return;
+	}
+
+	void fluvial_fastscape_SFD()
+	{
+    fT tK = this->Kr(this->tnode);
+    fT factor = tK * this->tdt * std::pow(this->Qw[this->tnode],this->mexp) / std::pow(this->connector.Sdistance2receivers[this->tnode],this->nexp);
+    fT ielevation = this->z_surf[this->tnode];
+    fT irec_elevation = this->z_surf[this->tSrec];
+    fT elevation_k = ielevation;
+    fT elevation_prev = std::numeric_limits<fT>::max();
+    fT tolerance = 1e-4;
+    while (abs(elevation_k - elevation_prev) > tolerance)
+    {
+			elevation_prev = elevation_k;
+			fT slope = std::max(elevation_k - irec_elevation,1e-6);
+			fT diff =  (elevation_k - ielevation + factor * std::pow(slope,this->nexp)) / ( 1. + factor * this->nexp * std::pow(slope, this->nexp - 1) )  ;
+			elevation_k -= diff;
+    }
+    this->z_surf[this->tnode] = elevation_k;
+	}
+
+	void hillslopes_cidre()
+	{
+		// Storing the proportion of bedrock-power used
+		fT propused = 0;
+
+		// If the slope is bellow the critical values
+		if(this->tSS <= Sc(this->tnode) - 1e-6)
+		{
+			// If I have sediments
+			if(this->h_sed[this->tnode] > 0)
+			{
+				
+				// erosion power
+				this->thEs = kappa_s(this->tnode) * this->tSS;
+
+				// Checking I am not strapping more than the sediment pile
+				if(this->thEs * this->tdt > this->h_sed[this->tnode])
+				{
+					// Correcting to the max sed height removal possible and calculating the proportion of sediment used
+					propused = this->h_sed[this->tnode]/this->tdt /this->thEs;
+					this->thEs = this->h_sed[this->tnode]/this->tdt;
+				}
+				else
+				{
+					// I don't have any sed? -> no propused
+					propused = 1.;
+				}
+
+			// end of the check for excessing sed height
+			}
+
+			// Remaining applied to bedrock
+			this->thEr = (1. - propused) * kappa_r(this->tnode) * this->tSS;
+			fT L = this->connector.get_area_at_node(this->tnode)/(1 - std::pow(this->tSS/Sc(this->tnode),2));
+			this->thDs = this->Qs_hs[this->tnode]/L;
+
+		}
+		else
+		{
+			fT tothE = (this->z_surf[this->tnode] - (this->tdx * Sc(this->tnode) + z_surf[this->tSrec]) )/this->tdt;
+			if(tothE > this->h_sed[this->tnode])
+			{
+				this->thEs = this->h_sed[this->tnode]/this->tdt;
+				this->thEr = tothE - this->thEs;
+			}
+			else
+				this->thEs = tothE;
+		}
+
+
+		this->Qs_hs[this->tnode] += (this->thEs + this->thEr - this->thDs) * this->connector.get_area_at_node(this->tnode);
+
+		if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+		this->Qs_hs[this->tSrec] += this->Qs_hs[this->tnode];
+	}
+
+	void prec_Qw_SFD()
+	{
+		// std::cout << "prec_Qw_SFD" << std::endl;
+		this->Qw[this->tnode] += this->precipitations(this->tnode) * this->connector.get_area_at_node(this->tnode);
+	}
+
+	void trans_Qw_SFD()
+	{
+		// std::cout << "trans_Qw_SFD" << std::endl;
+		this->Qw[this->tSrec] += this->Qw[this->tnode];
+	}
+
+
+	void prec_Qw_MFD()
+	{
+		// std::cout << "prec_Qw_MFD" << std::endl;
+		this->Qw[this->tnode] += this->precipitations(this->tnode) * this->connector.get_area_at_node(this->tnode);
+	}
+
+	void trans_Qw_MFD()
+	{
+		// std::cout << "trans_Qw_MFD" << std::endl;
+		// this->tslopes
+		fT sumsum = 0.;
+		for(int j = 0; j < this->trn; ++j)
+		{
+			this->tslopes[j] = (this->tZ - this->z_surf[this->treceivers_nodes[j]]) / this->connector.get_dx_from_links_idx( this->treceivers_links[j] ) ;
+
+			sumsum += this->tslopes[j];
+		}
+
+		for(int j = 0; j<this->trn; ++j)
+		{
+			if(sumsum > 0)
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * this->tslopes[j]/sumsum;
+			else
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * this->tslopes[j]/this->trn;
+		}
+	}
+
+	void trans_Qw_Qs_SFD()
+	{
+		// std::cout << "trans_Qw_Qs_SFD" << std::endl;
+		this->Qw[this->tSrec] += this->Qw[this->tnode];
+		this->Qs_fluvial[this->tSrec] += this->Qs_fluvial[this->tnode];
+		if(this->hillslopes != TSC_HILLSLOPE::NONE) this->Qs_hs[this->tSrec] += this->Qs_hs[this->tnode];
+	}
+
+
+	void trans_Qw_Qs_MFD()
+	{
+		// this->tslopes
+		// std::cout << "trans_Qw_Qs_MFD" << std::endl;
+		fT sumsum = 0.;
+		for(int j = 0; j < this->trn; ++j)
+		{
+			this->tslopes[j] = (this->tZ - this->z_surf[this->treceivers_nodes[j]]) / this->connector.get_dx_from_links_idx( this->treceivers_links[j] ) ;
+
+			sumsum += this->tslopes[j];
+		}
+
+		for(int j = 0; j<this->trn; ++j)
+		{
+			if(sumsum > 0)
+			{
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * this->tslopes[j]/sumsum;
+				this->Qs_fluvial[this->treceivers_nodes[j]] += this->Qs_fluvial[this->tnode] * this->tslopes[j]/sumsum;
+				if(this->hillslopes != TSC_HILLSLOPE::NONE) this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * this->tslopes[j]/sumsum;
+			}
+			else
+			{
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * this->tslopes[j]/this->trn;
+				this->Qs_fluvial[this->treceivers_nodes[j]] += this->Qs_fluvial[this->tnode] * this->tslopes[j]/this->trn;
+				if(this->hillslopes != TSC_HILLSLOPE::NONE) this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * this->tslopes[j]/this->trn;
+			}
+		}
+	}
+
+
+
+
+
+
+
+
+	// Some processes need Qw to be processed beforehand
+	void preprocess_Qw_SFD()
+	{
+		if(this->variable_precipitations)
+		{
+			std::vector<fT> tQA(this->connector.nnodes,0.);
+
+			for(int i=0; i<this->connector.nnodes;++i)
+			{
+				tQA[i] = this->_precipitations[i] * this->connector.get_area_at_node(i);
+			}
+			this->Qw = this->graph._accumulate_variable_downstream_SFD( tQA);
+		}
+		else
+		{
+			this->Qw = this->graph._accumulate_constant_downstream_SFD(this->connector.get_area_at_node(0) * this->precipitations(0));
+		}
+	}
+
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Legacy functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+*/
 
 	void run_SFD(fT dt)
 	{
@@ -605,6 +1202,9 @@ public:
 		
 	}
 
+
+
+	// Legacy function of the hillslope processes
 	void _compute_SFD_hillslopes(int node, int rec, fT& S, fT & hEs, fT & hEr, fT & hDs, fT& dt, fT& dx, fT& cellarea)
 	{
 		// Storing the proportion of bedrock-power used
@@ -670,6 +1270,9 @@ public:
 	}
 
 
+
+
+	// Legacy function for the fluvial processes
 	void _compute_SFD_fluvial(int node, int rec, fT& S, fT & fEs, fT & fEr, fT & fDs, fT& dt, fT& dx, fT& cellarea)
 	{
 		// Erosion
@@ -693,7 +1296,7 @@ public:
 		// Deposition
 		fT L = std::max(this->depcoeff(node) * this->Qw[node],cellarea);
 
-		fDs = this->Qs_sed[node]/L;
+		fDs = this->Qs_fluvial[node]/L;
 		
 		if(this->TSP_module)
 			this->apply_TSP(node, rec, fEs, fEr, fDs, dt, false);
@@ -704,13 +1307,13 @@ public:
 		// Applying the fluxes
 		this->h_sed[node] += (fDs - fEs) * dt;
 		this->z_surf[node] += (fDs - fEs - fEr) * dt;
-		this->Qs_sed[node] += (fEs + fEr - fDs) * cellarea;
+		this->Qs_fluvial[node] += (fEs + fEr - fDs) * cellarea;
 
-		if(this->Qs_sed[node] < 0) this->Qs_sed[node] = 0;
+		if(this->Qs_fluvial[node] < 0) this->Qs_fluvial[node] = 0;
 
 		// Transferring to receivers
 		this->Qw[rec] += this->Qw[node];
-		this->Qs_sed[rec] += this->Qs_sed[node];
+		this->Qs_fluvial[rec] += this->Qs_fluvial[node];
 	}
 
 
@@ -778,7 +1381,7 @@ public:
 		// fT propused = 0;
 
 		// updating the node sediment flux with anything that came (river + hillslope)
-		this->Qs_hs[node] += this->Qs_sed[node];
+		this->Qs_hs[node] += this->Qs_fluvial[node];
 
 		// If the slope is bellow the critical values
 		if(S <= Sc_M(node) - 1e-6)
@@ -937,7 +1540,7 @@ public:
 		this->TSP_store.pile_up(i,Ds,tpropr);
 
 		// Modifying the fluxes
-		fT zfQ = (thillslopes) ? this->Qs_hs[i]/this->connector.get_area_at_node(i) : this->Qs_sed[i]/this->connector.get_area_at_node(i);
+		fT zfQ = (thillslopes) ? this->Qs_hs[i]/this->connector.get_area_at_node(i) : this->Qs_fluvial[i]/this->connector.get_area_at_node(i);
 		zfQ *= dt;
 		BasePropStorer<fT>::mix(zfQ,tpropr, Es, rem1);
 		zfQ += Es;
@@ -953,7 +1556,7 @@ public:
 			if(thillslopes)
 				BasePropStorer<fT>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->TSP_Qsh[ir], zfQ, tpropr);
 			else
-				BasePropStorer<fT>::mix(this->Qs_sed[ir]/this->connector.get_area_at_node(i) * dt, this->TSP_Qsf[ir], zfQ, tpropr);
+				BasePropStorer<fT>::mix(this->Qs_fluvial[ir]/this->connector.get_area_at_node(i) * dt, this->TSP_Qsf[ir], zfQ, tpropr);
 
 		}
 	
@@ -1101,7 +1704,7 @@ public:
 		this->Ch_MTSI_store.pile_up(i,Ds,tpropr);
 
 		// Modifying the fluxes
-		fT zfQ = (thillslopes) ? this->Qs_hs[i]/this->connector.get_area_at_node(i) : this->Qs_sed[i]/this->connector.get_area_at_node(i);
+		fT zfQ = (thillslopes) ? this->Qs_hs[i]/this->connector.get_area_at_node(i) : this->Qs_fluvial[i]/this->connector.get_area_at_node(i);
 		zfQ *= dt;
 		BasePropStorer<fT>::mix(zfQ,tpropr, Es, rem1);
 		zfQ += Es;
@@ -1117,7 +1720,7 @@ public:
 			if(thillslopes)
 				BasePropStorer<fT>::mix(this->Qs_hs[ir]/this->connector.get_area_at_node(i) * dt, this->Ch_MTSI_Qsh[ir], zfQ, tpropr);
 			else
-				BasePropStorer<fT>::mix(this->Qs_sed[ir]/this->connector.get_area_at_node(i) * dt, this->Ch_MTSI_Qsf[ir], zfQ, tpropr);
+				BasePropStorer<fT>::mix(this->Qs_fluvial[ir]/this->connector.get_area_at_node(i) * dt, this->Ch_MTSI_Qsf[ir], zfQ, tpropr);
 		}
 
 	}
@@ -1220,6 +1823,58 @@ public:
 		return DAGGER::format_output<std::vector<fT>, out_t >(transect);
 
 	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+//##################################################
+//##################################################
+//##################################################
+//##################################################
+//
+// 	         ___..._
+//     _,--'       "`-.
+//   ,'.  .            |
+// ,/:. .     .       .'
+// |;..  .      _..--'
+// `--:...-,-'""|
+//         |:.  `.
+//         l;.   l
+//         `|:.   |
+//          |:.   `.,
+//         .l;.    j, ,
+//      `. |`;:.   //,/
+//       .||)`;,||'/(
+// 
+//
+// Helper functions
+//##################################################
+//##################################################
+//##################################################
+//##################################################
+
+	int get_istack_node_SFD(int i)
+	{
+		return int(this->graph.Sstack[i]);
+	}
+
+	int get_istack_node_MFD(int i)
+	{
+		return int(this->graph.stack[i]);
+	}
+
 
 
 	
