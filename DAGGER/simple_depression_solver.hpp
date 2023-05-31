@@ -26,9 +26,9 @@ This header file extends the graph to provide routines to process depressions us
 #include "veque.hpp"
 // #include "graph.hpp"
 
-#ifdef BOOST_AVAILABLE
-#include <boost/circular_buffer.hpp>
-#endif
+// #ifdef BOOST_AVAILABLE
+// #include <boost/circular_buffer.hpp>
+// #endif
 
 
 using std::chrono::high_resolution_clock;
