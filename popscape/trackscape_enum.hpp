@@ -20,6 +20,7 @@ enum class TSC_FLUVIAL
 {
 	NONE,
 	DAVY2009,
+	LATERALDAVY,
 	FASTSCAPE
 };
 
