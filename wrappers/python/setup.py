@@ -16,6 +16,7 @@ __version__ = "0.0.1"
 #	 reproducible builds (https://github.com/pybind/python_example/pull/53)
 MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None), ("BOOST_AVAILABLE", None)]
 EXTRA_COMPILE = ['-O3', '-Wall']
+EXTRA_LINK = ['-O3']
 # LIBBR = ["boost_system"]
 LIBBR = []
 if "--exp" in sys.argv:
@@ -36,7 +37,8 @@ ext_modules = [
 					define_macros = MACROS,
 					cxx_std=17,
 
-	        extra_compile_args=EXTRA_COMPILE,
+	       			 extra_compile_args=EXTRA_COMPILE,
+	       			 extra_link_args=EXTRA_LINK,
 
 				),
 ]
