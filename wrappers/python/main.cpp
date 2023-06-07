@@ -735,7 +735,11 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("get_hillshade", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_hillshade<py::array>)
     .def("get_h_sed", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_h_sed<py::array>)
     .def("get_Qw", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qw<py::array>)
+    .def("get_Qs_fluvial", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_fluvial<py::array>)
+    .def("get_Qs_hillslopes", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_hillslopes<py::array>)
     .def("get_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_precipitations<py::array>)
+    
+
     .def("run", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run)
     .def("run_SFD", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD)
     .def("block_uplift", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::block_uplift)
@@ -747,8 +751,10 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("get_transect_Ch_MTSI", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_transect_Ch_MTSI<py::array_t<double,1> >)
     .def("get_transect_TSP", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_transect_TSP<py::array_t<double,1> >)
     .def("set_dt", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_dt)
+    .def("set_transfer_rate_Qs_hs2fl", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_transfer_rate_Qs_hs2fl)
     .def("set_single_Ks", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Ks)
     .def("set_single_Kr", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kr)
+    .def("set_single_Ke", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Ke)
     .def("set_single_Kle", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kle)
     .def("set_single_Kld", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kld)
     .def("set_single_depcoeff", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_depcoeff)
@@ -759,6 +765,8 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("set_single_Sc_M", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Sc_M)
     .def("set_single_lambda", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_lambda)
     .def("set_single_sea_level", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_sea_level)
+    .def("set_single_internal_friction", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_internal_friction)
+    .def("set_single_tls", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_tls)
     .def("set_hillslopes_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_hillslopes_mode)
     .def("set_fluvial_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_fluvial_mode)
     .def("set_secondary_fluvial_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_secondary_fluvial_mode)
@@ -783,11 +791,17 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("feed_topo",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template feed_topo<py::array_t<double,1>& >)
     .def("set_m",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_m)
     .def("set_n",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_n)
+    .def("set_N_boundary_to",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_N_boundary_to)
+    
     .def("run_SFD_implicit",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_implicit)
     .def("lithify",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::lithify)
     .def("strip_sediment",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::strip_sediment)
 
-    
+    // SEt of standalone functions
+    .def("Standalone_hyland_landslides",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::Standalone_hyland_landslides)
+    .def("Standalone_hylands_single_landslide",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::Standalone_hylands_single_landslide)
+
+
     
 
     
@@ -1099,6 +1113,7 @@ PYBIND11_MODULE(dagger, m) {
     .value("NONE", TSC_HILLSLOPE::NONE)
     .value("LINEAR", TSC_HILLSLOPE::LINEAR)
     .value("CIDRE", TSC_HILLSLOPE::CIDRE)
+    .value("CIDRE_NOCRIT", TSC_HILLSLOPE::CIDRE_NOCRIT)
     .value("HYLANDS", TSC_HILLSLOPE::HYLANDS)
   ;
 
@@ -1106,6 +1121,7 @@ PYBIND11_MODULE(dagger, m) {
     .value("NONE", TSC_FLUVIAL::NONE)
     .value("DAVY2009", TSC_FLUVIAL::DAVY2009)
     .value("LATERALDAVY", TSC_FLUVIAL::LATERALDAVY)
+    .value("LATERALSPL", TSC_FLUVIAL::LATERALSPL)
     .value("FASTSCAPE", TSC_FLUVIAL::FASTSCAPE)
   ;
 
@@ -1917,6 +1933,13 @@ B.G.
     "rayshade",
     &rayshade< DAGGER::graph<double, DAGGER::D8connector<double> >, D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double> 
     );
+
+  m.def(
+    "set_BC_to_remove_seas",
+    &set_BC_to_remove_seas< D8connector<double>, py::array_t<double, 1>, double> 
+    );
+
+  
 
   m.def(
     "label_depressions_PQ",

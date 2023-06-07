@@ -2358,7 +2358,7 @@ public:
 		{
 
 			// checking if the link is valid 
-			if(this->is_link_valid(i) == false)
+			if(this->link_needs_processing(i) == false)
 			{
 				++incr;
 				if(incr == 4)
@@ -2440,7 +2440,7 @@ public:
 					this->SS[from] = slope;
 				}
 			}
-			else if (this->boundaries.can_give(to) && this->boundaries.can_receive(from) )
+			else if (this->boundaries.can_give(to) && this->boundaries.can_receive(from) && slope < 0 )
 			{
 				// Otherwise the convention is inverted:
 				// isrec is falese and to is giving to from
@@ -4000,6 +4000,33 @@ public:
 	}
 
 	// void debug
+
+
+};
+
+
+
+
+
+
+template<class Connector_t, class topo_t, class fT>
+void set_BC_to_remove_seas(Connector_t& connector, topo_t& ttopography, fT sea_level)
+{
+	auto topography = format_input(ttopography);
+	// # first label the no-data
+	for(int i=0; i<connector.nnodes; ++i)
+		if(topography[i] < sea_level)
+			connector.boundaries.codes[i] = BC::NO_FLOW;
+
+	auto neighbours = connector.get_empty_neighbour();
+	for(int i=0; i<connector.nnodes; ++i)
+	{
+		if(connector.boundaries.no_data(i)) continue;
+		int nn = connector.get_neighbour_idx(i,neighbours);
+		for(int j=0; j< nn; ++j)
+			if(connector.boundaries.no_data(neighbours[j]))
+				connector.boundaries.codes[i] = BC::OUT;
+	}
 
 
 };

@@ -128,8 +128,14 @@ public:
 	std::vector<fT> _rho;
 	std::vector<fT> _tls;
 	std::vector<fT> _internal_friction;
+	fT min_dep_hillslopes = 0.01;
+	fT max_dep_hillslopes = 0.8;
 	fT gravity = 9.81;
 
+
+	bool transfer_Qs_hs2fl = false;
+	fT transfer_rate_Qs_hs2fl = 0.1;
+	void set_transfer_rate_Qs_hs2fl(fT stuff){this->transfer_rate_Qs_hs2fl = stuff;}
 
 	// Spatial precipitations
 	std::vector<fT> _precipitations;
@@ -242,6 +248,7 @@ private:
 	// int ( trackscape<fT,Graph_t, Connector_t>::* ) (int) stackgetter;
 	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > prefuncs;
 	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > downstreamfuncs;
+	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > downstreamfuncs_marine;
 	std::vector< void (trackscape<fT,Graph_t, Connector_t>::* )() > upstreamfuncs;
 	// std::array<fT,8> tfneighbours, tfneighboursA,tfneighboursB;
 
@@ -352,7 +359,7 @@ public:
 	// switch on and off the hillslopes and fluvial processes
 	void set_hillslopes_mode(TSC_HILLSLOPE mode){this->hillslopes = mode;};
 	void set_fluvial_mode(TSC_FLUVIAL mode){this->fluvial = mode;};
-	void set_secondary_fluvial_mode(TSC_FLUVIAL mode){if(mode != TSC_FLUVIAL::NONE && mode != TSC_FLUVIAL::LATERALDAVY) {throw std::runtime_error("At the moment, secondary fluvial process can only be LATERALDAVY");} this->secondary_fluvial = mode;};
+	void set_secondary_fluvial_mode(TSC_FLUVIAL mode){this->secondary_fluvial = mode;};
 	void set_marine_mode(TSC_MARINE mode){this->marine = mode;}
 	void set_flowtopo_mode(TSC_FLOW_TOPOLOGY mode){this->flowtopo = mode;}
 
@@ -372,6 +379,8 @@ public:
 	void set_single_Ke(fT TKe){this->_Ke = {TKe}; this->variable_Ke = false;}
 	void set_single_lambda(fT tlambda){this->_lambda = {tlambda}; this->variable_lambda = false;}
 	void set_single_sea_level(fT tsea_level){this->_sea_level = {tsea_level}; this->variable_sea_level = false;}
+	void set_single_internal_friction(fT tinternal_friction){this->_internal_friction = {tinternal_friction}; this->variable_internal_friction = false;}
+	void set_single_tls(fT ttls){this->_tls = {ttls}; this->variable_tls = false;}
 
 	void set_m(fT m){this->mexp = m;}
 	void set_n(fT n){this->nexp = n;}
@@ -683,6 +692,15 @@ public:
 			return this->_internal_friction[i];
 	}
 
+	// Degree version
+	fT internal_friction_d(int i)
+	{
+		if(variable_internal_friction == false)
+			return std::atan(this->_internal_friction[0]);
+		else
+			return std::atan(this->_internal_friction[i]);
+	}
+
 	fT Sc_hylands(int i, fT& slope)
 	{
 		return (this->internal_friction(i) + slope)/2;
@@ -793,29 +811,17 @@ public:
 					continue;
 				}
 
-				this->tSrec = this->connector.Sreceivers[this->tnode];
+				this->_ready_node_state();
 
-				// feeding the local private variables
-				this->tdx = this->connector.Sdistance2receivers[this->tnode];
-				this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
-				this->tZ = this->z_surf[this->tnode];
-				// this->tSS = this->connector.SS[this->tnode];
-				this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
-				this->ths = this->h_sed[this->tnode];
-
-				if(this->secondary_fluvial != TSC_FLUVIAL::NONE)
+				if(this->marine == TSC_MARINE::NONE || this->z_surf[this->tnode] >= this->sea_level(this->tnode))
 				{
-					auto onodes = this->connector.get_orthogonal_nodes(this->tnode, this->tSrec);
-					this->orthonodA = onodes.first;
-					this->orthonodB = onodes.second;
+					for(auto& v:this->downstreamfuncs) (this->*v)();
+				}
+				else
+				{
+					for(auto& v:this->downstreamfuncs_marine) (this->*v)();
 				}
 
-				if(need_mfrecs)
-					this->trn = this->connector.get_receivers_idx_nodes_and_links(this->tnode, this->treceivers_nodes,this->treceivers_links);
-
-				this->reset_fhED();
-
-				for(auto& v:this->downstreamfuncs) (this->*v)();
 
 				// Applying the fluxes
 				// this->h_sed[this->tnode] += (this->thDs + this->tfDs - this->thEs - this->tfEs) * this->tdt;
@@ -882,6 +888,7 @@ public:
 	{
 
 		this->downstreamfuncs.clear();
+		this->downstreamfuncs_marine.clear();
 		this->upstreamfuncs.clear();
 		this->prefuncs.clear();
 
@@ -905,7 +912,19 @@ public:
 		if(this->hillslopes == TSC_HILLSLOPE::CIDRE)
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre);
 		else if (this->hillslopes == TSC_HILLSLOPE::HYLANDS)
-			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre_dep_only);
+			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre_dep_only_for_highlands);
+		else if(this->hillslopes == TSC_HILLSLOPE::CIDRE_NOCRIT)
+			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre_no_crit);
+
+		if(this->marine == TSC_MARINE::CHARLIE)
+		{
+			this->downstreamfuncs_marine.emplace_back(&trackscape<fT,Graph_t,Connector_t>::marine_charlie_III);
+			if(SFD) this->downstreamfuncs_marine.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_SFD); 
+			else this->downstreamfuncs_marine.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_MFD);
+		}
+
+		if(this->secondary_fluvial == TSC_FLUVIAL::LATERALSPL)
+			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_lateral_erosion_SPL);
 
 		if(this->fluvial == TSC_FLUVIAL::FASTSCAPE)
 			this->upstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_fastscape_SFD);
@@ -915,6 +934,13 @@ public:
 		if(this->secondary_fluvial == TSC_FLUVIAL::LATERALDAVY)
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_lateral_erosion_deposition_davy);
 
+
+		if(this->hillslopes != TSC_HILLSLOPE::NONE && this->fluvial != TSC_FLUVIAL::NONE )
+		{
+			if(this->transfer_Qs_hs2fl)
+				this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::capture_Qs_hs_from_fluv);
+
+		}
 
 
 		if(need_Qw && !need_Qs)
@@ -1147,14 +1173,42 @@ public:
 
 	}
 
-	void hillslopes_cidre_dep_only()
+	void hillslopes_cidre_no_crit()
 	{
-		// If the slope is bellow the critical values
-		if(this->tSS <= Sc(this->tnode) - 1e-9)
-		{
+		// Storing the proportion of bedrock-power used
+		fT propused = 0;
+
+		fT min_dep = 0.01;
+
+		fT ttss = std::max(this->tSS,1e-2);
+
 		
-			fT L = this->connector.get_area_at_node(this->tnode)/(1 - std::pow(this->tSS/Sc(this->tnode),2));
-			this->thDs = this->Qs_hs[this->tnode]/L;
+		// If I have sediments
+		this->thEs = kappa_s(this->tnode) * ttss;
+		fT remains = 0.;
+		if(this->add_to_dhsdt(this->tnode, - this->tdt * this->thEs, remains))
+		{				
+			// erosion power
+			remains = std::abs(remains);
+			propused = remains/(this->thEs * this->tdt);
+			this->thEs -= remains/this->tdt;
+		// end of the check for excessing sed height
+		}
+		else
+		{
+			// I don't have any sed? -> no propused
+			propused = 0.;
+		}
+
+		// Remaining applied to bedrock
+		this->thEr = propused * kappa_r(this->tnode) * ttss;
+		this->add_to_dbedrockdt(this->tnode, - this->thEr * this->tdt);
+
+		// If the slope is bellow the critical values
+		if(ttss <= Sc(this->tnode) - 1e-9)
+		{
+			fT L = this->connector.get_area_at_node(this->tnode)/(1 - std::pow(ttss/Sc(this->tnode),2));
+			this->thDs = std::max(this->Qs_hs[this->tnode]/L, min_dep * this->Qs_hs[this->tnode]/this->connector.get_area_at_node(this->tnode));
 
 			if(this->connector.get_area_at_node(this->tnode) * this->thDs > this->Qs_hs[this->tnode])
 			{
@@ -1164,12 +1218,54 @@ public:
 
 			this->add_to_dhsdt_nocheck(this->tnode,this->thDs * this->tdt);
 
-			if(L < 1) throw std::runtime_error("hillslopes::cidre::exception1994");
-			this->Qs_hs[this->tnode] -= (this->thDs) * this->connector.get_area_at_node(this->tnode);
-			if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+		}
+		else
+			this->thDs = min_dep * this->Qs_hs[this->tnode]/this->connector.get_area_at_node(this->tnode);
 
+		this->Qs_hs[this->tnode] += (this->thEs + this->thEr - this->thDs) * this->connector.get_area_at_node(this->tnode);
+
+		if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+
+	}
+
+	void hillslopes_cidre_dep_only_for_highlands() 
+	{
+		
+		if(this->Qs_hs[this->tnode] <= 0) return;
+		// If the slope is bellow the critical values
+
+		if(this->tSS <= internal_friction(this->tnode) - 1e-9) // using the internal friction as this section is used in hylands
+		{
+		
+			fT L = this->connector.get_area_at_node(this->tnode)/(1 - std::pow(this->tSS/internal_friction(this->tnode),2));
+			// this->thDs = std::min(this->max_dep_hillslopes/this->connector.get_area_at_node(this->tnode), std::max(1/L, this->min_dep_hillslopes/this->connector.get_area_at_node(this->tnode)) )* this->Qs_hs[this->tnode];
+			this->thDs = 1/L * this->Qs_hs[this->tnode];
+		}
+		// else
+		// 	this->thDs = std::min(this->max_dep_hillslopes/this->connector.get_area_at_node(this->tnode), this->min_dep_hillslopes/this->connector.get_area_at_node(this->tnode)) * this->Qs_hs[this->tnode];
+
+
+		if(this->connector.get_area_at_node(this->tnode) * this->thDs > this->Qs_hs[this->tnode])
+		{
+			this->thDs = this->Qs_hs[this->tnode]/this->connector.get_area_at_node(this->tnode);
 		}
 
+		this->add_to_dhsdt_nocheck(this->tnode, this->thDs * this->tdt);
+
+		this->Qs_hs[this->tnode] -= (this->thDs) * this->connector.get_area_at_node(this->tnode);
+
+		if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+
+	
+
+	}
+
+
+	void capture_Qs_hs_from_fluv()
+	{
+		fT tqc = this->Qs_hs[this->tnode] * this->transfer_rate_Qs_hs2fl;
+		this->Qs_fluvial[this->tnode] += tqc;
+		this->Qs_hs[this->tnode] -= tqc;
 	}
 
 
@@ -1201,6 +1297,33 @@ public:
 		{
 			fT remains = 0;
 			fT tlater =  std::abs(dZ) * this->Kle(this->tnode) * (this->tfEs + this->tfEr);
+			this->add_to_dhsdt(onode, -1 * tlater * this->tdt, remains); // the -1 for the vertical motion is included in the negative remain
+			// the remains is already negative if not null
+			this->add_to_dbedrockdt(onode, remains);
+
+			this->Qs_fluvial[this->tnode] += tlater * this->connector.get_area_at_node(this->tnode);
+			if(this->Qs_fluvial[this->tnode] < 0) this->Qs_fluvial[this->tnode] = 0;
+		}
+
+	}
+
+	void fluvial_lateral_erosion_SPL()
+	{
+		this->_fluvial_lateral_erosion_SPL(this->orthonodA);
+		this->_fluvial_lateral_erosion_SPL(this->orthonodB);
+	}
+
+	void _fluvial_lateral_erosion_SPL(int onode)
+	{
+		if(onode <= -1 || onode >= this->connector.nnodes) return;
+
+		fT dZ = this->z_surf[this->tnode] - this->z_surf[onode];
+
+		if( dZ < 0 )
+		{
+			fT remains = 0;
+			fT tlater =  std::pow(std::abs(dZ)/this->tdy,this->nexp) * std::pow(this->Qw[this->tnode],this->mexp) * this->Kle(this->tnode);
+
 			this->add_to_dhsdt(onode, -1 * tlater * this->tdt, remains); // the -1 for the vertical motion is included in the negative remain
 			// the remains is already negative if not null
 			this->add_to_dbedrockdt(onode, remains);
@@ -1322,6 +1445,158 @@ public:
 		}
 	}
 
+
+
+
+	void marine_charlie_III()
+	{
+
+		// Storing the proportion of bedrock-power used
+		// fT propused = 0;
+
+		// updating the node sediment flux with anything that came (river + hillslope)
+		this->Qs_hs[this->tnode] += this->Qs_fluvial[this->tnode];
+
+		// Storing the proportion of bedrock-power used
+		fT propused = 0;
+
+		// If the slope is bellow the critical values
+		if(this->tSS <= Sc_M(this->tnode) - 1e-9)
+		{
+			// If I have sediments
+			this->thEs = this->Ke(this->tnode) * this->tSS;
+			fT remains = 0.;
+			if(this->add_to_dhsdt(this->tnode, - this->tdt * this->thEs, remains))
+			{				
+				// erosion power
+				remains = std::abs(remains);
+				propused = remains/(this->thEs * this->tdt);
+				this->thEs -= remains/this->tdt;
+			// end of the check for excessing sed height
+			}
+			else
+			{
+				// I don't have any sed? -> no propused
+				propused = 0.;
+			}
+
+			// Remaining applied to bedrock
+			// this->thEr = propused * kappa_r(this->tnode) * this->tSS;
+			// this->add_to_dbedrockdt(this->tnode, - this->thEr * this->tdt);
+
+
+			fT L = this->connector.get_area_at_node(this->tnode) * this->lambda(this->tnode)/(1 - std::pow(this->tSS/Sc_M(this->tnode),2));
+			this->thDs = this->Qs_hs[this->tnode]/L;
+
+			if(this->connector.get_area_at_node(this->tnode) * this->thDs > this->Qs_hs[this->tnode])
+			{
+				this->thDs = this->Qs_hs[this->tnode]/this->connector.get_area_at_node(this->tnode);
+				// std::cout << "JIJI" << std::endl;
+			}
+
+			this->add_to_dhsdt_nocheck(this->tnode,this->thDs * this->tdt);
+
+			if(L < 1) throw std::runtime_error("hillslopes::cidre::exception1994");
+
+		}
+		else
+		{
+			fT tothE = (this->z_surf[this->tnode] - (this->tdx * Sc_M(this->tnode) + z_surf[this->tSrec]) )/this->tdt;
+			fT remains = 0;
+			if(this->add_to_dhsdt(this->tnode, -1 * tothE * this->tdt, remains))
+			{
+				remains = std::abs(remains);
+				this->thEs = (tothE + remains)/this->tdt;
+				this->thEr = remains /this->tdt;
+				this->add_to_dbedrockdt(this->tnode, - this->thEr * this->tdt);
+			}
+			else
+				this->thEs = tothE;
+		}
+
+
+		this->Qs_hs[this->tnode] += (this->thEs + this->thEr - this->thDs) * this->connector.get_area_at_node(this->tnode);
+
+		if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+
+
+
+		//lasjdfljasdl;fja;slkjdfka;sjdlfjasldkjf
+
+		// // If the slope is bellow the critical values
+		// if(S <= Sc_M(this->tnode) - 1e-9)
+		// {
+		// 	// If I have sediments
+		// 	if(this->h_sed[this->tnode] > 0)
+		// 	{
+				
+		// 		// erosion power
+		// 		mEs = Ke(this->tnode) * S;
+
+		// 		// Checking I am not strapping more than the sediment pile
+		// 		if(mEs * dt > this->h_sed[this->tnode])
+		// 		{
+		// 			// Correcting to the max sed height removal possible and calculating the proportion of sediment used
+		// 			// propused = this->h_sed[this->tnode]/dt /mEs;
+		// 			mEs = this->h_sed[this->tnode]/dt;
+		// 		}
+		// 		else
+		// 		{
+		// 			// I don't have any sed? -> no propused
+		// 			// propused = 1.;
+		// 		}
+
+		// 	// end of the check for excessing sed height
+		// 	}
+
+		// 	// Remaining applied to bedrock
+		// 	// mEr = (1. - propused) * Kr(this->tnode) * S;
+
+		// 	fT L = (this->connector.get_travers_dy_from_dx(dx) * this->lambda(this->tnode))/(1 - std::pow(S/Sc_M(this->tnode),2));
+		// 	mDs = this->Qs_hs[this->tnode]/std::max(L,cellarea);
+
+		// }
+		// else
+		// {
+		// 	fT tothE = (z_surf[this->tnode] - (dx * Sc(this->tnode) + z_surf[rec]) )/dt;
+		// 	if(tothE > this->h_sed[this->tnode])
+		// 	{
+		// 		mEs = this->h_sed[this->tnode]/dt;
+		// 		// mEr = tothE - mEs;
+		// 	}
+		// 	else
+		// 		mEs = tothE;
+		// }
+
+		// if(this->TSP_module)
+		// 	this->apply_TSP(this->tnode, rec, mEs, mEr, mDs, dt, true);
+
+		// if(this->Ch_MTSI)
+		// 	this->apply_Ch_MTSI_SFD(this->tnode, rec, mEs, mEr, mDs, dt, true);
+
+		// this->Qs_hs[this->tnode] += (mEs + mEr - mDs) * cellarea;
+
+		// // Applying the fluxes
+		// this->h_sed[this->tnode] += (mDs - mEs) * dt;
+		// this->z_surf[this->tnode] += (mDs - mEs - mEr) * dt;
+		// if(this->Qs_hs[this->tnode] < 0) this->Qs_hs[this->tnode] = 0;
+		// this->Qs_hs[rec] += this->Qs_hs[this->tnode];
+	
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 	void apply_dzhsdt()
 	{
 		for(int i=0; i<this->connector.nnodes; ++i)
@@ -1397,39 +1672,50 @@ public:
 
 			if(!crit_exceeded) continue;
 
-			fT Hc = 4*this->C(node)/(this->gravity * this->rho(node)) * (std::sin(tslope) * std::cos(this->internal_friction(node)) )/(1 - std::cos(tslope - this->internal_friction(node))) ;
+			fT tslope_d = std::atan(tslope);// * (180.0/3.141592653589793238463);
 
-			if(this->connector.randu->get() * this->tdt/this->tls(node) < Hs/Hc)
+			fT Hc = 4*this->C(node)/(this->gravity * this->rho(node)) * (std::sin(tslope_d) * std::cos(this->internal_friction_d(node)) )/(1 - std::cos(tslope_d - this->internal_friction_d(node))) ;
+			fT proba = this->connector.randu->get() * this->tls(node)/this->tdt ;
+
+			// std::cout <<  Hs/Hc << "|" << proba << std::endl;;
+
+			if(proba< Hs/Hc)
 			{
-				fT ldsl_angle = (this->internal_friction(node) + tslope)/2;
-				stackhelper.emplace(node);
-
-				while(stackhelper.empty() == false)
-				{
-					node = stackhelper.top(); stackhelper.pop();
-					int nn = this->connector.get_donors_idx_nodes_and_links(node, neighbours_nodes, neighbours_links);
-					for(int j=0; j<nn; ++j)
-					{
-						int donode = neighbours_nodes[j];
-						fT ddx = this->connector.get_dx_from_links_idx(neighbours_links[j]);
-						fT target_z = this->z_surf[node] + ldsl_angle * ddx;
-						if(target_z < this->z_surf[donode])
-						{
-							fT tdZ = (this->z_surf[donode] - target_z);
-							this->Qs_hs[donode] += tdZ * this->connector.get_area_at_node(donode)/this->tdt;
-							this->remove_shear_height_at_once(donode, tdZ);
-							stackhelper.emplace(node);
-						}
-					}
-
-				}
-
-
+				this->_hylands_trigger_single_landslide(node, tslope,stackhelper, neighbours_nodes,neighbours_links );
 			}
 
 		}
 
 	}
+
+
+	void _hylands_trigger_single_landslide(int node, fT tslope, std::stack<int, std::vector<int> >& stackhelper, std::array<int,8>& neighbours_nodes, std::array<int,8>& neighbours_links)
+	{
+		fT ldsl_angle = (this->internal_friction(node) + tslope)/2;
+		stackhelper.emplace(node);
+		int onode = node;
+
+		while(stackhelper.empty() == false)
+		{
+			node = stackhelper.top(); stackhelper.pop();
+			int nn = this->connector.get_neighbour_idx_nodes_and_links(node, neighbours_nodes, neighbours_links);
+			for(int j=0; j<nn; ++j)
+			{
+				int donode = neighbours_nodes[j];
+				fT ddx = this->connector.get_dx_from_links_idx(neighbours_links[j]);
+				fT target_z = this->z_surf[node] + ldsl_angle * ddx;
+				if(target_z < this->z_surf[donode])
+				{
+					fT tdZ = (this->z_surf[donode] - target_z);
+					this->Qs_hs[onode] += tdZ * this->connector.get_area_at_node(donode)/this->tdt;
+					this->remove_shear_height_at_once(donode, tdZ);
+					stackhelper.emplace(donode);
+				}
+			}
+		}
+	}
+
+
 
 
 
@@ -1517,6 +1803,145 @@ public:
 		this->z_surf[i] -= dZ;
 	}
 
+	void _ready_node_state()
+	{
+		this->tSrec = this->connector.Sreceivers[this->tnode];
+
+		// feeding the local private variables
+		this->tdx = this->connector.Sdistance2receivers[this->tnode];
+		this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
+		this->tZ = this->z_surf[this->tnode];
+		// this->tSS = this->connector.SS[this->tnode];
+		this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
+		this->ths = this->h_sed[this->tnode];
+
+		if(this->secondary_fluvial != TSC_FLUVIAL::NONE)
+		{
+			auto onodes = this->connector.get_orthogonal_nodes(this->tnode, this->tSrec);
+			this->orthonodA = onodes.first;
+			this->orthonodB = onodes.second;
+		}
+
+		if(this->flowtopo == TSC_FLOW_TOPOLOGY::MFD)
+			this->trn = this->connector.get_receivers_idx_nodes_and_links(this->tnode, this->treceivers_nodes,this->treceivers_links);
+
+		this->reset_fhED();
+	}
+
+
+	void set_N_boundary_to(fT val)
+	{
+		for(int i =0; i<this->connector.nx; ++i)
+		{
+			this->z_surf[i] = val;
+			this->connector.boundaries.codes[i] = BC::OUT;
+		}
+	}
+
+
+	/*
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	                      . - ~ ~ ~ - .
+      ..     _      .-~               ~-.
+     //|     \ `..~                      `.
+    || |      }  }              /       \  \
+(\   \\ \~^..'                 |         }  \
+ \`.-~  o      /       }       |        /    \
+ (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+              |     /          |     /     ~-.     ~- _
+              |_____|          |_____|         ~ - . _ _~_-_
+
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	Standalone functions
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+	*/
+
+
+	void Standalone_hyland_landslides()
+	{
+		//save state
+		auto hillslopes_state = this->hillslopes;
+		this->hillslopes = TSC_HILLSLOPE::HYLANDS;
+
+		this->init_vectors();
+		// first computing graph
+		std::vector<fT> faketopo(this->z_surf);
+		this->graph._compute_graph(faketopo, false, false);
+		// running the trigger
+		this->hillslopes_hylands_trigger();
+		for(int i=this->connector.nnodes-1; i>=0; --i)
+		{
+			
+			this->tnode = this->get_istack_node_MFD(i);
+			
+			if(this->connector.boundaries.no_data(this->tnode) || this->connector.flow_out_or_pit(this->tnode)) continue;
+
+			this->_ready_node_state();
+			this->hillslopes_cidre_dep_only_for_highlands();
+			this->trans_Qshs_MFD();
+		}
+
+		this->apply_dzhsdt();
+
+
+
+		// stops here temporarily
+	}
+
+	void Standalone_hylands_single_landslide(int node)
+	{
+		//save state
+		auto hillslopes_state = this->hillslopes;
+		this->hillslopes = TSC_HILLSLOPE::HYLANDS;
+
+		auto neighbours_links = this->connector.get_empty_neighbour();
+		auto neighbours_nodes = this->connector.get_empty_neighbour();
+		std::stack<int, std::vector<int> > stackhelper;
+		
+
+		this->init_vectors();
+		// first computing graph
+		std::vector<fT> faketopo(this->z_surf);
+		this->graph._compute_graph(faketopo, false, false);
+
+
+		fT slope = 1e-6;
+		int nn = this->connector.get_neighbour_idx_nodes_and_links(node, neighbours_nodes, neighbours_links);
+		for(int j=0; j<nn;++j)
+		{
+			fT tss = (this->z_surf[neighbours_nodes[j]] - this->z_surf[node])/this->connector.get_dx_from_links_idx(neighbours_links[j]);
+			if( tss > slope) slope = tss;
+		}
+
+		this->_hylands_trigger_single_landslide( node, slope, stackhelper, neighbours_nodes, neighbours_links);
+
+		for(int i=this->connector.nnodes-1; i>=0; --i)
+		{
+			
+			this->tnode = this->get_istack_node_MFD(i);
+			
+			if(this->connector.boundaries.no_data(this->tnode) || this->connector.flow_out_or_pit(this->tnode)) continue;
+
+			this->_ready_node_state();
+			this->hillslopes_cidre_dep_only_for_highlands();
+			this->trans_Qshs_MFD();
+		}
+
+		this->apply_dzhsdt();
+
+
+
+		this->hillslopes = hillslopes_state;
+
+
+	}
+
+
 
 
 
@@ -1540,7 +1965,7 @@ public:
 	Legacy functions
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-*/
+	*/
 
 	void run_SFD(fT dt)
 	{
@@ -1864,6 +2289,13 @@ public:
 
 	template<class out_t>
 	out_t get_Qw(){return DAGGER::format_output<std::vector<fT>,out_t>(this->Qw);}
+
+
+	template<class out_t>
+	out_t get_Qs_fluvial(){return DAGGER::format_output<std::vector<fT>,out_t>(this->Qs_fluvial);}
+
+	template<class out_t>
+	out_t get_Qs_hillslopes(){return DAGGER::format_output<std::vector<fT>,out_t>(this->Qs_hs);}
 
 	template<class out_t>
 	out_t get_precipitations(){return DAGGER::format_output<std::vector<fT>,out_t>(this->_precipitations);}
