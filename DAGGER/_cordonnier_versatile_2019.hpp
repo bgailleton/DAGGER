@@ -283,7 +283,7 @@ public:
 		{
 			for(int i=0; i<connector->nnodes; ++i)
 			{
-				if(connector->boundaries.no_data(node)) continue;
+				if(connector->boundaries.no_data(i)) continue;
 				if(this->is_open_basin[this->basins[i]]) this->basins[i] = 0;
 			}
 		}

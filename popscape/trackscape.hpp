@@ -1836,6 +1836,7 @@ public:
 			this->z_surf[i] = val;
 			this->connector.boundaries.codes[i] = BC::OUT;
 		}
+		this->connector.precompute_links();
 	}
 
 

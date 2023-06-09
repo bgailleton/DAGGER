@@ -1,6 +1,6 @@
 #include "D8connector.hpp"
-#include "D4connector.hpp"
 #include "graph.hpp"
+#include "popscape.hpp"
 #include <vector>
 #include <string>
 #include <stdio.h>
@@ -9,50 +9,44 @@
 #include "MatlabDataArray.hpp"
 
 
-// DAGGER::D8connector<double> createConnectorD8(int nx, int ny, double dx, double dy, double xmin, double ymin){return DAGGER::D8connector<double>(nx,ny,dx,dy,xmin,ymin);}
-// DAGGER::graph<double> createGraph(int nnodes, int n_neighbours){return DAGGER::graph<double>(nnodes,n_neighbours);}
-// std::string dummytest()
+// matlab::data::Array add5(std::vector<double> foo)
 // {
+// 	std::vector<double> bar(foo);
+// 	for(auto &v:bar)
+// 		v+=5;
 
-// 	DAGGER::easyRand ttbt;
-// 	std::vector<double> yolo(2500,0.);
-// 	DAGGER::D8connector<double> d8(50,50,1,1,0.,0.);
-// 	DAGGER::graph<double>tg(2500,8);
-// 	for(int i=0; i<2500; ++i)
-// 		yolo[i]+= ttbt.get();;
-// 	auto fill = tg.compute_graph<DAGGER::D8connector<double>, std::vector<double>, std::vector<double>>(yolo, d8, true, true);
+// 	matlab::data::ArrayFactory fac;
+// 	return fac.createArray({bar.size()}, bar.begin(),bar.end());
+// }
 
-// 	return "OK";
-// };
-
-matlab::data::Array add5(std::vector<double> foo)
+// template<class fT>
+// matlab::data::TypedArray<double> quick_fluvial_topo(int ncycles, std::string boundaries)
+matlab::data::Array quick_fluvial_topo(int ncycles, std::string boundaries)
 {
-	std::vector<double> bar(foo);
-	for(auto &v:bar)
-		v+=5;
-
-	matlab::data::ArrayFactory fac;
-	return fac.createArray({bar.size()}, bar.begin(),bar.end());
+	auto ttopo = DAGGER::_quick_fluvial_topo<double>(ncycles,boundaries);
+	return DAGGER::format_output<decltype(ttopo), matlab::data::TypedArray<double> >(ttopo);
 }
 
 
 
 
-// float_t is the generic floating point type
+
+// fT is the generic floating point type
 // int_t is the generic floating point type
-template<class float_t, class int_t>
+template<class fT, class int_t>
 class daggerFD
 {
 public:
 
 	int_t nx, ny, nxy;
-	float_t dx, dy, xmin, ymin;
+	fT dx, dy, xmin, ymin;
 	std::vector<int_t> ix,ixc;
-	std::vector<float_t> fraction, distances;
+	std::vector<fT> fraction, distances;
+	// DAGGER::D8connector<fT> connector;
 
 
 	daggerFD(){;}
-	void init(int_t nx, int_t ny, float_t dx, float_t dy, float_t xmin, float_t ymin, std::string boundary_condition)
+	void init(int_t nx, int_t ny, fT dx, fT dy, fT xmin, fT ymin, std::string boundary_condition)
 	{
 		this->nx = nx;
 		this->ny = ny;
@@ -61,41 +55,40 @@ public:
 		this->dy = dy;
 		this->xmin = xmin;
 		this->ymin = ymin;
-		this->connector = DAGGER::D8connector<float_t>(nx,ny,dx,dy,xmin,ymin);
+		this->connector = DAGGER::D8connector<fT>(nx,ny,dx,dy,xmin,ymin);
 		this->connector.set_default_boundaries(boundary_condition);
-		this->graph = DAGGER::graph<float_t>(nx*ny,8);
-		this->graph.init_graph(this->connector);
+		this->graph = DAGGER::graph<fT, DAGGER::D8connector<fT>>(this->connector);
 	}
 
-	std::vector<float_t> compute(matlab::data::TypedArray<float_t>& ttopo, bool SFD)
+	matlab::data::TypedArray<fT> compute(matlab::data::TypedArray<fT>& ttopo, bool SFD)
 	{
-		std::vector<float_t> topo = DAGGER::to_vec(ttopo);
-		std::vector<float_t> ret = this->graph.template compute_graph< DAGGER::D8connector<float_t> , std::vector<float_t>, std::vector<float_t> >(topo, this->connector, SFD, true) ;
+		// std::vector<fT> topo = DAGGER::to_vec(ttopo);
+		matlab::data::TypedArray<fT> ret = this->graph.template compute_graph<matlab::data::TypedArray<fT>, matlab::data::TypedArray<fT> >(ttopo, SFD, false) ;
 		if(SFD)
 		{
 			this->ix = std::vector<int_t>(this->nxy, 0);
 			this->ixc = std::vector<int_t>(this->nxy, 0);
-			this->fraction = std::vector<float_t>(this->nxy, 1.);
-			this->distances = std::vector<float_t>(this->graph.Sdistance2receivers);
+			this->fraction = std::vector<fT>(this->nxy, 1.);
+			this->distances = std::vector<fT>(this->connector.Sdistance2receivers);
 			for(int i=0;i<this->nxy;++i)
 			{
 				this->ix[i] = this->graph.Sstack[i];
-				this->ixc[i] = this->graph.Sreceivers[this->graph.Sstack[i]];
+				this->ixc[i] = this->connector.Sreceivers[this->graph.Sstack[i]];
 			}
 		}
 
-		return DAGGER::to_vec(ret);
+		return ret;
 	}
 
-	std::vector<float_t> get_DA(){std::vector<float_t> out = this->graph.template accumulate_constant_downstream_SFD< DAGGER::D8connector<float_t>, std::vector<float_t> >(this->connector,this->dx * this->dy);return out;}
+	matlab::data::TypedArray<fT> get_DA(){return this->graph.template accumulate_constant_downstream_SFD<matlab::data::TypedArray<fT> >(this->dx * this->dy);}
 
 
 
 
 private:
 	
-	DAGGER::D8connector<float_t> connector;
-	DAGGER::graph<float_t> graph;
+	DAGGER::D8connector<fT> connector;
+	DAGGER::graph<fT, DAGGER::D8connector<fT> > graph;
 
 
 
@@ -104,28 +97,36 @@ private:
 
 
 
-// The following functions are required to simulate the instanciation of the different function and force the black-box obscure matlab clibgen to consider all the needed functions
-// THis is the only I found to do so, yes it seems dirty, but eh, template c++ has only be around since the late 90s (see the top of wrap_helper_MATLAB.hpp to understand my bitterness)
+// template<class fT>
+// matlab::data::TypedArray<fT> quick_fluvial_topo(int ncycles, std::string boundaries)
+// {
+// 	auto ttopo = DAGGER::_quick_fluvial_topo<fT>(ncycles,boundaries);
+// 	return DAGGER::format_output<decltype(ttopo), matlab::data::TypedArray<fT> >(ttopo);
+// }
 
-template<class float_t, class int_t>
-void _instanciator(float_t XX, int_t YY)
-{
-	int_t nx = 50, ny = 50;
-	float_t dx =1., dy = 1., xmin = 0., ymin = 0.;
-	std::vector<float_t> randtopo(nx*ny,0.);
-	matlab::data::ArrayFactory factory;
-	DAGGER::add_noise_to_vector(randtopo,0.,1.);
-	unsigned long long size = nx*ny;
-	matlab::data::TypedArray<double> ttopo = factory.createArray( {size}, randtopo.begin(), randtopo.end());
-	daggerFD<float_t, int_t> DAGDAG;
-	DAGDAG.init(nx, ny, dx, dy, xmin, ymin, "4edges");
-	auto dagba = DAGDAG.compute(ttopo, true);
 
-}
+// // The following functions are required to simulate the instanciation of the different function and force the black-box obscure matlab clibgen to consider all the needed functions
+// // THis is the only I found to do so, yes it seems dirty, but eh, template c++ has only be around since the late 90s (see the top of wrap_helper_MATLAB.hpp to understand my bitterness)
 
-void instanciator()
-{
-	_instanciator<double, int>(30.,50);
-}
+// template<class fT, class int_t>
+// void _instanciator(fT XX, int_t YY)
+// {
+// 	int_t nx = 50, ny = 50;
+// 	fT dx =1., dy = 1., xmin = 0., ymin = 0.;
+// 	std::vector<fT> randtopo(nx*ny,0.);
+// 	matlab::data::ArrayFactory factory;
+// 	DAGGER::add_noise_to_vector(randtopo,0.,1.);
+// 	unsigned long long size = nx*ny;
+// 	matlab::data::TypedArray<double> ttopo = factory.createArray( {size}, randtopo.begin(), randtopo.end());
+// 	daggerFD<fT, int_t> DAGDAG;
+// 	DAGDAG.init(nx, ny, dx, dy, xmin, ymin, "4edges");
+// 	auto dagba = DAGDAG.compute(ttopo, true);
+
+// }
+
+// void instanciator()
+// {
+// 	_instanciator<double, int>(30.,50);
+// }
 
 
