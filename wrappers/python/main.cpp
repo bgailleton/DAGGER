@@ -1,4 +1,5 @@
 #include <pybind11/pybind11.h>
+// #include "connector_checker.hpp"
 #include "D8connector.hpp"
 #include "D4connector.hpp"
 #include "graph.hpp"
@@ -912,7 +913,7 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_single_kd_lateral", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
     .def("set_single_tau_c", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
     .def("set_variable_ke", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
-    
+    .def("set_mannings",&graphflood<fT,GRAPH_T,CONNECTOR_T>::set_mannings )
 
 
     .def("compute_tuqQ", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
@@ -978,8 +979,8 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("get_nT", &graphflood<fT,GRAPH_T,CONNECTOR_T>::get_nT)
 
 
-    .def("enable_hydrostationnary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationnary)
-    .def("disable_hydrostationnary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationnary)
+    .def("enable_hydrostationary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationary)
+    .def("disable_hydrostationary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationary)
 
     
     
@@ -1963,6 +1964,11 @@ B.G.
     &standalone_priority_flood_opti<D8connector<double>,  DAGGER::graph<double, DAGGER::D8connector<double> >, py::array_t<double, 1>, py::array_t<double, 1>, double >,
    py::arg("topography"), py::arg("connector"), py::arg("graph")
   );
+
+  // m.def(
+  //   "check_connector_template",
+  //   &check_connector_template< D8connector<double>, double >
+  // );
 
 
   declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");

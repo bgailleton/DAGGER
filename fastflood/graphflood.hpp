@@ -155,8 +155,8 @@ public:
 	void disable_stochaslope(){this->stochaslope = false;}
 
 	bool hydrostationary = true;
-	void enable_hydrostationnary(){this->hydrostationary = true;};
-	void disable_hydrostationnary(){this->hydrostationary = false;};
+	void enable_hydrostationary(){this->hydrostationary = true;};
+	void disable_hydrostationary(){this->hydrostationary = false;};
 	fT Qwin_crit = 0.;
 	void set_Qwin_crit(fT val) {this->Qwin_crit = val; this->hydromode = HYDRO::GRAPH_HYBRID;}
 
@@ -342,6 +342,7 @@ public:
 	// # ke (coefficient for erosion)
 	bool mode_mannings = false;
 	std::vector<fT> _mannings = {0.033};
+	void set_mannings(fT val){this->_mannings = {val};}
 
 	// # ke (coefficient for erosion)
 	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
@@ -1053,17 +1054,17 @@ public:
 		// if(this->hydrostationary)
 		if(true)
 		{
-			// std::cout << "_run_hydrostationnary" << std::endl;
-			this->_run_hydrostationnary();
-			// this->_run_hydrostationnary_lock();
-			// this->_run_hydrostationnary_subgraph_test();
+			// std::cout << "_run_hydrostationary" << std::endl;
+			this->_run_hydrostationary();
+			// this->_run_hydrostationary_lock();
+			// this->_run_hydrostationary_subgraph_test();
 		}
 		else
 			this->_run_dynamics();
 
 	}
 
-	void _run_hydrostationnary()
+	void _run_hydrostationary()
 	{
 		// Saving the topological number if needed
 		if(this->debugntopo)
@@ -1226,7 +1227,7 @@ public:
 
 
 
-	void _run_hydrostationnary_lock()
+	void _run_hydrostationary_lock()
 	{
 		// Saving the topological number if needed
 		if(this->debugntopo)
@@ -1401,7 +1402,7 @@ public:
 
 
 
-	void _run_hydrostationnary_averaged_test()
+	void _run_hydrostationary_averaged_test()
 	{
 		// Saving the topological number if needed
 		if(this->debugntopo)
@@ -1557,7 +1558,7 @@ public:
 		this->_compute_vertical_motions_averaged_test(vmot_hw, vmot);
 	}
 
-	void _run_hydrostationnary_subgraph_test()
+	void _run_hydrostationary_subgraph_test()
 	{/*
 		// 
 
@@ -1680,7 +1681,6 @@ public:
 		// Saving the topological number if needed
 		if(this->debugntopo)
 			this->DEBUGNTOPO = std::vector<fT>(this->connector->nnodes, 0);
-		// std::cout << "adgfskjlfakmj" << std::endl;
 
 		this->debug_CFL = 0.;
 
@@ -1827,16 +1827,17 @@ public:
 			// nQ[node] += Qwout;
 
 			// Computing courant based dt
-			fT provisional_dt = this->dt_hydro(node);
+			// fT provisional_dt = this->dt_hydro(node);
 			if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && sum_ui_over_dxi > 0)
 			{
-				provisional_dt =  this->courant_number/(sum_ui_over_dxi * nrecs);
-				tcourant_dt_hydro = std::min(provisional_dt, this->max_courant_dt_hydro);
-				tcourant_dt_hydro = std::max(provisional_dt, this->min_courant_dt_hydro);
+				fT provisional_dt =  (this->courant_number * dx)/u_flow;
+				provisional_dt = std::min(provisional_dt, this->max_courant_dt_hydro);
+				provisional_dt = std::max(provisional_dt, this->min_courant_dt_hydro);
+				tcourant_dt_hydro = std::min(provisional_dt,tcourant_dt_hydro);
 			}
 
 			// computing hydro vertical motion changes for next time step
-			vmot_hw[node] += provisional_dt * (this->_Qw[node] - Qwout)/this->connector->get_area_at_node(node);
+			vmot_hw[node] += (this->_Qw[node] - Qwout)/this->connector->get_area_at_node(node);
 			// this->_Qw[node] = this->precipitations(node)  * this->connector->get_area_at_node(node);
 			// vmot_hw[node] = 0;
 			// if(vmot_hw[node] < 0) 
@@ -1870,7 +1871,7 @@ public:
 
 
 		// Applying vmots with the right dt
-		this->_compute_vertical_motions(vmot_hw, vmot,  false);
+		this->_compute_vertical_motions(vmot_hw, vmot,  true);
 		// this->_Qw = std::move(nQ);
 		for(int i=0; i<this->connector->nnodes; ++i)
 		{
@@ -1886,7 +1887,7 @@ public:
 	void run_exp()
 	{
 		if(this->hydrostationary)
-			this->_run_exp_stationnary();
+			this->_run_exp_stationary();
 		else
 			this->_run_dynamics();
 	}
@@ -1894,7 +1895,7 @@ public:
 
 
 	// Main running function (experimental 2)
-	void _run_exp_stationnary()
+	void _run_exp_stationary()
 	{
 		
 
@@ -2475,7 +2476,10 @@ public:
 			else
 			{
 				// this->_Qw[rec] += std::min(Qwout * weights[j], Qwin * weights[j]);
-				this->_Qw[rec] += Qwout * weights[j];
+				if(SF)
+					this->_Qw[rec] += Qwout;
+				else
+					this->_Qw[rec] += Qwout * weights[j];
 				// std::cout << "transferring:" << Qwout << std::endl;
 			}
 

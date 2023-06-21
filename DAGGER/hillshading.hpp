@@ -48,23 +48,23 @@ out_t hillshade(Connector_t& connector, topo_t& ttopography)
 		fT dzdx = 0;
 		fT dzdy = 0;
 
-		fT ij = topography[i];
+		fT ij = std::abs(topography[i]);
 		int j = connector.get_right_idx(i);
-		fT ijp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ijp1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_bottom_idx(i);
-		fT ip1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1j = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_bottomright_idx(i);
-		fT ip1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1jp1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_topleft_idx(i);
-		fT im1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1jm1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_top_idx(i);
-		fT im1j = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1j = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_topright_idx(i);
-		fT im1jp1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT im1jp1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_left_idx(i);
-		fT ijm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ijm1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 		j = connector.get_bottomleft_idx(i);
-		fT ip1jm1 = (connector.is_in_bound(j)) ? topography[j]:ij;
+		fT ip1jm1 = (connector.is_in_bound(j)) ? std::abs(topography[j]):ij;
 
 
 		if (ij > 0 )

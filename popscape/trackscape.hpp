@@ -160,6 +160,9 @@ public:
 	TSC_FLUVIAL secondary_fluvial = TSC_FLUVIAL::NONE;
 	TSC_MARINE marine = TSC_MARINE::NONE;
 
+	// bool stochaslope = false;
+	// void enable_stochaslope(){this->stochaslope = true;}
+	// void disable_stochaslope(){this->stochaslope = false;}
 
 
 	// Switching on and/or off the spatiality of the different parameters
@@ -786,6 +789,8 @@ public:
 		std::vector<fT> faketopo(this->z_surf);
 		this->graph._compute_graph(faketopo, !need_mfrecs, false);
 
+		if(this->marine != TSC_MARINE::NONE) this->fix_small_marine_patches();
+
 
 		// this->graph._compute_graph(this->z_surf, !need_mfrecs, false);
 
@@ -895,6 +900,10 @@ public:
 
 		if(this->hillslopes == TSC_HILLSLOPE::HYLANDS)
 			this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::hillslopes_hylands_trigger);
+
+		// if(this->marine != TSC_MARINE::NONE)
+		// 	this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fix_small_marine_patches);
+
 
 
 
@@ -1317,12 +1326,16 @@ public:
 	{
 		if(onode <= -1 || onode >= this->connector.nnodes) return;
 
+		fT DeltaA = this->Qw[onode] - this->Qw[this->tnode];
+
+		if(DeltaA < 0) return;
+
 		fT dZ = this->z_surf[this->tnode] - this->z_surf[onode];
 
 		if( dZ < 0 )
 		{
 			fT remains = 0;
-			fT tlater =  std::pow(std::abs(dZ)/this->tdy,this->nexp) * std::pow(this->Qw[this->tnode],this->mexp) * this->Kle(this->tnode);
+			fT tlater =  std::pow(std::abs(dZ)/this->tdy,this->nexp) * std::pow(DeltaA,this->mexp) * this->Kle(this->tnode);
 
 			this->add_to_dhsdt(onode, -1 * tlater * this->tdt, remains); // the -1 for the vertical motion is included in the negative remain
 			// the remains is already negative if not null
@@ -1416,6 +1429,7 @@ public:
 	}
 
 
+
 	void trans_Qw_Qs_MFD()
 	{
 		// this->tslopes
@@ -1493,6 +1507,10 @@ public:
 				this->thDs = this->Qs_hs[this->tnode]/this->connector.get_area_at_node(this->tnode);
 				// std::cout << "JIJI" << std::endl;
 			}
+
+
+			if(this->z_surf[this->tnode] + this->thDs * this->tdt > this->sea_level(this->tnode))
+				this->thDs = (this->sea_level(this->tnode) + 1e-3 * this->tdt - this->z_surf[this->tnode] )/this->tdt;
 
 			this->add_to_dhsdt_nocheck(this->tnode,this->thDs * this->tdt);
 
@@ -1717,6 +1735,38 @@ public:
 
 
 
+	void fix_small_marine_patches()
+	{
+		return;
+
+		std::vector<std::uint8_t> needs(this->connector.nnodes,false);
+		auto neighbours = connector.get_empty_neighbour();
+		for(int i=0; i<this->connector.nnodes; ++i)
+		{
+			if(this->z_surf[i]<this->sea_level(i))
+			{
+				int nsea = 0;
+				int nn = this->connector.get_neighbour_idx(i,neighbours);
+				if(nn == 0) continue;
+				for(int j=0; j<nn; ++j)
+				{
+					int tn = neighbours[j];
+					if(this->z_surf[tn] < this->sea_level(i))
+						++nsea;
+				}
+			
+				if(nsea/nn < 0.4)  needs[i] = true; 
+			}
+
+		}
+		for(int i=0; i<this->connector.nnodes; ++i)
+		{
+			if(needs[i]) this->z_surf[i] =  this->sea_level(i) + this->connector.randu->get() * 1e-5;
+		}
+		
+	}
+
+
 
 
 
@@ -1812,7 +1862,17 @@ public:
 		this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
 		this->tZ = this->z_surf[this->tnode];
 		// this->tSS = this->connector.SS[this->tnode];
-		this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
+		if(this->marine == TSC_MARINE::NONE)
+			this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
+		else if (this->z_surf[this->tnode] > this->sea_level(this->tnode) && this->z_surf[this->tSrec] > this->sea_level(this->tSrec))
+			this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
+		else if (this->z_surf[this->tnode] < this->sea_level(this->tnode) && this->z_surf[this->tSrec] < this->sea_level(this->tSrec))
+			this->tSS = std::max(1e-9,(tZ - this->z_surf[this->tSrec])/this->tdx);
+		else if (this->z_surf[this->tnode] > this->sea_level(this->tnode) && this->z_surf[this->tSrec] < this->sea_level(this->tSrec))
+			this->tSS = std::max(1e-9,(tZ - this->sea_level(this->tnode))/this->tdx);
+		else
+			this->tSS = 1e-9;
+
 		this->ths = this->h_sed[this->tnode];
 
 		if(this->secondary_fluvial != TSC_FLUVIAL::NONE)
@@ -2286,7 +2346,10 @@ public:
 	out_t get_topo(){return DAGGER::format_output<std::vector<fT>,out_t>(this->z_surf);}
 
 	template<class out_t>
-	out_t get_hillshade(){return DAGGER::hillshade<Connector_t, std::vector<fT>&, out_t, fT>(this->connector,this->z_surf);}
+	out_t get_hillshade()
+	{
+		return DAGGER::hillshade<Connector_t, std::vector<fT>&, out_t, fT>(this->connector,this->z_surf);
+	}
 
 	template<class out_t>
 	out_t get_Qw(){return DAGGER::format_output<std::vector<fT>,out_t>(this->Qw);}
