@@ -548,7 +548,7 @@ public:
 
 
 	template<class in_t, class ft_t>
-	void set_extra_Qs_fluvial(int_t& arrnodes, ft_t& arrval)
+	void set_extra_Qs_fluvial(in_t& arrnodes, ft_t& arrval)
 	{
 		this->add_extra_Qs_fluvial = true;
 		auto tarrnodes = DAGGER::format_input(arrnodes);
@@ -563,7 +563,7 @@ public:
 
 
 	template<class in_t, class ft_t>
-	void set_extra_Qw_fluvial(int_t& arrnodes, ft_t& arrval)
+	void set_extra_Qw_fluvial(in_t& arrnodes, ft_t& arrval)
 	{
 		this->add_extra_Qw_fluvial = true;
 		auto tarrnodes = DAGGER::format_input(arrnodes);
