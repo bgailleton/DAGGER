@@ -229,6 +229,15 @@ public:
 	fT tdt = 1e2;
 	void set_dt(fT dt){this->tdt = dt;};
 
+	bool add_extra_Qs_fluvial = false;
+	std::vector<int> extra_Qsf_nodes;
+	std::vector<double> extra_Qsf;
+
+	bool add_extra_Qw_fluvial = false;
+	std::vector<int> extra_Qwf_nodes;
+	std::vector<double> extra_Qwf;
+
+
 
 	// Private parameters for local processing
 	// Basically they simplify my life when juggling between function so ignore them
@@ -538,7 +547,32 @@ public:
 	}
 
 
+	template<class in_t, class ft_t>
+	void set_extra_Qs_fluvial(int_t& arrnodes, ft_t& arrval)
+	{
+		this->add_extra_Qs_fluvial = true;
+		auto tarrnodes = DAGGER::format_input(arrnodes);
+		auto tarrval = DAGGER::format_input(arrval);
+		this->extra_Qsf_nodes = tarrnodes.to_vec();
+		this->extra_Qsf = tarrval.to_vec();
+	}
 
+	void disable_Qs_fluvial(){this->add_extra_Qs_fluvial = false;}
+
+
+
+
+	template<class in_t, class ft_t>
+	void set_extra_Qw_fluvial(int_t& arrnodes, ft_t& arrval)
+	{
+		this->add_extra_Qw_fluvial = true;
+		auto tarrnodes = DAGGER::format_input(arrnodes);
+		auto tarrval = DAGGER::format_input(arrval);
+		this->extra_Qwf_nodes = tarrnodes.to_vec();
+		this->extra_Qwf = tarrval.to_vec();
+	}
+
+	void disable_Qw_fluvial(){this->add_extra_Qw_fluvial = false;}
 
 
 
@@ -904,7 +938,11 @@ public:
 		// if(this->marine != TSC_MARINE::NONE)
 		// 	this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fix_small_marine_patches);
 
+		if(this->add_extra_Qs_fluvial)
+			this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_extra_Qs_fluvial);
 
+		if(this->add_extra_Qw_fluvial)
+			this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_extra_Qw_fluvial);
 
 
 		bool need_Qw = this->fluvial != TSC_FLUVIAL::NONE;
@@ -1348,6 +1386,23 @@ public:
 	}
 
 
+	void prec_extra_Qs_fluvial()
+	{
+		for(size_t i=0; i<this->extra_Qsf.size();++i)
+		{
+			this->Qw[this->extra_Qwf_nodes[i]] += this->extra_Qwf[this->extra_Qwf_nodes[i]];
+		}
+	}
+	
+
+	void prec_extra_Qw_fluvial()
+	{
+		for(size_t i=0; i<this->extra_Qsf.size();++i)
+		{
+			this->Qw[this->extra_Qwf_nodes[i]] += this->extra_Qwf[this->extra_Qwf_nodes[i]];
+		}
+	}
+
 
 
 
@@ -1369,6 +1424,7 @@ public:
 		// std::cout << "prec_Qw_MFD" << std::endl;
 		this->Qw[this->tnode] += this->precipitations(this->tnode) * this->connector.get_area_at_node(this->tnode);
 	}
+
 
 	void trans_Qw_MFD()
 	{
