@@ -238,6 +238,10 @@ public:
 	std::vector<double> extra_Qwf;
 
 
+	bool full_stochastic = false;
+	void set_full_stochastic(bool val){this->full_stochastic = val;}
+
+
 
 	// Private parameters for local processing
 	// Basically they simplify my life when juggling between function so ignore them
@@ -553,8 +557,8 @@ public:
 		this->add_extra_Qs_fluvial = true;
 		auto tarrnodes = DAGGER::format_input(arrnodes);
 		auto tarrval = DAGGER::format_input(arrval);
-		this->extra_Qsf_nodes = tarrnodes.to_vec();
-		this->extra_Qsf = tarrval.to_vec();
+		this->extra_Qsf_nodes = DAGGER::to_vec(tarrnodes);
+		this->extra_Qsf = DAGGER::to_vec(tarrval);
 	}
 
 	void disable_Qs_fluvial(){this->add_extra_Qs_fluvial = false;}
@@ -568,8 +572,8 @@ public:
 		this->add_extra_Qw_fluvial = true;
 		auto tarrnodes = DAGGER::format_input(arrnodes);
 		auto tarrval = DAGGER::format_input(arrval);
-		this->extra_Qwf_nodes = tarrnodes.to_vec();
-		this->extra_Qwf = tarrval.to_vec();
+		this->extra_Qwf_nodes = DAGGER::to_vec(tarrnodes);
+		this->extra_Qwf = DAGGER::to_vec(tarrval);
 	}
 
 	void disable_Qw_fluvial(){this->add_extra_Qw_fluvial = false;}
@@ -839,6 +843,7 @@ public:
 
 				// Getting the next node in line
 				this->tnode = (this->*stackgetter)(i);
+
 				
 				// Check if no data
 				if(this->connector.boundaries.no_data(this->tnode)) continue;
@@ -979,7 +984,13 @@ public:
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_davy2009);
 
 		if(this->secondary_fluvial == TSC_FLUVIAL::LATERALDAVY)
-			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_lateral_erosion_deposition_davy);
+		{
+			if(this->full_stochastic == false)
+				this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_lateral_erosion_deposition_davy);
+			else
+				this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::fluvial_lateral_erosion_deposition_davy_stochastic);
+
+		}
 
 
 		if(this->hillslopes != TSC_HILLSLOPE::NONE && this->fluvial != TSC_FLUVIAL::NONE )
@@ -998,12 +1009,14 @@ public:
 		else if (need_Qw && need_Qs)
 		{
 			if(SFD) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_SFD); 
-			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_MFD);
+			else if(this->full_stochastic == false) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_MFD);
+			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qw_Qs_MFD_stochastic);
 		}
 		else if (need_Qs)
 		{
 			if(SFD) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_SFD); 
-			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_MFD);
+			else if(this->full_stochastic == false) this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_MFD);
+			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::trans_Qshs_MFD_stochastic);
 		}
 
 
@@ -1092,7 +1105,9 @@ public:
 
 	void fluvial_davy2009()
 	{
-		// std::cout << "fluvial_davy2009" << std::endl;
+		if(this->Qw[this->tnode] <= 0) return;
+
+
 		// Erosion
 		fT stream_power = std::pow(this->Qw[this->tnode],this->mexp) * std::pow(std::max(1e-9,this->tSS),this->nexp);
 		
@@ -1331,7 +1346,7 @@ public:
 		// case deposition
 		if(dZ>0)
 		{
-			fT tlatdep = dZ * this->Kld(this->tnode) * this->tfDs;// * this->tdt;
+			fT tlatdep = dZ/this->tdy * this->Kld(this->tnode) * this->tfDs;// * this->tdt;
 			if(tlatdep * this->connector.get_area_at_node(this->tnode) > this->Qs_fluvial[this->tnode]) tlatdep = this->Qs_fluvial[this->tnode]/this->connector.get_area_at_node(this->tnode);
 
 			this->add_to_dhsdt_nocheck(onode, tlatdep * this->tdt);
@@ -1343,7 +1358,45 @@ public:
 		else if(dZ<0)
 		{
 			fT remains = 0;
-			fT tlater =  std::abs(dZ) * this->Kle(this->tnode) * (this->tfEs + this->tfEr);
+			fT tlater =  std::abs(dZ)/this->tdy * this->Kle(this->tnode) * (this->tfEs + this->tfEr);
+			this->add_to_dhsdt(onode, -1 * tlater * this->tdt, remains); // the -1 for the vertical motion is included in the negative remain
+			// the remains is already negative if not null
+			this->add_to_dbedrockdt(onode, remains);
+
+			this->Qs_fluvial[this->tnode] += tlater * this->connector.get_area_at_node(this->tnode);
+			if(this->Qs_fluvial[this->tnode] < 0) this->Qs_fluvial[this->tnode] = 0;
+		}
+
+	}
+
+	void fluvial_lateral_erosion_deposition_davy_stochastic()
+	{
+		this->_fluvial_lateral_erosion_deposition_davy_stochastic(this->orthonodA);
+		this->_fluvial_lateral_erosion_deposition_davy_stochastic(this->orthonodB);
+	}
+
+	void _fluvial_lateral_erosion_deposition_davy_stochastic(int onode)
+	{
+		if(onode <= -1 || onode >= this->connector.nnodes) return;
+
+		fT dZ = this->z_surf[this->tnode] - this->z_surf[onode];
+
+		// case deposition
+		if(dZ>0)
+		{
+			fT tlatdep = dZ/this->tdy * this->Kld(this->tnode) * this->tfDs * (this->connector.randu->get() + 0.5);// * this->tdt;
+			if(tlatdep * this->connector.get_area_at_node(this->tnode) > this->Qs_fluvial[this->tnode]) tlatdep = this->Qs_fluvial[this->tnode]/this->connector.get_area_at_node(this->tnode);
+
+			this->add_to_dhsdt_nocheck(onode, tlatdep * this->tdt);
+			
+			this->Qs_fluvial[this->tnode] -= tlatdep * this->connector.get_area_at_node(this->tnode);
+			
+			if(this->Qs_fluvial[this->tnode] < 0) this->Qs_fluvial[this->tnode] = 0;
+		}
+		else if(dZ<0)
+		{
+			fT remains = 0;
+			fT tlater =  std::abs(dZ)/this->tdy * this->Kle(this->tnode) * (this->tfEs + this->tfEr) * (this->connector.randu->get() + 0.5);
 			this->add_to_dhsdt(onode, -1 * tlater * this->tdt, remains); // the -1 for the vertical motion is included in the negative remain
 			// the remains is already negative if not null
 			this->add_to_dbedrockdt(onode, remains);
@@ -1390,7 +1443,7 @@ public:
 	{
 		for(size_t i=0; i<this->extra_Qsf.size();++i)
 		{
-			this->Qw[this->extra_Qwf_nodes[i]] += this->extra_Qwf[this->extra_Qwf_nodes[i]];
+			this->Qs_fluvial[this->extra_Qsf_nodes[i]] += this->extra_Qsf[i];
 		}
 	}
 	
@@ -1399,7 +1452,7 @@ public:
 	{
 		for(size_t i=0; i<this->extra_Qsf.size();++i)
 		{
-			this->Qw[this->extra_Qwf_nodes[i]] += this->extra_Qwf[this->extra_Qwf_nodes[i]];
+			this->Qw[this->extra_Qwf_nodes[i]] += this->extra_Qwf[i];
 		}
 	}
 
@@ -1494,6 +1547,58 @@ public:
 		for(int j = 0; j < this->trn; ++j)
 		{
 			this->tslopes[j] = std::max(1e-9, (this->tZ - this->z_surf[this->treceivers_nodes[j]]) / this->connector.get_dx_from_links_idx( this->treceivers_links[j] ) ) ;
+
+			sumsum += this->tslopes[j];
+		}
+
+		for(int j = 0; j<this->trn; ++j)
+		{
+			if(sumsum > 0)
+			{
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * this->tslopes[j]/sumsum;
+				this->Qs_fluvial[this->treceivers_nodes[j]] += this->Qs_fluvial[this->tnode] * this->tslopes[j]/sumsum;
+				if(this->hillslopes != TSC_HILLSLOPE::NONE) this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * this->tslopes[j]/sumsum;
+			}
+			else
+			{
+				this->Qw[this->treceivers_nodes[j]] += this->Qw[this->tnode] * 1./this->trn;
+				this->Qs_fluvial[this->treceivers_nodes[j]] += this->Qs_fluvial[this->tnode] * 1./this->trn;
+				if(this->hillslopes != TSC_HILLSLOPE::NONE) this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * 1./this->trn;
+			}
+		}
+	}
+
+	void trans_Qshs_MFD_stochastic()
+	{
+		// std::cout << "trans_Qs_MFD" << std::endl;
+		// this->tslopes
+		fT sumsum = 0.;
+		for(int j = 0; j < this->trn; ++j)
+		{
+			this->tslopes[j] = std::max(1e-9,(this->tZ - this->z_surf[this->treceivers_nodes[j]]) / this->connector.get_dx_from_links_idx( this->treceivers_links[j] ) ) * this->connector.randu->get() ;
+
+			sumsum += this->tslopes[j];
+		}
+
+		for(int j = 0; j<this->trn; ++j)
+		{
+			if(sumsum > 0)
+				this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * this->tslopes[j]/sumsum;
+			else
+				this->Qs_hs[this->treceivers_nodes[j]] += this->Qs_hs[this->tnode] * 1./this->trn;
+		}
+	}
+
+
+
+	void trans_Qw_Qs_MFD_stochastic()
+	{
+		// this->tslopes
+		// std::cout << "trans_Qw_Qs_MFD" << std::endl;
+		fT sumsum = 0.;
+		for(int j = 0; j < this->trn; ++j)
+		{
+			this->tslopes[j] = std::max(1e-9, (this->tZ - this->z_surf[this->treceivers_nodes[j]]) / this->connector.get_dx_from_links_idx( this->treceivers_links[j] ) ) * this->connector.randu->get() ;
 
 			sumsum += this->tslopes[j];
 		}

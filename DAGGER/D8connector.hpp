@@ -1749,8 +1749,9 @@ public:
 	template<class ti_t>
 	bool link_needs_processing(ti_t i)
 	{
-		if(this->links[i] >= 2)
+		if(this->links[i] == 5)
 			return false;
+
 		return true;
 	}
 
@@ -2464,6 +2465,7 @@ public:
 		// Required for several routines
 		// this->compute_SF_donors_from_receivers();
 		this->compute_SF_donors_from_receivers();
+
 	}
 
 

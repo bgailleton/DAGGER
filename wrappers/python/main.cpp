@@ -739,8 +739,7 @@ void declare_trackscape(py::module &m, std::string typestr)
     .def("get_Qs_fluvial", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_fluvial<py::array>)
     .def("get_Qs_hillslopes", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_hillslopes<py::array>)
     .def("get_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_precipitations<py::array>)
-    
-
+    .def("set_full_stochastic", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_full_stochastic)
     .def("run", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run)
     .def("run_SFD", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD)
     .def("block_uplift", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::block_uplift)
