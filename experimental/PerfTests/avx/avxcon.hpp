@@ -28,7 +28,7 @@ public:
 	// dimensions in number of nodes
 	int nx,ny,nxy;
 	// Dimensions in spatial directions
-	fT dx,dy,dxy;
+	fT dx,dy,dxy, cellarea;
 	// Topography to be glued to the connector
 	std::vector<fT>* _topography = nullptr;
 	// Contains all the neighbours in successive bit sets:
@@ -92,18 +92,22 @@ public:
 	constexpr std::array<std::uint32_t, 8> DonMasks(){return {this->DonTopLeftMask,this->DonTopMask,this->DonTopRightMask,this->DonLeftMask,this->DonRightMask,this->DonBottomLeftMask,this->DonBottomMask,this->DonBottomRightMask};} 
 	constexpr std::array<std::uint32_t, 8> RecMasks(){return {this->RecTopLeftMask,this->RecTopMask,this->RecTopRightMask,this->RecLeftMask,this->RecRightMask,this->RecBottomLeftMask,this->RecBottomMask,this->RecBottomRightMask};} 
 	constexpr std::array<std::uint32_t, 8> SDonMasks(){return {this->SDonTopLeftMask,this->SDonTopMask,this->SDonTopRightMask,this->SDonLeftMask,this->SDonRightMask,this->SDonBottomLeftMask,this->SDonBottomMask,this->SDonBottomRightMask};} 
-	constexpr std::array<std::uint32_t, 8> SrecMasks(){return {this->SRecTopLeftMask,this->SRecTopMask,this->SRecTopRightMask,this->SRecLeftMask,this->SRecRightMask,this->SRecBottomLeftMask,this->SRecBottomMask,this->SRecBottomRightMask};} 
+	constexpr std::array<std::uint32_t, 8> SRecMasks(){return {this->SRecTopLeftMask,this->SRecTopMask,this->SRecTopRightMask,this->SRecLeftMask,this->SRecRightMask,this->SRecBottomLeftMask,this->SRecBottomMask,this->SRecBottomRightMask};} 
 	constexpr std::array<std::uint32_t, 8> MirrorIndicesMasks(){return {7,6,5,4,3,2,1,0};}
 
 
 
 	// Adder is the regular "normal" neighbourer containing the value to add to node i to get it's respective neighbours
 	std::array<int,9> adder;
+	std::array<float,9> dxer;
 	std::array<std::array<int,8>, LOOKUPSIZE> lookup_table;
 	std::array<std::uint8_t, LOOKUPSIZE> lookup_nn;
 	std::array<int, LOOKUPSIZE> lookup_table_SS;
 
 	std::vector<int> EdgeNodes;
+	std::vector<std::uint8_t> EdgeNodes_Neighbours;
+	// std::vector<std::array<int,8> > IntaNodes;
+	std::vector<int> IntaNodes;
 
 	conavx(){};
 	conavx(int nx, int ny, fT dx, fT dy)
@@ -115,6 +119,8 @@ public:
 		this->_compute_lookup_table();
 		this->boundaries = std::vector<std::uint8_t>(this->nxy,1);
 		this->_4edges();
+		this->dxer = {this->dxy,this->dy,this->dxy, this->dx,this->dx,this->dxy,this->dy,this->dxy};
+		this->cellarea = this->dx * this->dy;
 
 	}
 
@@ -148,15 +154,70 @@ public:
 		return this->_dneighbours(node, arr, 2);
 	}
 
+	fT get_cell_area(int node){return this->cellarea;}
+
+
+	int nDonors(int node)
+	{
+		std::uint8_t idx = ui8fromui32(this->Neighbours[node],3);
+		int nn = static_cast<int>(this->lookup_nn[idx]);
+		return nn;
+	}
+
+	int nSDonors(int node)
+	{
+		std::uint8_t idx = ui8fromui32(this->Neighbours[node],1);
+		int nn = static_cast<int>(this->lookup_nn[idx]);
+		return nn;
+	}
+
+	int nReceivers(int node)
+	{
+		std::uint8_t idx = ui8fromui32(this->Neighbours[node],2);
+		int nn = static_cast<int>(this->lookup_nn[idx]);
+		return nn;
+	}
+
+
+
+
+
+
 
 	int _dneighbours(int node, std::array<int,8>& arr, int bytenum)
 	{
 		std::uint8_t idx = ui8fromui32(this->Neighbours[node],bytenum);
 		int nn = static_cast<int>(this->lookup_nn[idx]);
 		arr = this->lookup_table[idx];
+		
 		for(size_t i=0;i<static_cast<size_t>(nn);++i)
 			arr[i]+=node;
+
 		return nn;
+	}
+
+	int _neighbours_from_ui8(int node, std::uint8_t idx, std::array<int,8>& arr)
+	{
+		int nn = static_cast<int>(this->lookup_nn[idx]);
+		arr = this->lookup_table[idx];
+		for(size_t i=0;i<static_cast<size_t>(nn);++i)
+			arr[i]+=node;
+
+		return nn;
+	}
+
+	void _neighbours_from_ui8_nocheck(int node, std::uint8_t idx, std::array<int,8>& arr)
+	{
+		for (int i = 0; i < 8; ++i) 
+		{
+			if (idx & (1 << i)) 
+			{
+				// Index `i` is set, process the corresponding value
+				arr[7 - i] = node + this->adder[7-i];
+			}
+			else
+				arr[7-i] = -1;
+		}
 	}
 
 
@@ -270,18 +331,15 @@ public:
 		neighbours[7] = node + this->nx + 1;
 	}
 
-	void internal_neighbours_with_check(int node, std::array<int,8>& neighbours)
-	{
-		int nn = 0;
-		for(int i=0;i<8;++i)
-		{
-			int tn = node + adder[i];
-			if(tn < 0 || tn >= this->nxy || tn % this->nx < 1)
-				neighbours[i] = -1;
-			else
-				neighbours[i] = tn;
-		}
-	}
+	// void internal_neighbours_with_check(int node, std::array<int,8>& neighbours)
+	// {
+	// 	int nn = 0;
+	// 	for(int i=0;i<8;++i)
+	// 	{
+	// 		int tn = node + adder[i];
+	// 			neighbours[i] = tn;
+	// 	}
+	// }
 
 	int tl_neighbour(int& i){return i - this->nx - 1;}
 	int t_neighbour(int& i){return i - this->nx;}
@@ -337,6 +395,86 @@ public:
 		);
 	}
 
+	__m256 _load_topo(std::array<int,8>& arrnodes)
+	{
+		return _mm256_set_ps(
+			this->topography(arrnodes[0]),this->topography(arrnodes[1]), 
+			this->topography(arrnodes[2]), this->topography(arrnodes[3]),
+			this->topography(arrnodes[4]),this->topography(arrnodes[5]),
+			this->topography(arrnodes[6]),this->topography(arrnodes[7])
+		);
+	}
+
+	__m256i _load_topoi(std::array<int,8>& arrnodes)
+	{
+		return _mm256_set_epi32(
+			(arrnodes[0]),(arrnodes[1]), 
+			(arrnodes[2]), (arrnodes[3]),
+			(arrnodes[4]),(arrnodes[5]),
+			(arrnodes[6]),(arrnodes[7])
+		);
+	}
+
+	__m256 _load_topo(std::array<int,8>& arrnodes, int tadder)
+	{
+		return _mm256_set_ps(
+			this->topography(arrnodes[0]+tadder),this->topography(arrnodes[1]+tadder), 
+			this->topography(arrnodes[2]+tadder), this->topography(arrnodes[3]+tadder),
+			this->topography(arrnodes[4]+tadder),this->topography(arrnodes[5]+tadder),
+			this->topography(arrnodes[6]+tadder),this->topography(arrnodes[7]+tadder)
+		);
+	}
+
+	__m256i _load_topoi(std::array<int,8>& arrnodes, int tadder)
+	{
+		return _mm256_set_epi32(
+			(arrnodes[0]+tadder),(arrnodes[1]+tadder), 
+			(arrnodes[2]+tadder), (arrnodes[3]+tadder),
+			(arrnodes[4]+tadder),(arrnodes[5]+tadder),
+			(arrnodes[6]+tadder),(arrnodes[7]+tadder)
+		);
+	}
+
+	__m256 _load_topo(int i,std::vector<int>& vecnodes)
+	{
+		return _mm256_set_ps(
+			this->topography(vecnodes[i+0]),this->topography(vecnodes[i+1]), 
+			this->topography(vecnodes[i+2]), this->topography(vecnodes[i+3]),
+			this->topography(vecnodes[i+4]),this->topography(vecnodes[i+5]),
+			this->topography(vecnodes[i+6]),this->topography(vecnodes[i+7])
+		);
+	}
+
+	__m256i _load_topoi(int i,std::vector<int>& vecnodes)
+	{
+		return _mm256_set_epi32(
+			(vecnodes[i+0]),(vecnodes[i+1]), 
+			(vecnodes[i+2]), (vecnodes[i+3]),
+			(vecnodes[i+4]),(vecnodes[i+5]),
+			(vecnodes[i+6]),(vecnodes[i+7])
+		);
+	}
+
+	__m256 _load_topo(int i,std::vector<int>& vecnodes, int tadder)
+	{
+		return _mm256_set_ps(
+			this->topography(vecnodes[i+0]+tadder),this->topography(vecnodes[i+1]+tadder), 
+			this->topography(vecnodes[i+2]+tadder), this->topography(vecnodes[i+3]+tadder),
+			this->topography(vecnodes[i+4]+tadder),this->topography(vecnodes[i+5]+tadder),
+			this->topography(vecnodes[i+6]+tadder),this->topography(vecnodes[i+7]+tadder)
+		);
+	}
+
+	__m256i _load_topoi(int i,std::vector<int>& vecnodes, int tadder)
+	{
+		return _mm256_set_epi32(
+			(vecnodes[i+0]+tadder),(vecnodes[i+1]+tadder), 
+			(vecnodes[i+2]+tadder), (vecnodes[i+3]+tadder),
+			(vecnodes[i+4]+tadder),(vecnodes[i+5]+tadder),
+			(vecnodes[i+6]+tadder),(vecnodes[i+7]+tadder)
+		);
+	}
+
 	__m256i _load_neighbours(int node)
 	{
 		return _mm256_set_epi32(
@@ -344,6 +482,45 @@ public:
 			this->Neighbours[(node + 2)], this->Neighbours[(node + 3)],
 			this->Neighbours[(node + 4)],this->Neighbours[(node + 5)],
 			this->Neighbours[(node + 6)],this->Neighbours[(node + 7)]
+		);
+	}
+	__m256i _load_neighbours(std::array<int,8>& arrnodes)
+	{
+		return _mm256_set_epi32(
+			this->Neighbours[arrnodes[0]],this->Neighbours[arrnodes[1]], 
+			this->Neighbours[arrnodes[2]], this->Neighbours[arrnodes[3]],
+			this->Neighbours[arrnodes[4]],this->Neighbours[arrnodes[5]],
+			this->Neighbours[arrnodes[6]],this->Neighbours[arrnodes[7]]
+		);
+	}
+
+	__m256i _load_neighbours(std::array<int,8>& arrnodes, int tadder)
+	{
+		return _mm256_set_epi32(
+			this->Neighbours[arrnodes[0] + tadder],this->Neighbours[arrnodes[1] + tadder], 
+			this->Neighbours[arrnodes[2] + tadder], this->Neighbours[arrnodes[3] + tadder],
+			this->Neighbours[arrnodes[4] + tadder],this->Neighbours[arrnodes[5] + tadder],
+			this->Neighbours[arrnodes[6] + tadder],this->Neighbours[arrnodes[7] + tadder]
+		);
+	}
+
+	__m256i _load_neighbours(int i, std::vector<int>& vecnodes)
+	{
+		return _mm256_set_epi32(
+			this->Neighbours[vecnodes[0+i]],this->Neighbours[vecnodes[1+i]], 
+			this->Neighbours[vecnodes[2+i]], this->Neighbours[vecnodes[3+i]],
+			this->Neighbours[vecnodes[4+i]],this->Neighbours[vecnodes[5+i]],
+			this->Neighbours[vecnodes[6+i]],this->Neighbours[vecnodes[7+i]]
+		);
+	}
+
+	__m256i _load_neighbours(int i, std::vector<int>& vecnodes, int tadder)
+	{
+		return _mm256_set_epi32(
+			this->Neighbours[vecnodes[0+i] + tadder],this->Neighbours[vecnodes[1+i] + tadder], 
+			this->Neighbours[vecnodes[2+i] + tadder], this->Neighbours[vecnodes[3+i] + tadder],
+			this->Neighbours[vecnodes[4+i] + tadder],this->Neighbours[vecnodes[5+i] + tadder],
+			this->Neighbours[vecnodes[6+i] + tadder],this->Neighbours[vecnodes[7+i] + tadder]
 		);
 	}
 
@@ -509,7 +686,8 @@ public:
 	}
 
 
-	void compute()
+	// Does not work
+	void compute_archive_2()
 	{
 		if(this->_topography == nullptr) throw std::runtime_error("no topo linked sns");
 
@@ -945,29 +1123,1250 @@ public:
 
 	}
 
+
+
+
+
+	void compute()
+	{
+		if(this->_topography == nullptr) throw std::runtime_error("no topo linked sns");
+
+		std::array<int,8> neighbours;
+		int dbgcpt = 0;
+
+		__m256 DXs = fulldx();
+		__m256 DYs = fulldy();
+
+		__m256 DXYs = fulldxy();
+		std::array<__m256,8> mdxer{DXYs,DYs,DXYs,DXs,DXs,DXYs,DYs,DXYs};
+		
+		__m256 zeroVec = _mm256_setzero_ps();
+		__m256i zeroVeci =  _mm256_set1_epi32(0);
+		__m256i oneVeci =  _mm256_set1_epi32(-1);
+
+		auto DonMasks = this->DonMasks();
+		auto SDonMasks = this->SDonMasks();
+		auto SRecMasks = this->SRecMasks();
+		auto MirrorIndicesMasks = this->MirrorIndicesMasks();
+
+
+		__m256i neigh;
+		__m256i tneigh;
+		__m256i bitmatg;
+		__m256i bitmata;
+		__m256i comparisonResulti;
+		__m256i comparisonMask;
+		__m256i addMask;
+		__m256 topos;
+		__m256 SSs;
+		__m256i SSsi;
+		__m256 topon;
+		__m256i bitma;
+		__m256 inter;
+		__m256 tSS;
+		__m256 comparisonResult;
+
+
+		for (size_t i = 0; i < this->IntaNodes.size(); i+=8)
+		{
+			// std::cout << i+7 << "/" << this->IntaNodes.size() << std::endl;
+			// storing initial topo and initialising neighbours to no neighbours
+			topos = this->_load_topo(i, this->IntaNodes);
+			neigh = _mm256_set1_epi32(this->NoNeigh);
+			// Tracking steepest descent (init to 0.)
+			SSs = _mm256_set1_ps(0.f);
+			SSsi = _mm256_set1_epi32(0);
+
+			#pragma GCC unroll(8)
+			for(size_t j = 0; j<8; ++j)
+			{
+				// Loading topography from the top left corner
+				topon = this->_load_topo(i,this->IntaNodes,this->adder[j]);
+				// setting up the bitmask to donor-toward-top-left
+				bitma = _mm256_set1_epi32(DonMasks[j]);
+				//## Calculating Slope
+				// subtracting current topo with neighbours'
+				inter = _mm256_sub_ps(topos, topon);
+				// Dividing diff by diagonals
+				tSS = _mm256_div_ps(inter, mdxer[j]);
+				// printM256(tSS);
+				//## mask comparing to 0 for normal recs and dons
+				// mask where slope < 0 (donors)
+				comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+				// recasting mask to int
+				comparisonMask = _mm256_castps_si256(comparisonResult);
+				// printM256i(comparisonMask);
+				// applying neighbour to temp vector
+				addMask = _mm256_or_si256(neigh, bitma);
+				// registering donor where slope < 0
+				neigh = blendvps_si256(neigh, addMask,comparisonMask);
+				// printM256i_bitset(neigh);
+				// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+				// Switching to 
+				bitma = _mm256_srli_epi32(bitma,8);
+				comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+				// printM256(comparisonResult);
+				comparisonMask = _mm256_castps_si256(comparisonResult);
+				// printM256i(comparisonMask);
+				addMask = _mm256_or_si256(neigh, bitma);
+				neigh = blendvps_si256(neigh, addMask,comparisonMask);
+				// printM256i_bitset(neigh);
+
+				bitma = _mm256_srli_epi32(bitma,16);
+				comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+				SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+				comparisonMask = _mm256_castps_si256(comparisonResult);
+				// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+				SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+			}
+
+			neigh = _mm256_or_si256(neigh, SSsi);
+			// printM256i_bitset_8(neigh,0);
+
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+
+			int jj = 0;
+			#pragma GCC unroll(8)
+			for(int j = 7; j>=0; --j)
+			{
+				this->Neighbours[this->IntaNodes[i+jj]] = res[j];
+				// std::cout << std::bitset<8>(ui8fromui32(this->Neighbours[this->IntaNodes[i+jj]],0)) << "|";
+				++jj;
+			}
+
+		}
+
+		for (size_t i = 0; i < this->IntaNodes.size(); i+=8)
+		{
+
+			neigh = this->_load_neighbours(i,this->IntaNodes);
+			// printM256i_bitset_8(neigh,1);
+			#pragma GCC unroll(8)
+			for(size_t j=0; j < 8; ++j)
+			{
+				// storing initial topo and initialising neighbours to no neighbours
+				// printM256i_bitset_8(neigh,0);
+				// Loading topography from the top left corner
+				tneigh = this->_load_neighbours(i, this->IntaNodes, this->adder[j]);;
+
+				// setting up the bitmask to donor-toward-top-left
+				bitmatg = _mm256_set1_epi32(SRecMasks[MirrorIndicesMasks[j]]);
+				bitmata = _mm256_set1_epi32(SDonMasks[j]);
+				comparisonResulti = _mm256_and_si256(tneigh, bitmatg);
+				comparisonMask = _mm256_cmpeq_epi32(comparisonResulti, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+				// printM256i_bitset(comparisonMask);
+				// addMask = _mm256_or_si256(neigh, bitmata);
+				// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+				addMask = _mm256_and_si256(comparisonMask, bitmata);
+				// printM256i_bitset(addMask);
+				// printM256i_bitset_8(neigh,0);
+				neigh = _mm256_or_si256(addMask, neigh);
+				// printM256i_bitset_8(neigh,0);
+			}
+			// printM256i_bitset_8(neigh,1);
+			// std::cout << std::endl;
+			
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+			// printM256i_bitset(neigh);
+			// printM256i_bitset(neigh);
+
+			int jj = 0;
+			#pragma GCC unroll(8)
+			for(int j = 7; j>=0; --j)
+			{
+				this->Neighbours[this->IntaNodes[i + jj]] = res[j];
+				++jj;
+				// if(ui8fromui32(res[j],1) != 0)
+				// 	++dbgcpt;
+			}
+		}
+
+		this->_compute_edge_nodes();
+
+	}
+
+	void compute_beta2()
+	{
+		if(this->_topography == nullptr) throw std::runtime_error("no topo linked sns");
+
+		std::array<int,8> neighbours;
+		int dbgcpt = 0;
+
+		__m256 DXs = fulldx();
+		__m256 DYs = fulldy();
+
+		__m256 DXYs = fulldxy();
+		std::array<__m256,8> mdxer{DXYs,DYs,DXYs,DXs,DXs,DXYs,DYs,DXYs};
+		
+		__m256 zeroVec = _mm256_setzero_ps();
+		__m256i zeroVeci =  _mm256_set1_epi32(0);
+		__m256i oneVeci =  _mm256_set1_epi32(-1);
+
+		auto DonMasks = this->DonMasks();
+		auto SDonMasks = this->SDonMasks();
+		auto SRecMasks = this->SRecMasks();
+		auto MirrorIndicesMasks = this->MirrorIndicesMasks();
+
+
+		__m256i neigh;
+		__m256i tneigh;
+		__m256i bitmatg;
+		__m256i bitmata;
+		__m256i comparisonResulti;
+		__m256i comparisonMask;
+		__m256i addMask;
+		__m256 topos;
+		__m256 SSs;
+		__m256i SSsi;
+		__m256 topon;
+		__m256i bitma;
+		__m256 inter;
+		__m256 tSS;
+		__m256 comparisonResult;
+
+
+		for (size_t i = 0; i < this->IntaNodes.size(); i+=8)
+		{
+			// std::cout << i+7 << "/" << this->IntaNodes.size() << std::endl;
+			// storing initial topo and initialising neighbours to no neighbours
+			topos = this->_load_topo(i, this->IntaNodes);
+			neigh = _mm256_set1_epi32(this->NoNeigh);
+			// Tracking steepest descent (init to 0.)
+			SSs = _mm256_set1_ps(0.f);
+			SSsi = _mm256_set1_epi32(0);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[0]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[0]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[0]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[1]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[1]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[1]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[2]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[2]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[2]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[3]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[3]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[3]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[4]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[4]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[4]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[5]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[5]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[5]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[6]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[6]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[6]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading topography from the top left corner
+			topon = this->_load_topo(i,this->IntaNodes,this->adder[7]);
+			// setting up the bitmask to donor-toward-top-left
+			bitma = _mm256_set1_epi32(DonMasks[7]);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			tSS = _mm256_div_ps(inter, mdxer[7]);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			neigh = _mm256_or_si256(neigh, SSsi);
+			// printM256i_bitset_8(neigh,0);
+
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+
+			int jj = 0;
+			// #pragma GCC unroll(8)
+			for(int j = 7; j>=0; --j)
+			{
+				this->Neighbours[this->IntaNodes[i+jj]] = res[j];
+				// std::cout << std::bitset<8>(ui8fromui32(this->Neighbours[this->IntaNodes[i+jj]],0)) << "|";
+				++jj;
+			}
+
+		}
+
+		for (size_t i = 0; i < this->IntaNodes.size(); i+=8)
+		{
+
+			neigh = this->_load_neighbours(i,this->IntaNodes);
+			// printM256i_bitset_8(neigh,1);
+			// #pragma GCC unroll(8)
+			for(size_t j=0; j < 8; ++j)
+			{
+				// storing initial topo and initialising neighbours to no neighbours
+				// printM256i_bitset_8(neigh,0);
+				// Loading topography from the top left corner
+				tneigh = this->_load_neighbours(i, this->IntaNodes, this->adder[j]);;
+
+				// setting up the bitmask to donor-toward-top-left
+				bitmatg = _mm256_set1_epi32(SRecMasks[MirrorIndicesMasks[j]]);
+				bitmata = _mm256_set1_epi32(SDonMasks[j]);
+				comparisonResulti = _mm256_and_si256(tneigh, bitmatg);
+				comparisonMask = _mm256_cmpeq_epi32(comparisonResulti, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+				// printM256i_bitset(comparisonMask);
+				// addMask = _mm256_or_si256(neigh, bitmata);
+				// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+				addMask = _mm256_and_si256(comparisonMask, bitmata);
+				// printM256i_bitset(addMask);
+				// printM256i_bitset_8(neigh,0);
+				neigh = _mm256_or_si256(addMask, neigh);
+				// printM256i_bitset_8(neigh,0);
+			}
+			// printM256i_bitset_8(neigh,1);
+			// std::cout << std::endl;
+			
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+			// printM256i_bitset(neigh);
+			// printM256i_bitset(neigh);
+
+			int jj = 0;
+			// #pragma GCC unroll(8)
+			for(int j = 7; j>=0; --j)
+			{
+				this->Neighbours[this->IntaNodes[i + jj]] = res[j];
+				++jj;
+				// if(ui8fromui32(res[j],1) != 0)
+				// 	++dbgcpt;
+			}
+		}
+
+		this->_compute_edge_nodes();
+
+	}
+
 	void _compute_edge_nodes()
 	{
 		std::array<int,8> arr;
 		auto DonMasks = this->DonMasks() ;
 		auto RecMasks = this->RecMasks() ;
 		auto SDonMasks = this->SDonMasks() ;
-		auto SrecMasks = this->SrecMasks() ;
+		auto SRecMasks = this->SRecMasks() ;
 		auto MirrorIndicesMasks = this->MirrorIndicesMasks() ;
 
-		for(auto i:this->EdgeNodes)
+		for(size_t ti=0; ti<this->EdgeNodes.size(); ++ti)
 		{
-			this->Neighbours[i] = 0;
-			this->internal_neighbours_with_check(i, arr);
+			// if(this->boundaries[i])
+			// this->internal_neighbours(i,arr);
+			int i = this->EdgeNodes[ti];
+			this->_neighbours_from_ui8_nocheck(i,this->EdgeNodes_Neighbours[ti],arr);
+			
+			float topo = this->topography(i);
+
 			for(int j=0; j< 8; ++j)
 			{
 				int tn = arr[j];
-				if(tn == -1) continue;
-				if(RecMasks[j] & this->Neighbours[tn])
-					this->Neighbours[i] |= DonMasks[MirrorIndicesMasks[j]];
-				if(SrecMasks[j] & this->Neighbours[tn])
-					this->Neighbours[i] |= SDonMasks[MirrorIndicesMasks[j]];
+				if(tn > -1)
+				{
+					int tnn= this->Neighbours[tn];
+					if(tnn & DonMasks[MirrorIndicesMasks[j]])
+						this->Neighbours[i] |= RecMasks[j];
+					else if(tnn & RecMasks[MirrorIndicesMasks[j]])
+						this->Neighbours[i] |= DonMasks[j];
+
+
+					if(tnn & SDonMasks[MirrorIndicesMasks[j]])
+						this->Neighbours[i] |= SRecMasks[j];
+					else if(tnn & SRecMasks[MirrorIndicesMasks[j]])
+						this->Neighbours[i] |= SDonMasks[j];
+					
+					
+				}
+				
 			}
 		}
+			
+			
+	}
+
+	void compute_classics()
+	{
+		
+		std::array<int,8> arr;
+		auto DonMasks = this->DonMasks() ;
+		auto RecMasks = this->RecMasks() ;
+		auto SDonMasks = this->SDonMasks() ;
+		auto SRecMasks = this->SRecMasks() ;
+		auto MirrorIndicesMasks = this->MirrorIndicesMasks() ;
+		for (int i =0; i < this->nxy ; ++i)
+		{
+			this->Neighbours[i] = 0;
+		}
+
+		for (int i =0; i < this->nxy ; ++i)
+		{
+			if(this->boundaries[i] == 1)
+				this->internal_neighbours(i,arr);
+			else
+				continue;
+
+			float topo = this->topography(i);
+			float tSS = 0;
+			int tmi = 0;
+			int tSSi = i;
+			for(int j=0; j< 8; ++j)
+			{
+				int tn = arr[j];
+				if(tn > -1)
+				{
+					float ntopo = this->topography(tn);
+					if(ntopo < topo)
+					{
+						this->Neighbours[i] |= RecMasks[j];
+						this->Neighbours[tn] |= DonMasks[MirrorIndicesMasks[j]];
+						float ttSS = (topo - ntopo)/this->dxer[j];
+						if(ttSS > tSS)
+						{
+							tSS = ttSS;
+							tmi = j ;
+							tSSi = tn;
+						}
+					}
+					
+				}
+				
+			}
+			
+			if(tSSi != i)
+			{
+				this->Neighbours[i] |= SRecMasks[tmi];
+				this->Neighbours[tSSi] |= SDonMasks[MirrorIndicesMasks[tmi]];
+				// std::cout << std::bitset<32>(this->Neighbours[i])  << "|" << std::bitset<32>(this->Neighbours[tSSi]) << std::endl;
+				// std::cout << std::bitset<8>(ui8fromui32(this->Neighbours[i],0))  << "|" << std::bitset<8>(ui8fromui32(this->Neighbours[tSSi],1)) << std::endl;
+			}
+
+
+		}
+		this->_compute_edge_nodes();
+		
+
+	}
+
+	void compute_exp_internal_nodes()
+	{
+		if(this->_topography == nullptr) throw std::runtime_error("no topo linked sns");
+
+		std::array<int,8> neighbours;
+
+		__m256 DXs = fulldx();
+		__m256 DYs = fulldy();
+		__m256 DXYs = fulldxy();
+		__m256 zeroVec = _mm256_setzero_ps();
+		__m256i zeroVeci =  _mm256_set1_epi32(0);
+		__m256i oneVeci =  _mm256_set1_epi32(-1);
+
+
+
+
+		for (int i = this->nx + 1; i < this->nxy - this->nx - 1; i+=8)
+		{
+			// storing initial topo and initialising neighbours to no neighbours
+			__m256 topos = this->_load_topo(i);
+			__m256i neigh = _mm256_set1_epi32(this->NoNeigh);
+			// Tracking steepest descent (init to 0.)
+			__m256 SSs = _mm256_set1_ps(0.f);
+			__m256i SSsi = _mm256_set1_epi32(0);
+
+
+			// Loading topography from the top left corner
+			__m256 topon = this->_load_tl_topo(i);
+			// setting up the bitmask to donor-toward-top-left
+			__m256i bitma = _mm256_set1_epi32(this->DonTopLeftMask);
+			//## Calculating Slope
+			// subtracting current topo with neighbours'
+			__m256 inter = _mm256_sub_ps(topos, topon);
+			// Dividing diff by diagonals
+			__m256 tSS = _mm256_div_ps(inter, DXYs);
+			// printM256(tSS);
+			//## mask comparing to 0 for normal recs and dons
+			// mask where slope < 0 (donors)
+			__m256 comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			// recasting mask to int
+			__m256i comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			// applying neighbour to temp vector
+			__m256i addMask = _mm256_or_si256(neigh, bitma);
+			// registering donor where slope < 0
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			// Switching to 
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			// printM256(comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			// printM256i(comparisonMask);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// printM256i_bitset(neigh);
+
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_t_topo(i);
+			bitma = _mm256_set1_epi32(this->DonTopMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DYs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_tr_topo(i);
+			bitma = _mm256_set1_epi32(this->DonTopRightMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DXYs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_l_topo(i);
+			bitma = _mm256_set1_epi32(this->DonLeftMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DXs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_r_topo(i);
+			bitma = _mm256_set1_epi32(this->DonRightMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DXs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+			// Loading top-left infos
+			topon = this->_load_bl_topo(i);
+			bitma = _mm256_set1_epi32(this->DonBottomLeftMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DXYs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_b_topo(i);
+			bitma = _mm256_set1_epi32(this->DonBottomMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DYs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+
+
+			// Loading top-left infos
+			topon = this->_load_br_topo(i);
+			bitma = _mm256_set1_epi32(this->DonBottomRightMask);
+			//## Calculating Slope
+			inter = _mm256_sub_ps(topos, topon);
+			tSS = _mm256_div_ps(inter, DXYs);
+			//## mask comparing to 0 for normal recs and dons
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_LT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonMask = _mm256_not_si256(comparisonMask); // need to avoid flats becominglinks
+			bitma = _mm256_srli_epi32(bitma,8);
+			comparisonResult = _mm256_cmp_ps(tSS, zeroVec, _CMP_GT_OQ);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			addMask = _mm256_or_si256(neigh, bitma);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			bitma = _mm256_srli_epi32(bitma,16);
+			comparisonResult = _mm256_cmp_ps(tSS, SSs, _CMP_GT_OQ);
+			SSs = _mm256_blendv_ps(SSs, tSS, comparisonResult);
+			comparisonMask = _mm256_castps_si256(comparisonResult);
+			SSsi = blendvps_si256(SSsi, zeroVeci,comparisonMask);
+			SSsi = blendvps_si256(SSsi, bitma,comparisonMask);
+			// std::cout << "~" << std::endl;
+			// printM256i_bitset(neigh);
+
+
+			neigh = _mm256_or_si256(neigh, SSsi);
+			// printM256i_bitset(neigh);
+
+
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+
+			int jj = 0;
+			for(int j = 7; j>=0; --j)
+			{
+				// std::cout << res[j] << "|";
+				this->Neighbours[i+jj] = res[j];
+				// if(i > this->nx * 20 && this->nx * 50 > i )
+				// {
+				// 	std::cout << "~" << std::endl;
+					// std::cout << std::bitset<32>(res[j]) << std::endl;	
+				// }
+				
+				++jj;
+			}
+
+		}
+
+
+		for (int i = this->nx + 1; i < this->nxy - this->nx - 1; i+=8)
+		{
+			// storing initial topo and initialising neighbours to no neighbours
+			__m256i neigh = this->_load_neighbours(i);
+			// printM256i_bitset_8(neigh,0);
+			// Loading topography from the top left corner
+			__m256i tneigh = this->_load_neighbours(i + this->adder[0]);
+
+			// setting up the bitmask to donor-toward-top-left
+			__m256i bitmatg = _mm256_set1_epi32(this->SRecBottomRightMask);
+			__m256i bitmata = _mm256_set1_epi32(this->SDonTopLeftMask);
+			__m256i comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			__m256i comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			__m256i addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			 // neigh = _mm256_or_si256(neigh, comparisonResult);
+			// printM256i_bitset_8(neigh,0);
+			// // printM256i_bitset_8(neigh,1);
+			// printM256i_bitset(neigh);
+    	// __m256i comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // // applying neighbour to temp vector
+			// __m256i addMask = _mm256_or_si256(tneigh, bitmata);
+			// // // registering donor where slope < 0
+			// // neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[1]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecBottomMask);
+			bitmata = _mm256_set1_epi32(this->SDonTopMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[2]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecBottomLeftMask);
+			bitmata = _mm256_set1_epi32(this->SDonTopRightMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[3]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecRightMask);
+			bitmata = _mm256_set1_epi32(this->SDonLeftMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[4]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecLeftMask);
+			bitmata = _mm256_set1_epi32(this->SDonRightMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[5]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecTopRightMask);
+			bitmata = _mm256_set1_epi32(this->SDonBottomLeftMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[6]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecTopMask);
+			bitmata = _mm256_set1_epi32(this->SDonBottomMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// Loading topography from the top left corner
+			tneigh = this->_load_neighbours(i + this->adder[7]);
+			// setting up the bitmask to donor-toward-top-left
+			bitmatg = _mm256_set1_epi32(this->SRecTopLeftMask);
+			bitmata = _mm256_set1_epi32(this->SDonBottomRightMask);
+			comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+			comparisonMask = _mm256_cmpeq_epi32(comparisonResult, bitmatg); //_mm256_and_si256(tneigh, bitmatg);
+			addMask = _mm256_or_si256(neigh, bitmata);
+			neigh = blendvps_si256(neigh, addMask,comparisonMask);
+			// comparisonResult = _mm256_and_si256(tneigh, bitmatg);
+    	// comparisonMask = _mm256_set1_epi32(_mm256_movemask_epi8(comparisonResult));
+			// // applying neighbour to temp vector
+			// addMask = _mm256_or_si256(tneigh, bitmata);
+			// // registering donor where slope < 0
+			// neigh = blendvps_si256(neigh, addMask,comparisonMask);
+
+			// printM256i_bitset(neigh);
+			 // printM256i_bitset_8(neigh,1);
+			// printM256i_bitset_8(neigh,1);
+
+
+
+
+			int res[8];
+			_mm256_storeu_si256((__m256i*)res, neigh);
+			// printM256i_bitset(neigh);
+
+			int jj = 0;
+			for(int j = 7; j>=0; --j)
+			{
+				// std::cout << res[j] << "|";
+				this->Neighbours[i+jj] = res[j];
+
+				// if(i > this->nx * 20 && this->nx * 50 > i )
+				// {
+				// 	std::cout << "~" << std::endl;
+				// if(std::bitset<8>(ui8fromui32(res[j],1))[0])
+				// 	std::cout << std::bitset<8>(ui8fromui32(res[j],1)) << std::endl;;
+					// exit(0);	
+				// }
+				++jj;
+			}
+		}
+
+
+		this->_compute_edge_nodes();
+
+	}
+
+	void compute_memeff1()
+	{
+		// Need to reproduce what I did with avx without avx to check if the vectorisation and MAP could work without, at least a bit
+
+		const int batch{8};
+
+		std::array<int,batch> arrni;
+		std::array<int,batch> tSSn;
+		std::array<float,batch> tSS;
+		auto DonMasks = this->DonMasks() ;
+		auto RecMasks = this->RecMasks() ;
+		auto SDonMasks = this->SDonMasks() ;
+		auto SRecMasks = this->SRecMasks() ;
+		auto MirrorIndicesMasks = this->MirrorIndicesMasks() ;
+
+		std::vector<float>& reftopo = *this->_topography;
+		for (int u = this->nx + 1; u < this->nxy - this->nx - 1; u+=batch)
+		{
+
+			for(auto&v:tSS)
+				v=0.;
+			for(auto&v:arrni)
+				v=0;
+			for (int i=0;i<batch;++i)
+				tSSn[i] = i;
+
+			for(int aldi =0; aldi < 8;++aldi)
+			{
+				int start = u + this->adder[aldi];
+
+				for (int i=0;i<batch;++i)
+				{
+					int i_n = start+i;
+					int i_i = u+i;
+					float tslope = (reftopo[i_i] - reftopo[i_n])/this->dxer[aldi];
+					if(tSS[i] < tslope)
+					{
+						tSSn[i] = i_n;
+						arrni[i] = aldi;
+						tSS[i] = tslope;	
+					}
+					if(tslope > 0)
+					{
+						this->Neighbours[i_i] |=  RecMasks[aldi];
+						// this->Neighbours[i_n] |=  DonMasks[MirrorIndicesMasks[aldi]];
+					}
+				}
+			}
+
+			
+			for (int i=0;i<batch;++i)
+			{
+				int i_i = u+i;
+				int i_n = tSSn[i];
+				this->Neighbours[i_i] |=  SRecMasks[arrni[i]];
+				// this->Neighbours[i_n] |=  SDonMasks[MirrorIndicesMasks[arrni[i]]];
+			}
+
+
+
+
+
+
+			// std::copy(this->Neighbours.begin() + (start),this->Neighbours.begin() + (start+8),arrn.begin());
+			// for(int j=0; j<8;++j)
+			// 	std::cout << arrn[j] << "|";
+			// std::cout << std::endl;
+
+
+
+			// for(int i=u; i<u+8; ++i )
+			// {
+			// 	this->Neighbours[i] = 0;
+			// 	this->internal_neighbours_with_check(i,arr);
+			// 	float topo = this->topography(i);
+			// 	float tSS = 0;
+			// 	int tmi = 0;
+			// 	int tSSi = i;
+			// 	for(int j=0; j< 8; ++j)
+			// 	{
+			// 		int tn = arr[j];
+			// 		if(tn > -1)
+			// 		{
+			// 			float ntopo = this->topography(tn);
+			// 			if(ntopo < topo)
+			// 			{
+			// 				this->Neighbours[i] |= RecMasks[j];
+			// 				this->Neighbours[tn] |= DonMasks[MirrorIndicesMasks[j]];
+			// 				float ttSS = (topo - ntopo)/this->dxer[j];
+			// 				if(ttSS > tSS)
+			// 				{
+			// 					tSS = ttSS;
+			// 					tmi = j ;
+			// 					tSSi = tn;
+			// 				}
+			// 			}
+			// 			this->Neighbours[i] |= SRecMasks[j];
+			// 			this->Neighbours[tSSi] |= SDonMasks[MirrorIndicesMasks[j]];
+			// 		}
+			// 	}
+			// }
+		}
+
+		this->_compute_edge_nodes();
 	}
 
 
@@ -2066,31 +3465,37 @@ public:
 	void _local_lookup(std::uint8_t indices, std::array<int,8>& arr, std::uint8_t& nn)
 	{
 		// Retrieve the indices specified by the bits set in the `indices` value
-		for (int i = 0; i < 7; ++i) 
+		// std::cout << "idx is " << std::bitset<8>(indices) << std::endl;
+		// std::cout << "Retained are: ";
+		for (int i = 0; i < 8; ++i) 
 		{
 			if ( indices & (1 << i)) 
 			{
 				// Index `i` is set, process the corresponding value
 				// std::cout << 7 - i << " ";
+				// std::cout << 7 - i << " (" << std::bitset<8>(1 << i)  << ") ";
 				arr[nn] = this->adder[7 - i];
 				// std::cout << std::to_string(arr[nn]) << " | ";
 				++nn;
 			}
 		}
+		// std::cout << std::endl ;
+
 	}
 
 	void _compute_lookup_table()
 	{
 		for(int i = 0; i < LOOKUPSIZE; ++i)
 		{
-			this->lookup_nn[i] = 0;
-			this->lookup_table_SS[i] = 0;
-			for(auto&v:this->lookup_table[i]) v=0;
+			std::uint8_t ti = static_cast<std::uint8_t>(i);
+			this->lookup_nn[ti] = 0;
+			this->lookup_table_SS[ti] = 0;
+			for(auto&v:this->lookup_table[ti]) v=0;
 
 			// std::cout << std::bitset<8>(static_cast<std::uint8_t>(i)) << "|" << std::to_string(static_cast<std::uint8_t>(i)) << "||"; 
-			this->_local_lookup(static_cast<std::uint8_t>(i),this->lookup_table[i],this->lookup_nn[i]);
-			if(this->lookup_nn[i] == 1)
-				this->lookup_table_SS[i] = this->lookup_table[i][0];
+			this->_local_lookup(ti,this->lookup_table[ti],this->lookup_nn[ti]);
+			if(this->lookup_nn[ti] == 1)
+				this->lookup_table_SS[ti] = this->lookup_table[ti][0];
 
 		// std::cout << " (" << std::to_string(this->lookup_table[i][4]) << ")  " << std::endl;;
 		}
@@ -2113,25 +3518,95 @@ public:
 		{
 			this->boundaries[i] = 0;
 			this->EdgeNodes.emplace_back(i);
+			this->EdgeNodes_Neighbours.emplace_back((i==0)?0b00001011: (this->nx-1 == i)? 0b00010110 : 0b00011111);
 		}
 		// setting the last row to 0
 		for(int i = this->nxy-this->nx; i<this->nxy; ++i)
 		{
 			this->boundaries[i] = 0;
 			this->EdgeNodes.emplace_back(i);
+			this->EdgeNodes_Neighbours.emplace_back((i==this->nxy-this->nx) ? 0b01101000 : (i==this->nxy-1) ? 0b11010000: 0b11111000);
+
 		}
 		for(int r = 1;r < this->ny-1;++r)
 		{
 			int i = r * this->nx + 0;
 			this->boundaries[i] = 0;
 			this->EdgeNodes.emplace_back(i);
+			this->EdgeNodes_Neighbours.emplace_back(0b01101011);
 			i += this->nx-1;
 			this->boundaries[i] = 0;
 			this->EdgeNodes.emplace_back(i);
-		}	
+			this->EdgeNodes_Neighbours.emplace_back(0b11010110);
+		}
+		this->_compute_internal_nodes();
+	}
+
+	void _compute_internal_nodes()
+	{
+
+		this->IntaNodes.reserve(this->nxy);
+		for(int i=0; i<this->nxy; ++i)
+		{
+			if(this->boundaries[i] == 1)
+				this->IntaNodes.emplace_back(i);
+		}
+	
+		int ninternalnnode = static_cast<int>(this->IntaNodes.size());
+		int nmode = ninternalnnode % 8;
+		
+		while(nmode > 0 && nmode < 8)
+		{
+			this->IntaNodes.emplace_back(this->IntaNodes[this->IntaNodes.size()-1]);
+			++nmode;
+		}
+
+		std::cout << "DEBUGLOG::INTANODES::" << this->IntaNodes.size() << std::endl;;
+
+		return;
+
 	}
 
 
+	void _archive_compute_internal_nodes()
+	{
+
+		// std::vector<int> tempnodint;
+		// tempnodint.reserve(this->nxy);
+		// for(int i=0; i<this->nxy; ++i)
+		// {
+		// 	if(this->boundaries[i] == 1)
+		// 		tempnodint.emplace_back(i);
+		// }
+	
+		// int ninternalnnode = static_cast<int>(tempnodint.size());
+		// std::cout << "DEBUGLOG::ninternalnnode::" << ninternalnnode << std::endl;
+		// int nmode = ninternalnnode % 8;
+		// int n_right_size = ninternalnnode - nmode;
+		// this->IntaNodes.reserve(static_cast<int>(ninternalnnode/8)+1);
+
+
+
+		// for (size_t i = 0; i < static_cast<size_t>(n_right_size) ; i+=8)
+		// {
+		// 	this->IntaNodes.emplace_back(std::array<int,8>{tempnodint[i + 0],tempnodint[i + 1],tempnodint[i + 2],tempnodint[i + 3],tempnodint[i + 4],tempnodint[i + 5],tempnodint[i + 6],tempnodint[i + 7]});
+		// }
+
+		// if(nmode == 0)
+		// 	return;
+
+		// std::array<int,8> temp2l;
+		// for(int i=0; i<8; ++i)
+		// {
+		// 	temp2l[i] = (i<nmode) ? tempnodint[i + n_right_size] : tempnodint[n_right_size - 1];
+		// }
+
+
+		// this->IntaNodes.emplace_back(temp2l);
+
+		// return;
+
+	}
 
 	// Utilities
 	
@@ -2167,6 +3642,101 @@ public:
 			tSreceivers[i] = this->Sreceivers(i);
 
 		return tSreceivers;
+	}
+
+
+	void save_nSDonors(std::string filename)
+	{
+		auto tvec = this->_get_nSDonors_vector();
+		const std::vector<std::uint64_t> shape{std::uint64_t(this->ny), std::uint64_t(this->nx)};
+		const bool fortran_order{false};
+		const std::string path{filename};
+		npy::SaveArrayAsNumpy(path, fortran_order, shape.size(), shape.data(), tvec);
+	}
+
+	std::vector<int> _get_nSDonors_vector()
+	{
+		std::vector<int> tnSDonors(this->nxy);
+		for(int i=0;i<this->nxy;++i)
+			tnSDonors[i] = this->nSDonors(i);
+
+		return tnSDonors;
+	}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	void _check_Sneighbouring()
+	{
+		std::array<int,8> arr, arr2;
+		auto DonMasks = this->DonMasks();
+		auto RecMasks = this->RecMasks();
+		auto SDonMasks = this->SDonMasks();
+		auto SRecMasks = this->SRecMasks();
+		auto MirrorIndicesMasks = this->MirrorIndicesMasks();
+
+		int n_anomalies = 0;
+		int n_anomalies_Srec = 0;
+		int n_sdon = 0;
+		int n_zerodon = 0;
+		for(int i=0; i<this->nxy; ++i)
+		{
+			// checking Sndonors		
+			int nn = this->SDonors(i,arr);
+			if(nn==0)
+			{
+				++n_zerodon;
+				this->internal_neighbours_with_check(i,arr2);
+				for(int j=0;j<8;++j)
+				{
+					if(arr2[j] == -1)
+						continue;
+					if(this->topography(arr2[j]) > this->topography(i))
+						std::cout << "JOIFSDDFLKJ::" << std::bitset<32>(this->Neighbours[i]) << "||" << std::bitset<32>(this->Neighbours[arr2[j]]) << std::endl;
+				}
+				// std::cout << std::bitset<32>(this->Neighbours[i])  << "|" << std::bitset<8>(ui8fromui32(this->Neighbours[i],1)) << std::endl;
+			}
+
+			n_sdon++;
+
+			for(int j=0;j<nn;++j)
+			{
+				int tn = arr[j];
+				if(this->Sreceivers(tn) != i)
+					++n_anomalies;;
+			}
+
+			int tr = this->Sreceivers(i);
+			if(tr != i)
+			{
+				int tnd = this->nSDonors(tr);
+				if(tnd < 1)
+				{
+					std::cout << std::bitset<32>(this->Neighbours[i])  << "|" << std::bitset<32>(this->Neighbours[tr]) << " | " << (float(tr)/this->nx)  << std::endl;
+					++n_anomalies_Srec;
+				}
+			}
+
+		}
+		std::cout << "Out of " << this->nxy << " nodes checked " << n_sdon << " and there was " << n_zerodon << " with 0 donors. \nSDonors validity, anomaly founds: " << n_anomalies << "\nSrecs validity, anomaly founds: " << n_anomalies_Srec << std::endl;;
+	
+
+
+
 	}
 
 

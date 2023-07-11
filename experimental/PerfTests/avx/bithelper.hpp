@@ -29,7 +29,19 @@ void AiisBiifCgtD(__m256i& A, __m256i& B, __m256& C, __m256& D)
 }
 
 
+std::uint8_t reverseBits(std::uint8_t num) 
+{
+	std::uint8_t result = 0;
 
+	for (int i = 0; i < 8; ++i) 
+	{
+		result <<= 1;
+		result |= (num & 1);
+		num >>= 1;
+	}
+
+	return result;
+}
 
 
 __m256i bitwiseORWithMask(__m256i& vec1, __m256i& vec2, __m256i& mask) 
