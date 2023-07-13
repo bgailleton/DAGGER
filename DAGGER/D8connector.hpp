@@ -152,7 +152,7 @@ public:
 	// Steepest slope
 	std::vector<T> SS;
 
-	std::map<int,uI_t> converter;
+	std::unordered_map<int,uI_t> converter;
 
 	bool default_permissive = false;
 
@@ -255,6 +255,7 @@ public:
 		// Array of adder for neighbouring:
 		// normal neighbouring
 		this->neighbourer[0] = std::numeric_limits<int>::min(); // nodata 0
+		this->converter.reserve(81);
 		this->converter[this->neighbourer[0]] = 0;
 		int aa = 1;
 		this->neighbourer[0 + aa] = 1; // right 1

@@ -950,9 +950,9 @@ public:
 			this->prefuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_extra_Qw_fluvial);
 
 
-		bool need_Qw = this->fluvial != TSC_FLUVIAL::NONE;
-		bool need_Qs = this->fluvial == TSC_FLUVIAL::DAVY2009 || this->hillslopes != TSC_HILLSLOPE::NONE;
-		bool SFD = this->flowtopo == TSC_FLOW_TOPOLOGY::SFD;
+		const bool need_Qw = this->fluvial != TSC_FLUVIAL::NONE;
+		const bool need_Qs = this->fluvial == TSC_FLUVIAL::DAVY2009 || this->hillslopes != TSC_HILLSLOPE::NONE;
+		const bool SFD = this->flowtopo == TSC_FLOW_TOPOLOGY::SFD;
 
 		if(need_Qw)
 		{
@@ -960,13 +960,15 @@ public:
 			else this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t, Connector_t>::prec_Qw_MFD);
 		}
 
-		
+		// Switch statements when using enums
 		if(this->hillslopes == TSC_HILLSLOPE::CIDRE)
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre);
 		else if (this->hillslopes == TSC_HILLSLOPE::HYLANDS)
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre_dep_only_for_highlands);
 		else if(this->hillslopes == TSC_HILLSLOPE::CIDRE_NOCRIT)
 			this->downstreamfuncs.emplace_back(&trackscape<fT,Graph_t,Connector_t>::hillslopes_cidre_no_crit);
+		// end the switch with exception
+
 
 		if(this->marine == TSC_MARINE::CHARLIE)
 		{

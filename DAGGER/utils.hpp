@@ -1,26 +1,28 @@
 //=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
-#ifndef utils_HPP
-#define utils_HPP
+#pragma once
+
+
+#include "npy.hpp"
 
 // STL imports
-#include <iostream>
-#include <string>
-#include <vector>
 #include <algorithm>
-#include <set>
-#include <map>
+#include <chrono>
+#include <cmath>
 #include <ctime>
 #include <fstream>
-#include <random>
-#include <queue>
-#include <iostream>
-#include <numeric>
-#include <cmath>
 #include <initializer_list>
+#include <iostream>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <numeric>
+#include <queue>
+#include <random>
+#include <set>
 #include <stdio.h>
 #include <string.h>
-#include <memory>
-#include "npy.hpp"
+#include <string>
+#include <vector>
 
 
 namespace DAGGER
@@ -53,7 +55,7 @@ enum class DEPRES
 
 // Quick function checking if an element is in a set or not
 template<class T>
-inline bool izinset(std::set<T>& tset, T& element )
+inline bool izinset(const std::set<T>& tset, const T& element )
 {
 	 return std::binary_search(tset.begin(), tset.end(), element);
 };
@@ -68,7 +70,7 @@ class PQ_helper
 {
 	public:
 		// empty constructor
-		PQ_helper(){};
+		PQ_helper() = default;
 		// Constructor by default
 		PQ_helper(T node,U score){this->node = node; this->score = score;};
 		// Node index
@@ -563,11 +565,3 @@ void save_vec_to_2Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
 
 
 
-
-
-
-
-
-
-
-#endif

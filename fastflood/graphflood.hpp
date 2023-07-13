@@ -107,6 +107,15 @@ enum class BOUNDARY_HW
 	FIXED_SLOPE,
 };
 
+
+enum class CONVERGENCE
+{
+	NONE,
+	DHW,
+	QWR,
+	ALL
+};
+
 template<class fT, class Graph_t, class Connector_t>
 class graphflood
 {
@@ -186,7 +195,21 @@ public:
 	fT debug_CFL = 0.;
 	
 
+
+	// Convergence checker
+	CONVERGENCE convergence_mode = CONVERGENCE::NONE;
+	std::vector<int> conv_nodes;
+	std::vector<fT> conv_ini_Qw;
+	std::vector< std::vector<fT> > conv_dhw;
+	std::vector< std::vector<fT> > conv_Qr;
 	std::vector<std::uint8_t> converged;
+	int n_nodes_convergence(){return static_cast<int>(conv_nodes.size());}
+	int n_stack_convergence()
+	{
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::QWR) return static_cast<int>(this->conv_Qr[0].size());
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::DHW) return static_cast<int>(this->conv_dhw[0].size());
+		return 0;
+	}
 
 
 
@@ -406,7 +429,7 @@ public:
 
 	void set_dt_hydro(fT tdt)
 	{
-		this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
+		// this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
 		this->_dt_hydro = {tdt};
 	}
 
@@ -1010,8 +1033,13 @@ public:
 
 		if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT)
 		{
+			std::cout << "LKJASFDDLFSKJ1" << std::endl;
 			if(tcourant_dt_hydro > 0 && tcourant_dt_hydro != std::numeric_limits<fT>::max() )
+			{
 				this->courant_dt_hydro = tcourant_dt_hydro;
+				std::cout << this->courant_dt_hydro  << std::endl;
+				
+			}
 		}
 
 
@@ -1200,8 +1228,10 @@ public:
 				this->_rec_Qwout[node] += Qwout;
 		}
 
-		if(this->tau_max > 500)
-			std::cout << "WARNING::tau_max is " << this->tau_max << std::endl;
+		
+
+		// if(this->tau_max > 500)
+		// 	std::cout << "WARNING::tau_max is " << this->tau_max << std::endl;
 
 		// END OF MAIN LOOP
 
@@ -1209,13 +1239,24 @@ public:
 
 		if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT)
 		{
-			// std::cout << "tcourant_dt_hydro::" << tcourant_dt_hydro << std::endl;
 			if(this->courant_dt_hydro == -1)
 				this->courant_dt_hydro = 1e-3;
 			else if(tcourant_dt_hydro > 0 && tcourant_dt_hydro != std::numeric_limits<fT>::max() )
 				this->courant_dt_hydro = tcourant_dt_hydro;
 		}
 
+
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::DHW)
+		{
+			for(int i = 0; i<this->n_nodes_convergence(); ++i)
+				this->conv_dhw[i].emplace_back(vmot_hw[this->conv_nodes[i]]); // /this->dt_hydro(this->conv_nodes[i]));
+		}
+
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::QWR)
+		{
+			for(int i = 0; i<this->n_nodes_convergence(); ++i)
+				this->conv_Qr[i].emplace_back(this->_rec_Qwout[this->conv_nodes[i]]/this->_Qw[this->conv_nodes[i]]);
+		}
 
 		// Applying vmots with the right dt
 		this->_compute_vertical_motions(vmot_hw, vmot);
@@ -2621,6 +2662,169 @@ public:
 		}
 
 	}
+
+
+
+
+	void init_convergence_checker(int tN, CONVERGENCE conv)
+	{
+
+		this->conv_nodes.clear();
+		this->conv_ini_Qw.clear();
+		this->conv_Qr.clear();
+		this->conv_dhw.clear();
+		this->converged.clear();
+
+		this->convergence_mode = conv;
+
+
+		// init convergence vectors to the right size
+		this->conv_nodes.reserve(tN);
+		this->conv_ini_Qw.reserve(tN);
+		this->converged.reserve(tN);
+
+		if(this->convergence_mode == CONVERGENCE::QWR || this->convergence_mode == CONVERGENCE::ALL)
+			this->record_Qw_out = true;
+
+
+		// Calculating relevant metrics 
+		auto DA  = this->calculate_drainage_area();
+		auto FD = this->calculate_flow_distance();
+
+		// finding the longest flow line
+		auto maxElement = std::max_element(FD.begin(), FD.end());
+		int ti = std::distance(FD.begin(), maxElement);
+
+		std::vector<int> flow_line;
+		flow_line.reserve(this->connector->nnodes);
+
+		while(this->connector->flow_out_or_pit(ti) == false)
+		{
+			flow_line.emplace_back(ti);
+			ti = this->connector->Sreceivers[ti];
+		}
+		// std::cout << "Last node is " << ti << std::endl;
+
+		if(this->connector->flow_out_model(ti) == false) 
+			std::cout << "WARNING::convergence checker flow line ends in a pit, this can impact its liability" << std::endl;
+
+		int nflodes = static_cast<int>(flow_line.size());
+		fT step = static_cast<fT>(nflodes)/tN;
+		if(step == 0)
+			throw std::runtime_error("cannot init convergence checker: Nnodes bigger than the size of the biggest flow line");
+
+		// std::cout << "nflodes is " << nflodes << " step is " << step << std::endl;
+
+		fT tstep = 0;
+		while(conv_nodes.size() < tN && tstep < static_cast<fT>(flow_line.size()))
+		{
+			// std::cout << tstep << " vs " << flow_line.size();
+			int node = flow_line[std::floor(tstep)];
+			// std::cout << " and node is " << node << std::endl;
+			this->conv_nodes.emplace_back(node);
+			this->conv_ini_Qw.emplace_back(DA[node]);
+			tstep += step;
+		}
+
+		std::cout << "Lest tstep is " << tstep << std::endl;
+
+		if(this->n_nodes_convergence() == tN - 1) 
+		{
+			this->conv_nodes.emplace_back(flow_line.back());
+			this->conv_ini_Qw.emplace_back(DA[flow_line.back()]);
+		}
+
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::QWR)
+			this->conv_Qr = std::vector<std::vector<fT> >(tN);
+		if(this->convergence_mode == CONVERGENCE::ALL || this->convergence_mode == CONVERGENCE::DHW)
+			this->conv_dhw = std::vector<std::vector<fT> >(tN);
+	}
+
+	template<class out_t>
+	out_t get_conv_nodes(){return DAGGER::format_output<std::vector<int>, out_t >(this->conv_nodes) ;}
+
+	template<class out_t>
+	out_t get_conv_ini_Qw(){return DAGGER::format_output<std::vector<fT>, out_t >(this->conv_ini_Qw) ;}
+
+
+	std::vector<fT> calculate_drainage_area()
+	{
+		
+		// Graph Processing (SFD will be calculated whatsoever)
+		this->graph_automator();
+		return this->graph->_accumulate_constant_downstream_SFD(this->connector->get_area_at_node(0));
+
+	}
+
+
+	std::vector<fT> calculate_flow_distance()
+	{
+		std::vector<fT> FD(this->graph->nnodes,0.);
+		this->graph->_get_SFD_distance_from_outlets(FD);
+		return FD;
+	}
+
+
+	template<class out_t>
+	out_t get_conv_mean_Qr(int n_n)
+	{
+		auto temp = this->_get_conv_mean_Qr(n_n);
+		return DAGGER::format_output<std::vector<fT>, out_t >(temp) ;
+	}
+
+	std::vector<fT> _get_conv_mean_Qr(int n_n)
+	{
+		std::vector<fT> out(this->n_nodes_convergence(), 0.);
+		n_n = std::min(static_cast<int>(this->n_stack_convergence()),n_n);
+		if(n_n == 0) return out;
+
+		for(int i=0; i<this->n_nodes_convergence(); ++i)
+		{
+			out[i] = this->__get_conv_mean_Qr(i,n_n);
+		}
+		return out;
+	}
+
+	fT __get_conv_mean_Qr(int i, int n_n)
+	{
+		fT mean = 0;
+		for(int j = static_cast<int>(this->conv_Qr[0].size()) - n_n ; j < static_cast<int>(this->conv_Qr[0].size()) ; ++j)
+			mean += this->conv_Qr[i][j];
+		mean /= n_n;
+		return mean;
+	}
+
+
+	template<class out_t>
+	out_t get_conv_mean_dhw(int n_n)
+	{
+		auto temp = this->_get_conv_mean_dhw(n_n);
+		return DAGGER::format_output<std::vector<fT>, out_t >(temp) ;
+	}
+
+	std::vector<fT> _get_conv_mean_dhw(int n_n)
+	{
+		std::vector<fT> out(this->n_nodes_convergence(), 0.);
+		n_n = std::min(static_cast<int>(this->n_stack_convergence()),n_n);
+		if(n_n == 0) return out;
+		for(int i=0; i<this->n_nodes_convergence(); ++i)
+		{
+			out[i] = this->__get_conv_mean_dhw(i,n_n);
+		}
+		return out;
+	}
+
+	fT __get_conv_mean_dhw(int i, int n_n)
+	{
+		fT mean = 0;
+		for(int j = static_cast<int>(this->conv_dhw[0].size()) - n_n ; j < static_cast<int>(this->conv_dhw[0].size()) ; ++j)
+			mean += this->conv_dhw[i][j];
+		mean /= n_n;
+		return mean;
+	}
+
+
+
 
 
 

@@ -920,6 +920,12 @@ void declare_graphflood(py::module &m, std::string typestr)
     .def("set_mannings",&graphflood<fT,GRAPH_T,CONNECTOR_T>::set_mannings )
 
 
+    .def("init_convergence_checker",&graphflood<fT,GRAPH_T,CONNECTOR_T>::init_convergence_checker)
+    .def("get_conv_nodes", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_nodes<py::array_t<int,1> >)
+    .def("get_conv_ini_Qw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_ini_Qw<py::array_t<double,1> >)
+    .def("get_conv_mean_Qr", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_Qr<py::array_t<double,1> >)
+    .def("get_conv_mean_dhw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_dhw<py::array_t<double,1> >)
+
     .def("compute_tuqQ", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
     .def("compute_elemental_transfer", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_elemental_transfer<py::array_t<double,1>, py::array_t<double,1> >)
 
@@ -1138,6 +1144,13 @@ PYBIND11_MODULE(dagger, m) {
   py::enum_<TSC_FLOW_TOPOLOGY>(m, "TSC_FLOW_TOPOLOGY")
     .value("SFD", TSC_FLOW_TOPOLOGY::SFD)
     .value("MFD", TSC_FLOW_TOPOLOGY::MFD)
+  ;
+
+  py::enum_<CONVERGENCE>(m, "GRAPHFLOOD_CONVERGENCE")
+    .value("NONE", CONVERGENCE::NONE)
+    .value("DHW", CONVERGENCE::DHW)
+    .value("QWR", CONVERGENCE::QWR)
+    .value("ALL", CONVERGENCE::ALL)
   ;
 
 

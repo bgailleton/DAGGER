@@ -1,7 +1,7 @@
 #ifndef TRACKSCAPE_ENUM_HPP
 #define TRACKSCAPE_ENUM_HPP
 
-
+#pragma once
 
 namespace DAGGER
 {
