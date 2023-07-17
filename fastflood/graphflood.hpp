@@ -116,22 +116,46 @@ enum class CONVERGENCE
 	ALL
 };
 
+	constexpr double GRAVITY = 9.81, FIVETHIRD = 5./3., TWOTHIRD = 2./3.;
+
+
 template<class fT, class Graph_t, class Connector_t>
 class graphflood
 {
 public:
 
-	// Underlying grid:
-	// std::shared_ptr<Graph_t> graph;
-	// std::shared_ptr<Connector_t> connector;
+	// Underlying connector and graph objects:
 	Graph_t* graph;
 	Connector_t* connector;
 
-	// Global modes
+	// Model running mode
+	
+	// # Is the graph SFD or MFD (or else)
 	HYDRO hydromode = HYDRO::GRAPH_MFD;
+
+	// # Is morpho activated (potentially deprecated)
 	MORPHO morphomode = MORPHO::NONE;
-	// DEPRES depression_resolver = DEPRES::priority_flood; // MANAGED BY THE GRAPH!
+	// # How to deal with local minima, from graphflood point of view (the rerouting is managed by the graph)
 	HYDROGRAPH_LM depression_management = HYDROGRAPH_LM::FILL;
+	
+	// # How to partition flow in MFD: proportional to the slope, sqrt, ...
+	MFD_PARTITIONNING weight_management = MFD_PARTITIONNING::PROPOSLOPE;
+	
+	// # How to manage tthe time step for hydrological calculation
+	PARAM_DT_HYDRO mode_dt_hydro = PARAM_DT_HYDRO::COURANT;
+	
+	// # How to manage boundary conditions	
+	BOUNDARY_HW boundhw = BOUNDARY_HW::FIXED_HW;
+
+
+	fT minslope = 0.;
+
+
+
+	std::vector<fT> _dt_hydro = {1e-3};
+	fT get_dt_hydro() {return this->_dt_hydro[0];}
+	void enable_courant_dt_hydro(){this->mode_dt_hydro = PARAM_DT_HYDRO::COURANT;}
+	void disable_courant_dt_hydro(){this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;}
 
 	fT courant_number  = 5e-4;
 	fT max_courant_dt_hydro = 1e3;
@@ -142,17 +166,13 @@ public:
 
 	fT courant_dt_hydro = -1;
 	fT get_courant_dt_hydro(){return this->courant_dt_hydro;}
-	void enable_courant_dt_hydro(){this->mode_dt_hydro = PARAM_DT_HYDRO::COURANT;}
 
 
-	MFD_PARTITIONNING weight_management = MFD_PARTITIONNING::PROPOSLOPE;
 	void set_partition_method(MFD_PARTITIONNING& tmffmeth){this->weight_management = tmffmeth;}
 
 
 
-	// Global constants:
-	const fT GRAVITY = 9.81, FIVETHIRD = 5./3., TWOTHIRD = 2./3., minslope = 0.;
-
+	
 	bool stochaslope = false;
 	fT stochaslope_coeff = 1.;
 	void set_stochaslope(fT val)
@@ -183,7 +203,6 @@ public:
 	// # Sediment height
 	std::vector<fT> _hs;
 
-	BOUNDARY_HW boundhw = BOUNDARY_HW::FIXED_HW;
 	fT bou_fixed_val = 0.;
 	void set_fixed_hw_at_boundaries(fT val){this->boundhw = BOUNDARY_HW::FIXED_HW; this->bou_fixed_val = val;}
 	void set_fixed_slope_at_boundaries(fT val){this->boundhw = BOUNDARY_HW::FIXED_SLOPE; this->bou_fixed_val = val;}
@@ -379,9 +398,7 @@ public:
 	fT get_topological_number(){return this->topological_number;};
 
 	// # ke (coefficient for erosion)
-	PARAM_DT_HYDRO mode_dt_hydro = PARAM_DT_HYDRO::COURANT;
-	std::vector<fT> _dt_hydro = {1e-3};
-	fT get_dt_hydro() {return this->_dt_hydro[0];}
+	
 
 
 	bool hflow = false;
@@ -761,7 +778,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->FIVETHIRD);
+			fT pohw = std::pow(this->_hw[node], FIVETHIRD);
 
 			// Squarerooting Smax
 			// fT debug_S = Smax;
@@ -929,7 +946,7 @@ public:
 					std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,rec);
 
 					// Calculating the shear stress for the given link
-					fT tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
+					fT tau = this->rho(node) * this->_hw[node] * GRAVITY * Sw;
 
 					
 
@@ -1180,7 +1197,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 			// std:: cout << "pohw:" << pohw << "|" << this->_hw[node] << std::endl;
 
 			// Squarerooting Smax
@@ -1359,7 +1376,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 			// std:: cout << "pohw:" << pohw << "|" << this->_hw[node] << std::endl;
 
 			// Squarerooting Smax
@@ -1531,7 +1548,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 			// std:: cout << "pohw:" << pohw << "|" << this->_hw[node] << std::endl;
 
 			// Squarerooting Smax
@@ -1648,7 +1665,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 
 			// Squarerooting Smax
 			// fT debug_S = Smax;
@@ -1838,7 +1855,7 @@ public:
 			// fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 
 			// Squarerooting Smax
 			// fT debug_S = Smax;
@@ -2368,7 +2385,7 @@ public:
 			std::pair<int,int> orthonodes = this->connector->get_orthogonal_nodes(node,recmax);
 
 			// Calculating sheer stress
-			fT tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Smax;
+			fT tau = this->rho(node) * this->_hw[node] * GRAVITY * Smax;
 
 			if(tau>tau_max)
 				this->tau_max = tau;
@@ -3059,7 +3076,7 @@ public:
 					{
 						tdt = (this->current_dt_prec_e - this->last_dt_prec_e[node]) * this->dt_morpho_multiplier;
 						this->last_dt_prec_e[node] = this->current_dt_prec_e;
-						fT tau = this->rho(node) * this->_hw[node] * this->GRAVITY * Sw;
+						fT tau = this->rho(node) * this->_hw[node] * GRAVITY * Sw;
 						fT edot = 0., ddot = 0., edot_A = 0., edot_B = 0, ddot_A = 0, ddot_B = 0.;
 						if(tau > this->tau_c(node))
 							edot += this->ke(node) * std::pow(tau - this->tau_c(node),this->aexp(node));
@@ -3582,7 +3599,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 
 			// Squarerooting Smax
 			// fT debug_S = Smax;
@@ -3684,7 +3701,7 @@ public:
 			fT Qwin = this->_Qw[node];
 
 			// precalculating the power
-			fT pohw = std::pow(this->_hw[node], this->TWOTHIRD);
+			fT pohw = std::pow(this->_hw[node], TWOTHIRD);
 
 			// Squarerooting Smax
 			// fT debug_S = Smax;
