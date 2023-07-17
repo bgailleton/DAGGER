@@ -1,7 +1,7 @@
 #include <pybind11/pybind11.h>
 // #include "connector_checker.hpp"
-#include "D8connector.hpp"
 #include "D4connector.hpp"
+#include "D8connector.hpp"
 #include "graph.hpp"
 #include "wrap_helper.hpp"
 
@@ -10,26 +10,23 @@
 #include "popscape_utils.hpp"
 // #include "fastflood.hpp"
 #include "graphflood.hpp"
+#include "simple_depression_solver.hpp"
 #include "trackscape.hpp"
 #include "utils.hpp"
-#include "simple_depression_solver.hpp"
 
 using namespace DAGGER;
 
+template <typename CONNECTOR_T>
+void declare_graph(py::module &m, std::string typestr) {
 
-
-template<typename CONNECTOR_T>
-void declare_graph(py::module &m, std::string typestr)
-{
-
-  py::class_<graph<double, CONNECTOR_T > >(m, typestr.c_str(), R"pdoc(
+  py::class_<graph<double, CONNECTOR_T>>(m, typestr.c_str(), R"pdoc(
 Full Graph module, to plug on a connector to unlock non-local topological operations.
 
 Description:
 ------------
 
-The graph manages all non local connectivity and ensures the graph is acyclic. 
-It contains all the routines for topological ordering, local minima resolving 
+The graph manages all non local connectivity and ensures the graph is acyclic.
+It contains all the routines for topological ordering, local minima resolving
 (multiple methods), or accumulating values in the upstream/downstream directions
 
 
@@ -37,23 +34,19 @@ Authors:
 --------
 B.G.)pdoc")
 
-    .def(py::init<CONNECTOR_T&>())
-    .def(
-      "init_graph",
-       &graph<double,CONNECTOR_T>::init_graph,
-       R"pdoc(Initialise the data structure and allocate memory (mostly used internally).)pdoc"
-       )
-    .def(
-      "set_opt_stst_rerouting",
-       &graph<double,CONNECTOR_T>:: set_opt_stst_rerouting,
-       py::arg("onoff"),
-       R"pdoc(Activate (true) or deactivate (false) an optimiser. Most of the time does not make a difference but can _eventually_ approximate a few link a bit more precisely when rerouting local minimas.)pdoc"
-       )
-    .def(
-      "compute_graph",
-       &graph<double,CONNECTOR_T>::template compute_graph<py::array_t<double,1>, py::array >,
-        py::arg("topography"),py::arg("no_MFD"),py::arg("quicksort_on"),
-        R"pdoc(
+      .def(py::init<CONNECTOR_T &>())
+      .def(
+          "init_graph", &graph<double, CONNECTOR_T>::init_graph,
+          R"pdoc(Initialise the data structure and allocate memory (mostly used internally).)pdoc")
+      .def(
+          "set_opt_stst_rerouting",
+          &graph<double, CONNECTOR_T>::set_opt_stst_rerouting, py::arg("onoff"),
+          R"pdoc(Activate (true) or deactivate (false) an optimiser. Most of the time does not make a difference but can _eventually_ approximate a few link a bit more precisely when rerouting local minimas.)pdoc")
+      .def("compute_graph",
+           &graph<double, CONNECTOR_T>::template compute_graph<
+               py::array_t<double, 1>, py::array>,
+           py::arg("topography"), py::arg("no_MFD"), py::arg("quicksort_on"),
+           R"pdoc(
 Full computation of the graph (connector updates of links included).
 
 Description
@@ -68,18 +61,18 @@ Parameters
 
 - topography (1D array): topographic field (of node size)
 - no_MFD: if true, no MFD info are computed (especially the toposort MFD and the
-recomputing after local minima solver that can be time consuming 
+recomputing after local minima solver that can be time consuming
 if done repeteadly - e.g. for LEMs)
-- quicksort: if true, the toposort MFD is done by sorting "filled" topography by 
-elevation using the std::sort algorithm (aka quicksort), otherwise it uses an 
-homemade  topological sorting algorithm. Quicksort is O(nlogn) and toposort 
+- quicksort: if true, the toposort MFD is done by sorting "filled" topography by
+elevation using the std::sort algorithm (aka quicksort), otherwise it uses an
+homemade  topological sorting algorithm. Quicksort is O(nlogn) and toposort
 O(n+l) so the most efficient is case dependent.
 
 
 returns:
 --------
 
-PP_topography (1D array): a preprocessed topography where LM have been filled or 
+PP_topography (1D array): a preprocessed topography where LM have been filled or
 carved or processed in the wanted way.
 
 Authors:
@@ -88,29 +81,24 @@ B.G.
 
 )pdoc"
 
-       )
-    .def(
-      "is_Sstack_full",
-       &graph<double,CONNECTOR_T>:: is_Sstack_full,
-       R"pdoc(Debugging function, to ignore)pdoc"
-       )
-    .def(
-      "activate_opti_sparse_border_cordonnier",
-       &graph<double,CONNECTOR_T>:: activate_opti_sparse_border_cordonnier,
-       R"pdoc(Debugging function, to ignore)pdoc"
-       )
-    .def(
-      "get_all_nodes_upstream_of",
-       &graph<double,CONNECTOR_T>::template get_all_nodes_upstream_of< py::array_t<int,1> >,
-       py::arg("node"),py::arg("only_SFD"),
-       R"pdoc(
+           )
+      .def("is_Sstack_full", &graph<double, CONNECTOR_T>::is_Sstack_full,
+           R"pdoc(Debugging function, to ignore)pdoc")
+      .def("activate_opti_sparse_border_cordonnier",
+           &graph<double, CONNECTOR_T>::activate_opti_sparse_border_cordonnier,
+           R"pdoc(Debugging function, to ignore)pdoc")
+      .def("get_all_nodes_upstream_of",
+           &graph<double, CONNECTOR_T>::template get_all_nodes_upstream_of<
+               py::array_t<int, 1>>,
+           py::arg("node"), py::arg("only_SFD"),
+           R"pdoc(
 Fecth all the nodes upstream of a given one.
 
 Description
 -------------
 
-Use the SFD stack structure from Braun and Willett (2013) to gather all the 
-nodes upstream of a given one. Effectively labels a watershed from a custom 
+Use the SFD stack structure from Braun and Willett (2013) to gather all the
+nodes upstream of a given one. Effectively labels a watershed from a custom
 starting point. Can be extended to MFD using FIFO queues (slower). This is not
 the fastest way to label all the watersheds and should be reserved for one-off
 operations.
@@ -124,27 +112,26 @@ Parameters
 returns:
 --------
 
-nodes_upstream (1D array: int): returns a 1D array containing all the node 
+nodes_upstream (1D array: int): returns a 1D array containing all the node
 indices of upstream locations.
 
 Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_all_nodes_downstream_of",
-       &graph<double,CONNECTOR_T>::template get_all_nodes_downstream_of< py::array_t<int,1> >,
-       py::arg("node"), py::arg("only_SFD"),
-       R"pdoc(
+)pdoc")
+      .def("get_all_nodes_downstream_of",
+           &graph<double, CONNECTOR_T>::template get_all_nodes_downstream_of<
+               py::array_t<int, 1>>,
+           py::arg("node"), py::arg("only_SFD"),
+           R"pdoc(
 Fecth all the nodes downstream of a given one.
 
 Description
 -------------
 
-Use the SFD stack structure from Braun and Willett (2013) to gather all the 
-nodes downstream of a given one. Effectively labels a water paths from a custom 
+Use the SFD stack structure from Braun and Willett (2013) to gather all the
+nodes downstream of a given one. Effectively labels a water paths from a custom
 starting point. Can be extended to MFD using FIFO queues (slower). This is not
 the fastest way to label all the flow paths and should be reserved for one-off
 operations.
@@ -158,29 +145,28 @@ Parameters
 returns:
 --------
 
-nodes_downstream (1D array: int): returns a 1D array containing all the node 
+nodes_downstream (1D array: int): returns a 1D array containing all the node
 indices of downstream locations.
 
 Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_SFD_stack",
-      &graph<double,CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t,1>>,
-      R"pdoc(
+)pdoc")
+      .def("get_SFD_stack",
+           &graph<double,
+                  CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t, 1>>,
+           R"pdoc(
 Returns the single flow stack (Braun and Willett. 2013) in "stack order".
 
 Description
 -------------
 
-Returns the single flow direction stack (sensu Braun and Willett (2013). 
-Warning: it corresponds to the last computation (``compute_graph``) and will 
-return an empty array if not computed at all yet. 
+Returns the single flow direction stack (sensu Braun and Willett (2013).
+Warning: it corresponds to the last computation (``compute_graph``) and will
+return an empty array if not computed at all yet.
 
-The stack is in "stack order", **i.e.** from the most dowstream nodes to the 
+The stack is in "stack order", **i.e.** from the most dowstream nodes to the
 most upstream ones.
 
 This can also be call the topologicaly sorted list of nodes. be careful though,
@@ -195,12 +181,11 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    .def(
-      "get_MFD_stack",
-      &graph<double,CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t,1>>,
-      R"pdoc(
+)pdoc")
+      .def("get_MFD_stack",
+           &graph<double,
+                  CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t, 1>>,
+           R"pdoc(
 Returns the Multiple flow stack in "stack order".
 
 Description
@@ -208,16 +193,16 @@ Description
 
 Returns the multiple flow direction stack.
 
-Warning: it corresponds to the last computation (``compute_graph`` with 
-only_SFD = false) and will return an empty array if not computed at all yet. 
+Warning: it corresponds to the last computation (``compute_graph`` with
+only_SFD = false) and will return an empty array if not computed at all yet.
 
-The stack is in "stack order", **i.e.** from the most dowstream nodes to the 
+The stack is in "stack order", **i.e.** from the most dowstream nodes to the
 most upstream ones.
 
 This can also be call the topologicaly sorted list of nodes. be careful though,
-the array is of node size but contains ordered node index. It does not follow 
+the array is of node size but contains ordered node index. It does not follow
 the same topology than Braun and Willett (2013) and is more difficult to compute
-. Only use if MFD is truly needed. 
+. Only use if MFD is truly needed.
 
 returns:
 --------
@@ -228,20 +213,20 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
+)pdoc")
 
-    .def(
-      "accumulate_constant_downstream_SFD",
-       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_SFD< py::array_t<double, 1> >,
-       py::arg("constant_value"),
-       R"pdoc(
+      .def("accumulate_constant_downstream_SFD",
+           &graph<double, CONNECTOR_T>::
+               template accumulate_constant_downstream_SFD<
+                   py::array_t<double, 1>>,
+           py::arg("constant_value"),
+           R"pdoc(
 Accumulates (integrate) a constant downstream in the SFD direction.
 
 Description
 -------------
 
-Sums a constant downstream in the single flow direction (each node adds the 
+Sums a constant downstream in the single flow direction (each node adds the
 constant value and give it to its receivers following the inverse stack order).
 For example, can be the area of a regular grid cell to compute drainage area.
 The operation is very efficient (needs the computed graph).
@@ -260,21 +245,21 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "accumulate_variable_downstream_SFD",
-       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_SFD< py::array_t<double, 1>, py::array_t<double, 1> >,
-       py::arg("values"),
-       R"pdoc(
+)pdoc")
+      .def("accumulate_variable_downstream_SFD",
+           &graph<double, CONNECTOR_T>::
+               template accumulate_variable_downstream_SFD<
+                   py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("values"),
+           R"pdoc(
 Accumulates (integrate) a variable downstream in the SFD direction.
 
 Description
 -------------
 
-Sums a variable downstream in the single flow direction (each node adds the 
+Sums a variable downstream in the single flow direction (each node adds the
 variable value and give it to its receivers following the inverse stack order).
-For example, can be the cell area times variable precipitation rates of a 
+For example, can be the cell area times variable precipitation rates of a
 regular grid cell to compute weighted drainage area (~runoff).
 
 The operation is very efficient (needs the computed graph).
@@ -293,23 +278,23 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "accumulate_constant_downstream_MFD",
-       &graph<double,CONNECTOR_T>::template accumulate_constant_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> >,
-       py::arg("weights"), py::arg("constant_value"),
-       R"pdoc(
+)pdoc")
+      .def("accumulate_constant_downstream_MFD",
+           &graph<double, CONNECTOR_T>::
+               template accumulate_constant_downstream_MFD<
+                   py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("weights"), py::arg("constant_value"),
+           R"pdoc(
 Accumulates (integrate) a constant downstream in the MFD direction.
 
 Description
 -------------
 
-Sums a constant downstream in the multiple flow direction (each node adds the 
+Sums a constant downstream in the multiple flow direction (each node adds the
 variable value and give it to its receivers following the inverse stack order).
 
 It needs to ingest partitionning weights, an array of n links size telling each
-nodes how to partition their value to their multiple receivers. The latter can 
+nodes how to partition their value to their multiple receivers. The latter can
 be calculated from a ``Connector`` and is most of the time expressed function of
 topographic gradient.
 
@@ -330,28 +315,28 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "accumulate_variable_downstream_MFD",
-       &graph<double,CONNECTOR_T>::template accumulate_variable_downstream_MFD< py::array_t<double, 1>, py::array_t<double, 1> >,
-       py::arg("weights"), py::arg("values"),
-       R"pdoc(
+)pdoc")
+      .def("accumulate_variable_downstream_MFD",
+           &graph<double, CONNECTOR_T>::
+               template accumulate_variable_downstream_MFD<
+                   py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("weights"), py::arg("values"),
+           R"pdoc(
 Accumulates (integrate) a variable downstream in the MFD direction.
 
 Description
 -------------
 
-Sums a variable value of node size downstream in the multiple flow direction 
-(each node adds the variable value and give it to its receivers following the 
+Sums a variable value of node size downstream in the multiple flow direction
+(each node adds the variable value and give it to its receivers following the
 inverse stack order).
 
 It needs to ingest partitionning weights, an array of n links size telling each
-nodes how to partition their value to their multiple receivers. The latter can 
+nodes how to partition their value to their multiple receivers. The latter can
 be calculated from a ``Connector`` and is most of the time expressed function of
 topographic gradient.
 
-For example, can be the area of a regular grid cell times a variable 
+For example, can be the area of a regular grid cell times a variable
 precipitation rate to compute runoff.
 
 Parameters
@@ -369,13 +354,10 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "set_LMR_method",
-       &graph<double,CONNECTOR_T>:: set_LMR_method,
-       py::arg("LMR_method"),
-       R"pdoc(
+)pdoc")
+      .def("set_LMR_method", &graph<double, CONNECTOR_T>::set_LMR_method,
+           py::arg("LMR_method"),
+           R"pdoc(
 Sets the Local Minima Resolver method.
 
 Description
@@ -405,26 +387,23 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "set_minimum_slope_for_LMR",
-       &graph<double,CONNECTOR_T>:: set_minimum_slope_for_LMR,
-       py::arg("slope"),
-       R"pdoc(LMR solvers impose a numerical topographic gradient to avoid 0 slopes. Default is 1e-5.)pdoc"
-       )
-    .def(
-      "set_slope_randomness_for_LMR",
-       &graph<double,CONNECTOR_T>:: set_slope_randomness_for_LMR,
-       py::arg("magnitude"),
-       R"pdoc(Avoid falt surfaces by imposing a very small randomness when processing local minimas. Must be an order of magitude smaller than the  minimal slope.)pdoc"
-       )
+)pdoc")
+      .def(
+          "set_minimum_slope_for_LMR",
+          &graph<double, CONNECTOR_T>::set_minimum_slope_for_LMR,
+          py::arg("slope"),
+          R"pdoc(LMR solvers impose a numerical topographic gradient to avoid 0 slopes. Default is 1e-5.)pdoc")
+      .def(
+          "set_slope_randomness_for_LMR",
+          &graph<double, CONNECTOR_T>::set_slope_randomness_for_LMR,
+          py::arg("magnitude"),
+          R"pdoc(Avoid falt surfaces by imposing a very small randomness when processing local minimas. Must be an order of magitude smaller than the  minimal slope.)pdoc")
 
-    // Distance functions
-    .def(
-      "get_SFD_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_SFD_distance_from_outlets< py::array_t<double,1> >,
-       R"pdoc(
+      // Distance functions
+      .def("get_SFD_distance_from_outlets",
+           &graph<double, CONNECTOR_T>::template get_SFD_distance_from_outlets<
+               py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the distance from the outlets following the SFD.
 
 Description
@@ -444,18 +423,19 @@ B.G.
 
 )pdoc"
 
-       )
-    .def(
-      "get_SFD_min_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_SFD_min_distance_from_sources< py::array_t<double,1> >,
-       R"pdoc(
+           )
+      .def("get_SFD_min_distance_from_sources",
+           &graph<double, CONNECTOR_T>::
+               template get_SFD_min_distance_from_sources<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the minimum distance from the sources following the SFD.
 
 Description
 -------------
 
-Uses the SFD stack in inverse order to integrate the distance from the sources 
-toward the outlets. It keeps the minimum distance. Useful to identify the 
+Uses the SFD stack in inverse order to integrate the distance from the sources
+toward the outlets. It keeps the minimum distance. Useful to identify the
 closest sources.
 
 returns:
@@ -467,19 +447,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_SFD_max_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_SFD_max_distance_from_sources< py::array_t<double,1> >,
-       R"pdoc(
+)pdoc")
+      .def("get_SFD_max_distance_from_sources",
+           &graph<double, CONNECTOR_T>::
+               template get_SFD_max_distance_from_sources<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the maximum distance from the sources following the SFD.
 
 Description
 -------------
 
-Uses the SFD stack in inverse order to integrate the distance from the sources 
-toward the outlets. It keeps the maximum distance. Useful to identify the 
+Uses the SFD stack in inverse order to integrate the distance from the sources
+toward the outlets. It keeps the maximum distance. Useful to identify the
 furthest sources.
 
 returns:
@@ -491,19 +471,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_MFD_max_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_sources< py::array_t<double,1> >,
-       R"pdoc(
+)pdoc")
+      .def("get_MFD_max_distance_from_sources",
+           &graph<double, CONNECTOR_T>::
+               template get_MFD_max_distance_from_sources<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the maximum distance from the sources following the MFD.
 
 Description
 -------------
 
-Uses the MFD stack in inverse order to integrate the distance from the sources 
-toward the outlets. It keeps the maximum distance. Useful to identify the 
+Uses the MFD stack in inverse order to integrate the distance from the sources
+toward the outlets. It keeps the maximum distance. Useful to identify the
 furthest sources.
 
 returns:
@@ -515,19 +495,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_MFD_min_distance_from_sources",
-       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_sources< py::array_t<double,1> >,
-       R"pdoc(
+)pdoc")
+      .def("get_MFD_min_distance_from_sources",
+           &graph<double, CONNECTOR_T>::
+               template get_MFD_min_distance_from_sources<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the minimum distance from the sources following the MFD.
 
 Description
 -------------
 
-Uses the MFD stack in inverse order to integrate the distance from the sources 
-toward the outlets. It keeps the minimum distance. Useful to identify the 
+Uses the MFD stack in inverse order to integrate the distance from the sources
+toward the outlets. It keeps the minimum distance. Useful to identify the
 closest sources.
 
 returns:
@@ -539,19 +519,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_MFD_max_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_MFD_max_distance_from_outlets< py::array_t<double,1> >,
-       R"pdoc(
+)pdoc")
+      .def("get_MFD_max_distance_from_outlets",
+           &graph<double, CONNECTOR_T>::
+               template get_MFD_max_distance_from_outlets<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the maximum distance from the outlet following the MFD.
 
 Description
 -------------
 
-Uses the MFD stack in inverse order to integrate the distance from the outlet 
-toward the outlets. It keeps the maximum distance. Useful to identify the 
+Uses the MFD stack in inverse order to integrate the distance from the outlet
+toward the outlets. It keeps the maximum distance. Useful to identify the
 furthest outlet.
 
 returns:
@@ -563,19 +543,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    .def(
-      "get_MFD_min_distance_from_outlets",
-       &graph<double,CONNECTOR_T>::template get_MFD_min_distance_from_outlets< py::array_t<double,1> >,
-       R"pdoc(
+)pdoc")
+      .def("get_MFD_min_distance_from_outlets",
+           &graph<double, CONNECTOR_T>::
+               template get_MFD_min_distance_from_outlets<
+                   py::array_t<double, 1>>,
+           R"pdoc(
 Calculates the minimum distance from the outlet following the MFD.
 
 Description
 -------------
 
-Uses the MFD stack in inverse order to integrate the distance from the outlet 
-toward the outlets. It keeps the minimum distance. Useful to identify the 
+Uses the MFD stack in inverse order to integrate the distance from the outlet
+toward the outlets. It keeps the minimum distance. Useful to identify the
 closest outlet.
 
 returns:
@@ -587,14 +567,13 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-       )
-    
-    // Watershed labelling
-    .def(
-      "get_SFD_basin_labels",
-      &graph<double,CONNECTOR_T>::template get_SFD_basin_labels< py::array_t<int,1> >,
-      R"pdoc(
+)pdoc")
+
+      // Watershed labelling
+      .def("get_SFD_basin_labels",
+           &graph<double, CONNECTOR_T>::template get_SFD_basin_labels<
+               py::array_t<int, 1>>,
+           R"pdoc(
 Labels SFD watersheds with unique ID.
 
 Description
@@ -611,14 +590,12 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
+)pdoc")
 
-
-    .def(
-      "get_drainage_area_SFD",
-      &graph<double,CONNECTOR_T>::template get_drainage_area_SFD< py::array_t<double,1> >,
-      R"pdoc(
+      .def("get_drainage_area_SFD",
+           &graph<double, CONNECTOR_T>::template get_drainage_area_SFD<
+               py::array_t<double, 1>>,
+           R"pdoc(
 Labels SFD watersheds with unique ID.
 
 Description
@@ -635,13 +612,12 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
+)pdoc")
 
-    .def(
-      "get_drainage_area_MFD",
-      &graph<double,CONNECTOR_T>::template get_drainage_area_MFD< py::array_t<double,1>, py::array_t<double,1> >,
-      R"pdoc(
+      .def("get_drainage_area_MFD",
+           &graph<double, CONNECTOR_T>::template get_drainage_area_MFD<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           R"pdoc(
 Labels MFD watersheds with unique ID.
 
 Description
@@ -658,367 +634,717 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
+)pdoc")
 
-    .def(
-      "get_n_pits",
-       &graph<double,CONNECTOR_T>:: get_n_pits,
-       R"pdoc(Return the number of internal pits (prior solving).)pdoc"
-    )
+      .def("get_n_pits", &graph<double, CONNECTOR_T>::get_n_pits,
+           R"pdoc(Return the number of internal pits (prior solving).)pdoc")
 
-    .def(
-      "get_debug_mask",
-       &graph<double,CONNECTOR_T>:: get_debug_mask,
-       R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc"
-    )
+      .def(
+          "get_debug_mask", &graph<double, CONNECTOR_T>::get_debug_mask,
+          R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc")
 
-    .def(
-      "get_debug_int",
-       &graph<double,CONNECTOR_T>:: get_debug_int,
-       R"pdoc(Ignore. Internal debugging int process. Changes purpose and is mostly deactivated.)pdoc"
-    )
-    
-  ;
+      .def(
+          "get_debug_int", &graph<double, CONNECTOR_T>::get_debug_int,
+          R"pdoc(Ignore. Internal debugging int process. Changes purpose and is mostly deactivated.)pdoc")
+
+      ;
 }
 
-template<typename CONNECTOR_T>
-void declare_popscape_old(py::module &m, std::string typestr)
-{
-  py::class_<popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T > >(m, typestr.c_str())
-    .def(py::init<RANDNOISE,int,int,double,double>())
-    // .def_readwrite("graph",  &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::graph)
-    // .def_readwrite("connector",  &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::connector)
-    .def("solve_generic", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::solve_generic)
-    .def("get_topo", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array>)
-    .def("get_QA", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_QA<py::array>)
-    .def("compute_graph", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::compute_graph)
-    .def("compute_DA_SFD", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::compute_DA_SFD)
-    .def("apply_uplift", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::apply_uplift)
-    .def("apply_variable_uplift", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template apply_variable_uplift<py::array_t<double,1> >)
-    .def("solve_SFD_SPL_imp", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::solve_SFD_SPL_imp)
-    .def("hydraulic_erosion_v0", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::hydraulic_erosion_v0)
-    .def("normalise_topography", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::normalise_topography)
-    // .def("run_SFD_exp_latmag", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_exp_latmag)
-    
-  ;
+template <typename CONNECTOR_T>
+void declare_popscape_old(py::module &m, std::string typestr) {
+  py::class_<
+      popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>>(
+      m, typestr.c_str())
+      .def(py::init<RANDNOISE, int, int, double, double>())
+      // .def_readwrite("graph",  &popscape_old<double, DAGGER::graph<double,
+      // CONNECTOR_T>, CONNECTOR_T >::graph) .def_readwrite("connector",
+      // &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T
+      // >::connector)
+      .def("solve_generic",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::solve_generic)
+      .def("get_topo", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                                     CONNECTOR_T>::template get_topo<py::array>)
+      .def("get_QA", &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                                   CONNECTOR_T>::template get_QA<py::array>)
+      .def("compute_graph",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::compute_graph)
+      .def("compute_DA_SFD",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::compute_DA_SFD)
+      .def("apply_uplift",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::apply_uplift)
+      .def("apply_variable_uplift",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::
+               template apply_variable_uplift<py::array_t<double, 1>>)
+      .def("solve_SFD_SPL_imp",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::solve_SFD_SPL_imp)
+      .def("hydraulic_erosion_v0",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::hydraulic_erosion_v0)
+      .def("normalise_topography",
+           &popscape_old<double, DAGGER::graph<double, CONNECTOR_T>,
+                         CONNECTOR_T>::normalise_topography)
+      // .def("run_SFD_exp_latmag", &popscape_old<double, DAGGER::graph<double,
+      // CONNECTOR_T>, CONNECTOR_T >::run_SFD_exp_latmag)
+
+      ;
 }
 
-template<typename CONNECTOR_T>
-void declare_popscape(py::module &m, std::string typestr)
-{
-  py::class_<popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T > >(m, typestr.c_str())
-    .def(py::init<DAGGER::graph<double, CONNECTOR_T>&, CONNECTOR_T&>())
-    .def("StSt", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::StSt)
-    .def("restriction", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::restriction)
-    .def("interpolation", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::interpolation)
-    .def("smooth", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::smooth)
-    .def("set_topo", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_topo<py::array_t<double,1> >)
-    .def("get_topo", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array_t<double,1> >)
-    .def("get_QA", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_QA<py::array_t<double,1> >)
-    .def("get_chistar", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_chistar<py::array_t<double,1> >)
-    .def("simple_Kfchi", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::simple_Kfchi)
-    .def("simple_Kfz", &popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::simple_Kfz)
-  ;
+template <typename CONNECTOR_T>
+void declare_popscape(py::module &m, std::string typestr) {
+  py::class_<popscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>>(
+      m, typestr.c_str())
+      .def(py::init<DAGGER::graph<double, CONNECTOR_T> &, CONNECTOR_T &>())
+      .def("StSt", &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                             CONNECTOR_T>::StSt)
+      .def("restriction", &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                    CONNECTOR_T>::restriction)
+      .def("interpolation",
+           &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                     CONNECTOR_T>::interpolation)
+      .def("smooth", &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                               CONNECTOR_T>::smooth)
+      .def("set_topo",
+           &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                     CONNECTOR_T>::template set_topo<py::array_t<double, 1>>)
+      .def("get_topo",
+           &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                     CONNECTOR_T>::template get_topo<py::array_t<double, 1>>)
+      .def("get_QA",
+           &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                     CONNECTOR_T>::template get_QA<py::array_t<double, 1>>)
+      .def("get_chistar",
+           &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                     CONNECTOR_T>::template get_chistar<py::array_t<double, 1>>)
+      .def("simple_Kfchi", &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                     CONNECTOR_T>::simple_Kfchi)
+      .def("simple_Kfz", &popscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                   CONNECTOR_T>::simple_Kfz);
 }
 
-template<typename CONNECTOR_T>
-void declare_trackscape(py::module &m, std::string typestr)
-{
-  py::class_<trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T > >(m, typestr.c_str())
-    .def(py::init<>())
-    .def_readwrite("graph", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::graph)
-    .def_readwrite("connector", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::connector)
-    .def("init_random", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::init_random)
-    .def("init_perlin", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::init_perlin)
-    .def("get_topo", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_topo<py::array>)
-    .def("get_hillshade", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_hillshade<py::array>)
-    .def("get_h_sed", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_h_sed<py::array>)
-    .def("get_Qw", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qw<py::array>)
-    .def("get_Qs_fluvial", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_fluvial<py::array>)
-    .def("get_Qs_hillslopes", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Qs_hillslopes<py::array>)
-    .def("get_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_precipitations<py::array>)
-    .def("set_full_stochastic", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_full_stochastic)
-    .def("run", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run)
-    .def("run_SFD", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD)
-    .def("block_uplift", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::block_uplift)
-    .def("external_uplift", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template external_uplift<py::array_t<double,1>& >)    
-    .def("init_TSP_module", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template init_TSP_module<py::array_t<double,1>& >)
-    .def("update_TSP_source",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template update_TSP_source<py::array_t<double,1>& >)
-    .def("sample_carrot_TSP", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template sample_carrot_TSP<py::array_t<double,1> >)    
-    .def("sample_carrot_Ch_MTSI", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template sample_carrot_Ch_MTSI<py::array_t<double,1> >)
-    .def("get_transect_Ch_MTSI", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_transect_Ch_MTSI<py::array_t<double,1> >)
-    .def("get_transect_TSP", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_transect_TSP<py::array_t<double,1> >)
-    .def("set_dt", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_dt)
-    .def("set_transfer_rate_Qs_hs2fl", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_transfer_rate_Qs_hs2fl)
-    .def("set_single_Ks", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Ks)
-    .def("set_single_Kr", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kr)
-    .def("set_single_Ke", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Ke)
-    .def("set_single_Kle", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kle)
-    .def("set_single_Kld", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Kld)
-    .def("set_single_depcoeff", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_depcoeff)
-    .def("set_single_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_precipitations)
-    .def("set_single_kappa_s", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_kappa_s)
-    .def("set_single_kappa_r", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_kappa_r)
-    .def("set_single_Sc", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Sc)
-    .def("set_single_Sc_M", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_Sc_M)
-    .def("set_single_lambda", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_lambda)
-    .def("set_single_sea_level", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_sea_level)
-    .def("set_single_internal_friction", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_internal_friction)
-    .def("set_single_tls", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_single_tls)
-    .def("set_hillslopes_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_hillslopes_mode)
-    .def("set_fluvial_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_fluvial_mode)
-    .def("set_secondary_fluvial_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_secondary_fluvial_mode)
-    .def("set_flowtopo_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_flowtopo_mode)
-    .def("set_marine_mode",  &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_marine_mode)
-    .def("fill_up", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::fill_up)
-    .def("init_Ch_MTSI", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::init_Ch_MTSI)
-    .def("rise_boundary_by", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::rise_boundary_by)
-    .def("get_TSP_surface_concentrations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_TSP_surface_concentrations<py::array>)
-    .def("get_Ch_MTIS_surface_age", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template get_Ch_MTIS_surface_age<py::array>)
-    .def("set_variable_precipitations", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_precipitations<py::array_t<double,1>& >)    
-    .def("set_variable_Kr", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Kr<py::array_t<double,1>& >)    
-    .def("set_variable_Ks",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Ks<py::array_t<double,1>& >)
-    .def("set_variable_depcoeff",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_depcoeff<py::array_t<double,1>& >)
-    .def("set_variable_kappa_s",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_kappa_s<py::array_t<double,1>& >)
-    .def("set_variable_kappa_r",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_kappa_r<py::array_t<double,1>& >)
-    .def("set_variable_Sc",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Sc<py::array_t<double,1>& >)
-    .def("set_variable_Sc_M",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Sc_M<py::array_t<double,1>& >)
-    .def("set_variable_Ke",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_Ke<py::array_t<double,1>& >)
-    .def("set_variable_lambda",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_lambda<py::array_t<double,1>& >)
-    .def("set_variable_sea_level",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_variable_sea_level<py::array_t<double,1>& >)
-    .def("feed_topo",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template feed_topo<py::array_t<double,1>& >)
-    .def("set_extra_Qs_fluvial",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_extra_Qs_fluvial<py::array_t<int,1>&, py::array_t<double,1>& >)
-    .def("set_extra_Qw_fluvial",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::template set_extra_Qw_fluvial<py::array_t<int,1>&, py::array_t<double,1>& >)
-    .def("disable_Qs_fluvial",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::disable_Qs_fluvial)
-    .def("disable_Qw_fluvial",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::disable_Qw_fluvial)
+template <typename CONNECTOR_T>
+void declare_trackscape(py::module &m, std::string typestr) {
+  py::class_<
+      trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>>(
+      m, typestr.c_str())
+      .def(py::init<>())
+      .def_readwrite("graph",
+                     &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                 CONNECTOR_T>::graph)
+      .def_readwrite("connector",
+                     &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                 CONNECTOR_T>::connector)
+      .def("init_random",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::init_random)
+      .def("init_perlin",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::init_perlin)
+      .def("get_topo", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                   CONNECTOR_T>::template get_topo<py::array>)
+      .def("get_hillshade",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::template get_hillshade<py::array>)
+      .def("get_h_sed", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                    CONNECTOR_T>::template get_h_sed<py::array>)
+      .def("get_Qw", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                 CONNECTOR_T>::template get_Qw<py::array>)
+      .def("get_Qs_fluvial",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::template get_Qs_fluvial<py::array>)
+      .def("get_Qs_hillslopes",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::template get_Qs_hillslopes<py::array>)
+      .def("get_precipitations",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::template get_precipitations<py::array>)
+      .def("set_full_stochastic",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_full_stochastic)
+      .def("run", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                              CONNECTOR_T>::run)
+      .def("run_SFD", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                  CONNECTOR_T>::run_SFD)
+      .def("block_uplift",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::block_uplift)
+      .def(
+          "external_uplift",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template external_uplift<py::array_t<double, 1> &>)
+      .def(
+          "init_TSP_module",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template init_TSP_module<py::array_t<double, 1> &>)
+      .def(
+          "update_TSP_source",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template update_TSP_source<py::array_t<double, 1> &>)
+      .def(
+          "sample_carrot_TSP",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template sample_carrot_TSP<py::array_t<double, 1>>)
+      .def(
+          "sample_carrot_Ch_MTSI",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template sample_carrot_Ch_MTSI<py::array_t<double, 1>>)
+      .def(
+          "get_transect_Ch_MTSI",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template get_transect_Ch_MTSI<py::array_t<double, 1>>)
+      .def(
+          "get_transect_TSP",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template get_transect_TSP<py::array_t<double, 1>>)
+      .def("set_dt", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                 CONNECTOR_T>::set_dt)
+      .def("set_transfer_rate_Qs_hs2fl",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_transfer_rate_Qs_hs2fl)
+      .def("set_single_Ks",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Ks)
+      .def("set_single_Kr",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Kr)
+      .def("set_single_Ke",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Ke)
+      .def("set_single_Kle",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Kle)
+      .def("set_single_Kld",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Kld)
+      .def("set_single_depcoeff",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_depcoeff)
+      .def("set_single_precipitations",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_precipitations)
+      .def("set_single_kappa_s",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_kappa_s)
+      .def("set_single_kappa_r",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_kappa_r)
+      .def("set_single_Sc",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Sc)
+      .def("set_single_Sc_M",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_Sc_M)
+      .def("set_single_lambda",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_lambda)
+      .def("set_single_sea_level",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_sea_level)
+      .def("set_single_internal_friction",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_internal_friction)
+      .def("set_single_tls",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_single_tls)
+      .def("set_hillslopes_mode",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_hillslopes_mode)
+      .def("set_fluvial_mode",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_fluvial_mode)
+      .def("set_secondary_fluvial_mode",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_secondary_fluvial_mode)
+      .def("set_flowtopo_mode",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_flowtopo_mode)
+      .def("set_marine_mode",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_marine_mode)
+      .def("fill_up", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                  CONNECTOR_T>::fill_up)
+      .def("init_Ch_MTSI",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::init_Ch_MTSI)
+      .def("rise_boundary_by",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::rise_boundary_by)
+      .def(
+          "get_TSP_surface_concentrations",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template get_TSP_surface_concentrations<py::array>)
+      .def(
+          "get_Ch_MTIS_surface_age",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                      CONNECTOR_T>::template get_Ch_MTIS_surface_age<py::array>)
+      .def(
+          "set_variable_precipitations",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_precipitations<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_Kr",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_Kr<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_Ks",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_Ks<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_depcoeff",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_depcoeff<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_kappa_s",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_kappa_s<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_kappa_r",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_kappa_r<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_Sc",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_Sc<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_Sc_M",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_Sc_M<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_Ke",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_Ke<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_lambda",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_lambda<py::array_t<double, 1> &>)
+      .def(
+          "set_variable_sea_level",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_variable_sea_level<py::array_t<double, 1> &>)
+      .def(
+          "feed_topo",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template feed_topo<py::array_t<double, 1> &>)
+      .def(
+          "set_extra_Qs_fluvial",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_extra_Qs_fluvial<py::array_t<int, 1> &,
+                                            py::array_t<double, 1> &>)
+      .def(
+          "set_extra_Qw_fluvial",
+          &trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T>::
+              template set_extra_Qw_fluvial<py::array_t<int, 1> &,
+                                            py::array_t<double, 1> &>)
+      .def("disable_Qs_fluvial",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::disable_Qs_fluvial)
+      .def("disable_Qw_fluvial",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::disable_Qw_fluvial)
 
-    .def("set_m",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_m)
-    .def("set_n",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_n)
-    .def("set_N_boundary_to",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::set_N_boundary_to)
-    
-    .def("run_SFD_implicit",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::run_SFD_implicit)
-    .def("lithify",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::lithify)
-    .def("strip_sediment",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::strip_sediment)
+      .def("set_m", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                CONNECTOR_T>::set_m)
+      .def("set_n", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                CONNECTOR_T>::set_n)
+      .def("set_N_boundary_to",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::set_N_boundary_to)
 
-    // SEt of standalone functions
-    .def("Standalone_hyland_landslides",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::Standalone_hyland_landslides)
-    .def("Standalone_hylands_single_landslide",&trackscape<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T >::Standalone_hylands_single_landslide)
+      .def("run_SFD_implicit",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::run_SFD_implicit)
+      .def("lithify", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                                  CONNECTOR_T>::lithify)
+      .def("strip_sediment",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::strip_sediment)
 
+      // SEt of standalone functions
+      .def("Standalone_hyland_landslides",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::Standalone_hyland_landslides)
+      .def("Standalone_hylands_single_landslide",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::Standalone_hylands_single_landslide)
 
-    
-
-    
-    
-  ;
+      ;
 }
 
 // template<typename CONNECTOR_T>
 // void declare_ff(py::module &m, std::string typestr)
 // {
-//   py::class_<fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> > >(m, typestr.c_str())
-//     .def(py::init<DAGGER::graph<double, CONNECTOR_T>&, CONNECTOR_T&, py::array_t<double,1>&,py::array_t<double,1>& >())
-//     .def_readwrite("rec", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::rec)
-//     // .def("run_SFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_SFD)
-//     // .def("run_SFD_with_erosion", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_SFD_with_erosion)
-//     // .def("run_MFD_erosion", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion)
-//     // .def("run_MFD_erosion_B", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion_B)
-//     .def("run_MFD_static", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static)
-//     .def("run_MFD_static_SPL", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static_SPL)
-//     // .def("run_MFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD)
-//     // .def("run_MFD_dynamic", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_dynamic)
-//     // .def("run_MFD_exp", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_exp)
-//     .def("get_hw", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_hw<py::array >)
-//     // .def("get_spatial_dts", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_spatial_dts<py::array >)
-//     .def("get_Qwin", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_Qwin<py::array >)
-//     .def("get_Qwout", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_Qwout<py::array >)
-//     .def("get_Qs", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_Qs<py::array >)
-//     .def("get_topography", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_topography<py::array >)
-//     .def("add_to_hw", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::add_to_hw)
-//     .def("set_Qbase", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template set_Qbase<py::array_t<double,1> >)
-//     .def("set_Qs_entry_points", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template set_Qs_entry_points<py::array_t<double,1>,py::array_t<int,1> >)
-//     .def("increment_hw_from_Qbase", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::increment_hw_from_Qbase    )
-//     .def("caesar_lisflood", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::caesar_lisflood    )
-//     .def("set_topological_number", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_topological_number    )
-//     // .def("basicFloodos", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos)
-//     // .def("basicFloodos_v2", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos_v2)
-//     // .def("basicFloodos_v3", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos_v3)
-//     // .def("fill_up", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::fill_up)
-//     .def("set_manning", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_mannings)
-//     // .def("testDebugWalk", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::testDebugWalk)
-//     .def("set_parting_coeff", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_parting_coeff)
-//     // .def("check_SD_val", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::check_SD_val)
-//     .def("set_out_boundaries_to_permissive", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_out_boundaries_to_permissive)
-//     // .def("set_edges_to_0", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_edges_to_0)
-//     .def("get_a_eff", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_a_eff<py::array >)
-//     .def("get_w_eff", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_w_eff<py::array >)
-//     .def("get_hydraulic_slope_D8", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template get_hydraulic_slope_D8<py::array >)
-//     // .def("spatial_dt",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template spatial_dt<py::array_t<double,1> >)
-//     .def("set_dt",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_dt)
-//     // .def("enable_Afdt",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::enable_Afdt)
-//     // .def("disable_Afdt",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::disable_Afdt)
-//     // .def("config_Afdt",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::config_Afdt)
-//     .def("enable_hflow",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::enable_hflow)
-//     .def("disable_hflow",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::disable_hflow)
-//     .def("set_sensibility_to_flowdepth",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_sensibility_to_flowdepth)
-//     .def("get_sensibility_to_flowdepth",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::get_sensibility_to_flowdepth)
-//     // .def("fill_topo",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::fill_topo)
-//     .def("set_stochaslope",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_stochaslope)
-//     .def("out_boundary_match_donors",&fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::out_boundary_match_donors)
-//     .def("set_boundary_slope", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_boundary_slope)
+//   py::class_<fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//   CONNECTOR_T,  DAGGER::numvec<double> > >(m, typestr.c_str())
+//     .def(py::init<DAGGER::graph<double, CONNECTOR_T>&, CONNECTOR_T&,
+//     py::array_t<double,1>&,py::array_t<double,1>& >()) .def_readwrite("rec",
+//     &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,
+//     DAGGER::numvec<double> >::rec)
+//     // .def("run_SFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::run_SFD)
+//     // .def("run_SFD_with_erosion", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::run_SFD_with_erosion)
+//     // .def("run_MFD_erosion", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion)
+//     // .def("run_MFD_erosion_B", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_erosion_B)
+//     .def("run_MFD_static", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static)
+//     .def("run_MFD_static_SPL", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_static_SPL)
+//     // .def("run_MFD", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD)
+//     // .def("run_MFD_dynamic", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_dynamic)
+//     // .def("run_MFD_exp", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::run_MFD_exp)
+//     .def("get_hw", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::template get_hw<py::array >)
+//     // .def("get_spatial_dts", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     get_spatial_dts<py::array >) .def("get_Qwin", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::template get_Qwin<py::array >) .def("get_Qwout", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::template get_Qwout<py::array >) .def("get_Qs", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::template get_Qs<py::array >) .def("get_topography", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::template get_topography<py::array >) .def("add_to_hw",
+//     &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,
+//     DAGGER::numvec<double> >::add_to_hw) .def("set_Qbase", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::template set_Qbase<py::array_t<double,1> >)
+//     .def("set_Qs_entry_points", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     set_Qs_entry_points<py::array_t<double,1>,py::array_t<int,1> >)
+//     .def("increment_hw_from_Qbase", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::increment_hw_from_Qbase    ) .def("caesar_lisflood",
+//     &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,
+//     DAGGER::numvec<double> >::caesar_lisflood    )
+//     .def("set_topological_number", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::set_topological_number    )
+//     // .def("basicFloodos", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos)
+//     // .def("basicFloodos_v2", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos_v2)
+//     // .def("basicFloodos_v3", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::basicFloodos_v3)
+//     // .def("fill_up", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::fill_up) .def("set_manning",
+//     &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,
+//     DAGGER::numvec<double> >::set_mannings)
+//     // .def("testDebugWalk", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::testDebugWalk)
+//     .def("set_parting_coeff", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_parting_coeff)
+//     // .def("check_SD_val", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::check_SD_val)
+//     .def("set_out_boundaries_to_permissive", &fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::set_out_boundaries_to_permissive)
+//     // .def("set_edges_to_0", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_edges_to_0)
+//     .def("get_a_eff", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::template get_a_eff<py::array >)
+//     .def("get_w_eff", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>,
+//     CONNECTOR_T,  DAGGER::numvec<double> >::template get_w_eff<py::array >)
+//     .def("get_hydraulic_slope_D8", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     get_hydraulic_slope_D8<py::array >)
+//     // .def("spatial_dt",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     spatial_dt<py::array_t<double,1> >) .def("set_dt",&fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::set_dt)
+//     // .def("enable_Afdt",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::enable_Afdt)
+//     // .def("disable_Afdt",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::disable_Afdt)
+//     // .def("config_Afdt",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::config_Afdt)
+//     .def("enable_hflow",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::enable_hflow)
+//     .def("disable_hflow",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::disable_hflow)
+//     .def("set_sensibility_to_flowdepth",&fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::set_sensibility_to_flowdepth)
+//     .def("get_sensibility_to_flowdepth",&fastflood<double,
+//     DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::get_sensibility_to_flowdepth)
+//     // .def("fill_topo",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::fill_topo)
+//     .def("set_stochaslope",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::set_stochaslope)
+//     .def("out_boundary_match_donors",&fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double>
+//     >::out_boundary_match_donors) .def("set_boundary_slope",
+//     &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,
+//     DAGGER::numvec<double> >::set_boundary_slope)
 
-
-
-
-
-
-
-// #ifdef OPENMP_YOLO  
-//     .def("check_devices", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template check_devices, py::call_guard<py::gil_scoped_release>()    )
-//     .def("caesar_lisflood_OMP", &fastflood<double, DAGGER::graph<double, CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template caesar_lisflood_OMP, py::call_guard<py::gil_scoped_release>()    )
+// #ifdef OPENMP_YOLO
+//     .def("check_devices", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     check_devices, py::call_guard<py::gil_scoped_release>()    )
+//     .def("caesar_lisflood_OMP", &fastflood<double, DAGGER::graph<double,
+//     CONNECTOR_T>, CONNECTOR_T,  DAGGER::numvec<double> >::template
+//     caesar_lisflood_OMP, py::call_guard<py::gil_scoped_release>()    )
 // #endif
 
 //   ;
 // }
 
+template <typename fT, typename GRAPH_T, typename CONNECTOR_T>
+void declare_graphflood(py::module &m, std::string typestr) {
+  py::class_<graphflood<fT, GRAPH_T, CONNECTOR_T>>(m, typestr.c_str())
+      .def(py::init<GRAPH_T &, CONNECTOR_T &>())
+      .def(
+          "run", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "set_topo",
+          &graphflood<fT, GRAPH_T,
+                      CONNECTOR_T>::template set_topo<py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "set_hw",
+          &graphflood<fT, GRAPH_T,
+                      CONNECTOR_T>::template set_hw<py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
 
-template<typename fT, typename GRAPH_T, typename CONNECTOR_T>
-void declare_graphflood(py::module &m, std::string typestr)
-{
-  py::class_< graphflood<fT, GRAPH_T, CONNECTOR_T> >(m, typestr.c_str())
-    .def(py::init<GRAPH_T&, CONNECTOR_T&>())
-    .def("run", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_hw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    
-    .def("get_hw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_hw <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_surface_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_surface_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_bedrock_topo", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_Qwin", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwin <py::array_t<double,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("get_SSTACKDEBUG", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG <py::array_t<size_t,1> >, R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "get_hw",
+          &graphflood<fT, GRAPH_T,
+                      CONNECTOR_T>::template get_hw<py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "get_surface_topo",
+          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_surface_topo<
+              py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "get_bedrock_topo",
+          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo<
+              py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "get_Qwin",
+          &graphflood<fT, GRAPH_T,
+                      CONNECTOR_T>::template get_Qwin<py::array_t<double, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "get_SSTACKDEBUG",
+          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG<
+              py::array_t<size_t, 1>>,
+          R"pdoc(Main function running the model from all the input params)pdoc")
 
-    .def("enable_MFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_MFD, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("enable_SFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_SFD, R"pdoc(Main function running the model from all the input params)pdoc")
-    .def("set_dt_hydro",&graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
-    .def("fill_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::fill_minima)
-    .def("reroute_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::reroute_minima)
-    .def("ignore_minima",&graphflood<fT, GRAPH_T, CONNECTOR_T>::ignore_minima)
-    .def("enable_morpho",&graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_morpho)
-    .def("disable_morpho",&graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_morpho)
-    .def("set_dt_morpho_multiplier",&graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
+      .def(
+          "enable_MFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_MFD,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def(
+          "enable_SFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_SFD,
+          R"pdoc(Main function running the model from all the input params)pdoc")
+      .def("set_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
+      .def("fill_minima", &graphflood<fT, GRAPH_T, CONNECTOR_T>::fill_minima)
+      .def("reroute_minima",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::reroute_minima)
+      .def("ignore_minima",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::ignore_minima)
+      .def("enable_morpho",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_morpho)
+      .def("disable_morpho",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_morpho)
+      .def("set_dt_morpho_multiplier",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
 
+      .def("set_dt_morpho",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho)
+      .def("set_single_aexp",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_aexp)
+      .def("set_single_ke",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke)
+      .def("set_single_ke_lateral",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke_lateral)
+      .def("set_single_kd",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd)
+      .def("set_single_kd_lateral",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
+      .def("set_single_tau_c",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
+      .def("set_variable_ke",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_variable_ke<
+               py::array_t<double, 1>>)
+      .def("set_mannings", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_mannings)
 
-    .def("set_dt_morpho", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_dt_morpho)
-    .def("set_single_aexp", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_aexp)
-    .def("set_single_ke", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_ke)
-    .def("set_single_ke_lateral", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_ke_lateral)
-    .def("set_single_kd", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd)
-    .def("set_single_kd_lateral", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
-    .def("set_single_tau_c", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_single_kd_lateral)
-    .def("set_variable_ke", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_variable_ke<py::array_t<double,1> >)
-    .def("set_mannings",&graphflood<fT,GRAPH_T,CONNECTOR_T>::set_mannings )
+      .def("init_convergence_checker",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::init_convergence_checker)
+      .def("get_conv_nodes",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_nodes<
+               py::array_t<int, 1>>)
+      .def("get_conv_ini_Qw",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_ini_Qw<
+               py::array_t<double, 1>>)
+      .def("get_conv_mean_Qr",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_Qr<
+               py::array_t<double, 1>>)
+      .def("get_conv_mean_dhw",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_dhw<
+               py::array_t<double, 1>>)
 
+      .def("compute_tuqQ",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_tuqQ<
+               py::array_t<double, 1>>)
+      .def("compute_elemental_transfer",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+               template compute_elemental_transfer<py::array_t<double, 1>,
+                                                   py::array_t<double, 1>>)
 
-    .def("init_convergence_checker",&graphflood<fT,GRAPH_T,CONNECTOR_T>::init_convergence_checker)
-    .def("get_conv_nodes", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_nodes<py::array_t<int,1> >)
-    .def("get_conv_ini_Qw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_ini_Qw<py::array_t<double,1> >)
-    .def("get_conv_mean_Qr", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_Qr<py::array_t<double,1> >)
-    .def("get_conv_mean_dhw", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_dhw<py::array_t<double,1> >)
+      .def("set_water_input_by_entry_points",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+               template set_water_input_by_entry_points<py::array_t<double, 1>,
+                                                        py::array_t<int, 1>>)
+      .def("set_water_input_by_constant_precipitation_rate",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+               set_water_input_by_constant_precipitation_rate)
+      .def("set_water_input_by_variable_precipitation_rate",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+               template set_water_input_by_variable_precipitation_rate<
+                   py::array_t<double, 1>>)
 
-    .def("compute_tuqQ", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_tuqQ<py::array_t<double,1> >)
-    .def("compute_elemental_transfer", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template compute_elemental_transfer<py::array_t<double,1>, py::array_t<double,1> >)
+      .def("set_sed_input_by_entry_points",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+               template set_sed_input_by_entry_points<py::array_t<double, 1>,
+                                                      py::array_t<int, 1>>)
 
+      .def("enable_Qwout_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
+      .def("disable_Qwout_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
+      .def("get_Qwout_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<
+               py::array_t<double, 1>>)
 
+      .def("enable_Sw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
+      .def("disable_Sw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
+      .def("get_Sw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<
+               py::array_t<double, 1>>)
 
+      .def("enable_dhw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
+      .def("disable_dhw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
+      .def("get_dhw_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<
+               py::array_t<double, 1>>)
 
-    .def("set_water_input_by_entry_points", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_water_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
-    .def("set_water_input_by_constant_precipitation_rate", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_water_input_by_constant_precipitation_rate)
-    .def("set_water_input_by_variable_precipitation_rate", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_water_input_by_variable_precipitation_rate<py::array_t<double,1> >)
-    
-    .def("set_sed_input_by_entry_points", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template set_sed_input_by_entry_points<py::array_t<double,1> ,py::array_t<int,1> >)
+      .def("enable_filling_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
+      .def("disable_filling_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
+      .def(
+          "get_filling_recording",
+          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_filling_recording<
+              py::array_t<double, 1>>)
 
-    .def("enable_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
-    .def("disable_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
-    .def("get_Qwout_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<py::array_t<double,1> >)
+      .def("enable_edot_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
+      .def("disable_edot_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
+      .def("get_edot_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_edot_recording<
+               py::array_t<double, 1>>)
 
-    .def("enable_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
-    .def("disable_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
-    .def("get_Sw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<py::array_t<double,1> >)
+      .def("enable_flowvec_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
+      .def("disable_flowvec_recording",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
+      .def(
+          "get_flowvec_recording",
+          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<
+              py::array_t<double, 1>>)
 
-    .def("enable_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
-    .def("disable_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
-    .def("get_dhw_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<py::array_t<double,1> >)
+      .def("get_tot_Qw_input",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
+      .def("get_tot_Qw_output",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
+      .def("get_tot_Qwin_output",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
+      .def("get_tot_Qs_output",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
 
-    .def("enable_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
-    .def("disable_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
-    .def("get_filling_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_filling_recording<py::array_t<double,1> >)
+      .def("set_stochaslope",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_stochaslope)
+      .def("disable_stochaslope",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
+      .def("set_fixed_hw_at_boundaries",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
+      .def("set_fixed_slope_at_boundaries",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
+      .def("get_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
 
-    .def("enable_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
-    .def("disable_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
-    .def("get_edot_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_edot_recording<py::array_t<double,1> >)
+      .def("set_partition_method",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_partition_method)
+      .def("set_topological_number",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_topological_number)
+      .def("get_topological_number",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_topological_number)
 
-    .def("enable_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
-    .def("disable_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
-    .def("get_flowvec_recording", &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<py::array_t<double,1> >)
+      .def("get_courant_dt_hydro",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
+      .def("set_courant_numer",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_numer)
+      .def("set_max_courant_dt_hydro",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
+      .def("set_min_courant_dt_hydro",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_min_courant_dt_hydro)
+      .def("enable_courant_dt_hydro",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
+      .def("disable_courant_dt_hydro",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_courant_dt_hydro)
+      .def("set_Qwin_crit",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_Qwin_crit)
+      .def("get_nT", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_nT)
 
-  
-    .def("get_tot_Qw_input", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
-    .def("get_tot_Qw_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
-    .def("get_tot_Qwin_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
-    .def("get_tot_Qs_output", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
+      .def("enable_hydrostationary",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationary)
+      .def("disable_hydrostationary",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationary)
 
+      .def("block_uplift", &graphflood<fT, GRAPH_T, CONNECTOR_T>::block_uplift)
+      .def("variable_uplift",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template variable_uplift<
+               py::array_t<double, 1>>)
 
-    .def("set_stochaslope", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_stochaslope)
-    .def("disable_stochaslope", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
-    .def("set_fixed_hw_at_boundaries", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
-    .def("set_fixed_slope_at_boundaries", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
-    .def("get_dt_hydro",&graphflood<fT, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
+      .def("run_precipitions",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions)
+      .def("run_precipitions_exp",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions_exp)
+      .def("run_graphipiton",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_graphipiton)
+      .def("run_exp", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_exp)
 
-    .def("set_partition_method", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_partition_method)
-    .def("set_topological_number", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_topological_number)
-    .def("get_topological_number", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_topological_number)
+      .def("define_precipitations_Ath",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::define_precipitations_Ath)
 
-
-    .def("get_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
-    .def("set_courant_numer", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_numer)
-    .def("set_max_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
-    .def("set_min_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_min_courant_dt_hydro)
-    .def("enable_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
-    .def("disable_courant_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_courant_dt_hydro)
-    .def("set_Qwin_crit", &graphflood<fT,GRAPH_T,CONNECTOR_T>::set_Qwin_crit)
-    .def("get_nT", &graphflood<fT,GRAPH_T,CONNECTOR_T>::get_nT)
-
-
-    .def("enable_hydrostationary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationary)
-    .def("disable_hydrostationary", &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationary)
-
-    
-    
-
-    .def("block_uplift", &graphflood<fT,GRAPH_T,CONNECTOR_T>::block_uplift)
-    .def("variable_uplift", &graphflood<fT,GRAPH_T,CONNECTOR_T>::template variable_uplift<py::array_t<double,1> >)
-
-    .def("run_precipitions",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_precipitions)
-    .def("run_precipitions_exp",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_precipitions_exp)
-    .def("run_graphipiton",  &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_graphipiton)
-    .def("run_exp", &graphflood<fT,GRAPH_T,CONNECTOR_T>::run_exp)
-
-    .def("define_precipitations_Ath", &graphflood<fT,GRAPH_T,CONNECTOR_T>::define_precipitations_Ath)
-
-        
-    
-
-  ;
+      ;
 }
-
-
 
 PYBIND11_MODULE(dagger, m) {
   m.doc() = R"pbdoc(
       DAGGER - python API
       ===================
-      
+
       Quick API
       ---------
 
@@ -1098,66 +1424,55 @@ PYBIND11_MODULE(dagger, m) {
       .. autoclass:: graph
         :members:
 
-          
+
   )pbdoc";
 
-
   py::enum_<DEPRES>(m, "LMR")
-    .value("cordonnier_fill", DEPRES::cordonnier_fill)
-    .value("cordonnier_carve", DEPRES::cordonnier_carve)
-    .value("cordonnier_simple", DEPRES::cordonnier_simple)
-    .value("priority_flood", DEPRES::priority_flood)
-    .value("priority_flood_opti", DEPRES::priority_flood_opti)
-    .value("priority_full_MFD", DEPRES::priority_full_MFD)
-    
-    .value("none", DEPRES::none)
-    .value("dagger_carve", DEPRES::dagger_carve)
-    .value("dagger_fill", DEPRES::dagger_fill)
-  ;
+      .value("cordonnier_fill", DEPRES::cordonnier_fill)
+      .value("cordonnier_carve", DEPRES::cordonnier_carve)
+      .value("cordonnier_simple", DEPRES::cordonnier_simple)
+      .value("priority_flood", DEPRES::priority_flood)
+      .value("priority_flood_opti", DEPRES::priority_flood_opti)
+      .value("priority_full_MFD", DEPRES::priority_full_MFD)
+
+      .value("none", DEPRES::none)
+      .value("dagger_carve", DEPRES::dagger_carve)
+      .value("dagger_fill", DEPRES::dagger_fill);
 
   py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
-    .value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
-    .value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
-    .value("PROPOREC", MFD_PARTITIONNING::PROPOREC)
-  ;
+      .value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
+      .value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
+      .value("PROPOREC", MFD_PARTITIONNING::PROPOREC);
 
   py::enum_<TSC_HILLSLOPE>(m, "TSC_HILLSLOPE")
-    .value("NONE", TSC_HILLSLOPE::NONE)
-    .value("LINEAR", TSC_HILLSLOPE::LINEAR)
-    .value("CIDRE", TSC_HILLSLOPE::CIDRE)
-    .value("CIDRE_NOCRIT", TSC_HILLSLOPE::CIDRE_NOCRIT)
-    .value("HYLANDS", TSC_HILLSLOPE::HYLANDS)
-  ;
+      .value("NONE", TSC_HILLSLOPE::NONE)
+      .value("LINEAR", TSC_HILLSLOPE::LINEAR)
+      .value("CIDRE", TSC_HILLSLOPE::CIDRE)
+      .value("CIDRE_NOCRIT", TSC_HILLSLOPE::CIDRE_NOCRIT)
+      .value("HYLANDS", TSC_HILLSLOPE::HYLANDS);
 
   py::enum_<TSC_FLUVIAL>(m, "TSC_FLUVIAL")
-    .value("NONE", TSC_FLUVIAL::NONE)
-    .value("DAVY2009", TSC_FLUVIAL::DAVY2009)
-    .value("LATERALDAVY", TSC_FLUVIAL::LATERALDAVY)
-    .value("LATERALSPL", TSC_FLUVIAL::LATERALSPL)
-    .value("FASTSCAPE", TSC_FLUVIAL::FASTSCAPE)
-  ;
+      .value("NONE", TSC_FLUVIAL::NONE)
+      .value("DAVY2009", TSC_FLUVIAL::DAVY2009)
+      .value("LATERALDAVY", TSC_FLUVIAL::LATERALDAVY)
+      .value("LATERALSPL", TSC_FLUVIAL::LATERALSPL)
+      .value("FASTSCAPE", TSC_FLUVIAL::FASTSCAPE);
 
   py::enum_<TSC_MARINE>(m, "TSC_MARINE")
-    .value("NONE", TSC_MARINE::NONE)
-    .value("CHARLIE", TSC_MARINE::CHARLIE)
-  ;
+      .value("NONE", TSC_MARINE::NONE)
+      .value("CHARLIE", TSC_MARINE::CHARLIE);
 
   py::enum_<TSC_FLOW_TOPOLOGY>(m, "TSC_FLOW_TOPOLOGY")
-    .value("SFD", TSC_FLOW_TOPOLOGY::SFD)
-    .value("MFD", TSC_FLOW_TOPOLOGY::MFD)
-  ;
+      .value("SFD", TSC_FLOW_TOPOLOGY::SFD)
+      .value("MFD", TSC_FLOW_TOPOLOGY::MFD);
 
   py::enum_<CONVERGENCE>(m, "GRAPHFLOOD_CONVERGENCE")
-    .value("NONE", CONVERGENCE::NONE)
-    .value("DHW", CONVERGENCE::DHW)
-    .value("QWR", CONVERGENCE::QWR)
-    .value("ALL", CONVERGENCE::ALL)
-  ;
+      .value("NONE", CONVERGENCE::NONE)
+      .value("DHW", CONVERGENCE::DHW)
+      .value("QWR", CONVERGENCE::QWR)
+      .value("ALL", CONVERGENCE::ALL);
 
-
-
-  py::class_<D8connector<double> >(
-m, "D8N", R"pbdoc(
+  py::class_<D8connector<double>>(m, "D8N", R"pbdoc(
 D8 regular grid connector D8N
 
 Description:
@@ -1187,10 +1502,10 @@ B.G.
 
 )pbdoc")
 
-    .def(
-      py::init<int,int,double,double,double,double>(),
-      py::arg("nx"),py::arg("ny"),py::arg("dx"),py::arg("dy"),py::arg("x_min"), py::arg("x_max"),
-      R"pbdoc(
+      .def(py::init<int, int, double, double, double, double>(), py::arg("nx"),
+           py::arg("ny"), py::arg("dx"), py::arg("dy"), py::arg("x_min"),
+           py::arg("x_max"),
+           R"pbdoc(
 D8 regular grid connector D8N
 
 Description:
@@ -1218,27 +1533,26 @@ Authors:
 --------
 B.G.
 
-)pbdoc"
-      )
-    .def(
-      "set_default_boundaries", &D8connector<double>::set_default_boundaries,
-      py::arg("boundary_preset"),
-      R"pbdoc(
+)pbdoc")
+      .def("set_default_boundaries",
+           &D8connector<double>::set_default_boundaries,
+           py::arg("boundary_preset"),
+           R"pbdoc(
 
 Automatically sets the default boundary system based on predefined presets.
 
 Description:
 ------------
 
-Boundary conditions can be tricky to set. Luckily, most use cases needs 
-classical opened bounary at the edge of the dem, or periodic (sometimes called 
+Boundary conditions can be tricky to set. Luckily, most use cases needs
+classical opened bounary at the edge of the dem, or periodic (sometimes called
 cyclic) bounaries at EW or NS edges. This functions automate these (i.e. set the
-right boundary codes and recompute the linknode array) 
+right boundary codes and recompute the linknode array)
 
 Parameters:
 -----------
 
-    * boundary_preset (str): the preset. Can be "4edges", "periodic_EW" or 
+    * boundary_preset (str): the preset. Can be "4edges", "periodic_EW" or
       "periodic_NS"
 
 
@@ -1246,23 +1560,21 @@ Authors:
 --------
 B.G.
 
-)pbdoc"
-      )
+)pbdoc")
 
-    .def(
-      "set_custom_boundaries", 
-      &D8connector<double>::set_custom_boundaries<py::array_t<int,1> >,
-      py::arg("boundary_codes"),
-      R"pbdoc(
+      .def("set_custom_boundaries",
+           &D8connector<double>::set_custom_boundaries<py::array_t<int, 1>>,
+           py::arg("boundary_codes"),
+           R"pbdoc(
 
 Manually sets the boundary codes as uint8 1D array (see doc for options).
 
 Description:
 ------------
 
-Function to manually specify boundary conditions, for cases where the classic 
+Function to manually specify boundary conditions, for cases where the classic
 presets are not providing the desired option. For example if one needs specific
-outlets/inlets location or deactivate some nodes. This is a good function to 
+outlets/inlets location or deactivate some nodes. This is a good function to
 automate the ingestion of nodata, isolating a watershed, or defining entry
 points to the landscape.
 
@@ -1279,24 +1591,28 @@ B.G.
 
 )pbdoc"
 
+           )
+      .def("print_dim", &D8connector<double>::print_dim,
+           R"pdoc(Debugging function)pdoc")
+      .def(
+          "get_HS",
+          &D8connector<double>::get_HS<std::vector<double>, py::array>,
+          R"pdoc(Deprecated, kept for legacy (see hillshade function outside of ``connector``))pdoc")
+      .def("get_mask_array", &D8connector<double>::get_mask_array,
+           R"pdoc(Returns a 1D array of bool where false are nodata)pdoc")
 
-      )
-    .def("print_dim", &D8connector<double>::print_dim, R"pdoc(Debugging function)pdoc")
-    .def("get_HS", &D8connector<double>::get_HS<std::vector<double>, py::array >, R"pdoc(Deprecated, kept for legacy (see hillshade function outside of ``connector``))pdoc")
-    .def("get_mask_array",&D8connector<double>::get_mask_array, R"pdoc(Returns a 1D array of bool where false are nodata)pdoc")
-
-    .def(
-      "set_values_at_boundaries", 
-      &D8connector<double>::set_values_at_boundaries<py::array_t<double,1> >,
-      py::arg("array_to_modify"), py::arg("value"),
-      R"pdoc(
+      .def("set_values_at_boundaries",
+           &D8connector<double>::set_values_at_boundaries<
+               py::array_t<double, 1>>,
+           py::arg("array_to_modify"), py::arg("value"),
+           R"pdoc(
 Modify an array in place with given value where connector can out flux
 
 Description:
 ------------
 
-Every nodes on the input array where the connector satisfy the coundary condition 
-``can_out`` will be set to a given value. It modify the array in place (i.e. 
+Every nodes on the input array where the connector satisfy the coundary condition
+``can_out`` will be set to a given value. It modify the array in place (i.e.
 does not return anything but modify the input).
 
 Useful to impose boundary condition in LEMs in a versatile way.
@@ -1312,42 +1628,48 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
+)pdoc")
 
-    .def(
-      "set_out_boundaries_to_permissive",
-      &D8connector<double>::set_out_boundaries_to_permissive,
-      R"pdoc(
+      .def("set_out_boundaries_to_permissive",
+           &D8connector<double>::set_out_boundaries_to_permissive,
+           R"pdoc(
 Converts OUT boundaries to CAN_OUT.
 
 Description:
 ------------
 
-Converts OUT boundaries, where flow entering this cell has to out the model to 
+Converts OUT boundaries, where flow entering this cell has to out the model to
 CAN_OUT, where flow leaves the model if the cell has no downslope receivers.
 
 Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_boundary_at_node", &D8connector<double>::get_boundary_at_node,py::arg("node_idx"), R"pdoc(Returns the boundary code at node index)pdoc"
-    )
-    
-    .def("get_rowcol_Sreceivers",&D8connector<double>:: get_rowcol_Sreceivers,py::arg("row_index"), py::arg("col_index"), R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
-    
-    .def("print_receivers", &D8connector<double>::template print_receivers<std::vector<double> >,py::arg("node_index"), py::arg("topography"), R"pdoc(Debuggin function printing to the terminal the receivers of a node index and their topography (post graph computation! so the topographic field may not be the one used for the receivers/LM computations))pdoc")
-    
-    .def("get_rec_array_size",&D8connector<double>::get_rec_array_size, R"pdoc(Debug function - ignore)pdoc")
-    
-    .def(
-      "update_links_MFD_only", &D8connector<double>::template update_links_MFD_only<std::vector<double> >,
-      py::arg("topography"),
-      R"pdoc(
+)pdoc")
+
+      .def("get_boundary_at_node", &D8connector<double>::get_boundary_at_node,
+           py::arg("node_idx"),
+           R"pdoc(Returns the boundary code at node index)pdoc")
+
+      .def(
+          "get_rowcol_Sreceivers", &D8connector<double>::get_rowcol_Sreceivers,
+          py::arg("row_index"), py::arg("col_index"),
+          R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
+
+      .def(
+          "print_receivers",
+          &D8connector<double>::template print_receivers<std::vector<double>>,
+          py::arg("node_index"), py::arg("topography"),
+          R"pdoc(Debuggin function printing to the terminal the receivers of a node index and their topography (post graph computation! so the topographic field may not be the one used for the receivers/LM computations))pdoc")
+
+      .def("get_rec_array_size", &D8connector<double>::get_rec_array_size,
+           R"pdoc(Debug function - ignore)pdoc")
+
+      .def("update_links_MFD_only",
+           &D8connector<double>::template update_links_MFD_only<
+               std::vector<double>>,
+           py::arg("topography"),
+           R"pdoc(
 Updates all the link directionalities - but not the SFD receiver/donors.
 
 Description:
@@ -1368,20 +1690,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "update_links_from_topo", 
-      &D8connector<double>::template update_links_from_topo<std::vector<double> >,
-      py::arg("topography"),
-      R"pdoc(
+)pdoc")
+
+      .def("update_links_from_topo",
+           &D8connector<double>::template update_links_from_topo<
+               std::vector<double>>,
+           py::arg("topography"),
+           R"pdoc(
 Updates all the link directionalities - but not the SFD receiver/donors.
 
 Description:
 ------------
 
-Updates all the link directionalities based on a given topography. This is the 
+Updates all the link directionalities based on a given topography. This is the
 full updating function computing MFD/SFD links/receivers/donors/... .
 
 Parameters
@@ -1394,14 +1715,13 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
-    .def(
-      "sum_at_outlets", 
-      &D8connector<double>::template sum_at_outlets<py::array_t<double,1>, double >,
-      py::arg("array"),py::arg("include_pits"),
-      R"pdoc(
+)pdoc")
+
+      .def("sum_at_outlets",
+           &D8connector<double>::template sum_at_outlets<py::array_t<double, 1>,
+                                                         double>,
+           py::arg("array"), py::arg("include_pits"),
+           R"pdoc(
 Sum the values contains in the input array where flux out the model.
 
 Description:
@@ -1429,21 +1749,20 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "keep_only_at_outlets", 
-      &D8connector<double>::template keep_only_at_outlets<py::array_t<double,1>, py::array >,
-      py::arg("array"),py::arg("include_pits"),
-      R"pdoc(
+)pdoc")
+
+      .def("keep_only_at_outlets",
+           &D8connector<double>::template keep_only_at_outlets<
+               py::array_t<double, 1>, py::array>,
+           py::arg("array"), py::arg("include_pits"),
+           R"pdoc(
 return a copy of the input array where all the non-outting nodes are set to 0.
 
 Description:
 ------------
 
-returns a copy of the input array where all the outting nodes are set to 0. 
-It can also include the internal pit if needed. Internal pits are only referring 
+returns a copy of the input array where all the outting nodes are set to 0.
+It can also include the internal pit if needed. Internal pits are only referring
 to nodes where local minimas have not been resolved.
 
 DEPRECATION WARNING: Will be detached to a standalone algorithm in a future
@@ -1464,20 +1783,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_SFD_receivers",
-      &D8connector<double>::template get_SFD_receivers<py::array_t<int,1>>,
-      R"pdoc(
+)pdoc")
+
+      .def(
+          "get_SFD_receivers",
+          &D8connector<double>::template get_SFD_receivers<py::array_t<int, 1>>,
+          R"pdoc(
 returns the array of SFD receivers.
 
 Description:
 ------------
 
 returns the array of SFD receivers according to the current state of the \
-connector. These can be obtained after computing links from a topography, but 
+connector. These can be obtained after computing links from a topography, but
 can also be modified when a graph resolves local minimas.
 
 Returns
@@ -1489,20 +1807,18 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
-    .def(
-      "get_SFD_dx",
-      &D8connector<double>::template get_SFD_dx<py::array_t<double,1>>,
-      R"pdoc(
+)pdoc")
+
+      .def("get_SFD_dx",
+           &D8connector<double>::template get_SFD_dx<py::array_t<double, 1>>,
+           R"pdoc(
 returns the array of SFD distance to receivers.
 
 Description:
 ------------
 
 returns the array of SFD dist. to receivers according to the current state of
-the connector. These can be obtained after computing links from a topography,  
+the connector. These can be obtained after computing links from a topography,
 but can also be modified when a graph resolves local minimas.
 
 Returns
@@ -1514,13 +1830,11 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_SFD_ndonors",
-      &D8connector<double>::template get_SFD_ndonors<py::array_t<int,1>>,
-      R"pdoc(
+)pdoc")
+
+      .def("get_SFD_ndonors",
+           &D8connector<double>::template get_SFD_ndonors<py::array_t<int, 1>>,
+           R"pdoc(
 returns the array of SFD number of donors.
 
 Description:
@@ -1537,20 +1851,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_SFD_donors_flat",
-      &D8connector<double>::template get_SFD_donors_flat<py::array_t<int,1>>,
-      R"pdoc(
+)pdoc")
+
+      .def("get_SFD_donors_flat",
+           &D8connector<double>::template get_SFD_donors_flat<
+               py::array_t<int, 1>>,
+           R"pdoc(
 returns a flat array of SFD donors(read description for indexing!).
 
 Description:
 ------------
 
 returns a flat array of SFD donors. It is a sparse array for the sake of simplicity:
-the Donors for a node are every >=0 nodes from the index node_index * 8 to 
+the Donors for a node are every >=0 nodes from the index node_index * 8 to
 node_index * 8 + nSdonors[node_index].
 
 Returns
@@ -1562,19 +1875,18 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_SFD_donors_list",
-      &D8connector<double>::template get_SFD_donors_list<std::vector<std::vector<int> > >,
-      R"pdoc(
+)pdoc")
+
+      .def("get_SFD_donors_list",
+           &D8connector<double>::template get_SFD_donors_list<
+               std::vector<std::vector<int>>>,
+           R"pdoc(
 returns a list (not an array!) of irregular size with donor indices.
 
 Description:
 ------------
 
-returns a list (not an array!) of irregular size with donor indices. The first 
+returns a list (not an array!) of irregular size with donor indices. The first
 index is the node index and it points to a list of ndonors size with all the
 SFD donors of the given node.
 
@@ -1587,19 +1899,17 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
-    .def(
-      "get_links",
-      &D8connector<double>::template get_links<std::vector<std::uint8_t> >,
-      R"pdoc(
+)pdoc")
+
+      .def("get_links",
+           &D8connector<double>::template get_links<std::vector<std::uint8_t>>,
+           R"pdoc(
 returns an array of link size with link type.
 
 Description:
 ------------
 
-returns an array of link size with link type. See the documentation for the 
+returns an array of link size with link type. See the documentation for the
 relationships between nodes and links. the node indices for a link index can be
 found in the linknode array, at link_index*2 and link_index*2 + 1. The link type
 is an uint8 number: 0 for inverse (node 2 give to node 1), 1 for normal (node 1
@@ -1614,20 +1924,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
-    .def(
-      "get_linknodes_flat",
-      &D8connector<double>::template get_linknodes_flat<py::array_t<int,1>>,
-      R"pdoc(
+)pdoc")
+
+      .def("get_linknodes_flat",
+           &D8connector<double>::template get_linknodes_flat<
+               py::array_t<int, 1>>,
+           R"pdoc(
 returns a flat array of linknodes (node indices pair for each links).
 
 Description:
 ------------
 
-1D flat array of linknodes. The node corresponding to link index li can be found 
-at linknodes[li*2] and linknodes[li*2 + 1]. Non-existing or invalid links have 
+1D flat array of linknodes. The node corresponding to link index li can be found
+at linknodes[li*2] and linknodes[li*2 + 1]. Non-existing or invalid links have
 node indices of -1.
 
 Returns
@@ -1639,14 +1948,12 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-    )
-    
-    
-    .def(
-      "get_linknodes_list",
-      &D8connector<double>::template get_linknodes_list<std::vector<std::vector<int> > >,
-      R"pdoc(
+)pdoc")
+
+      .def("get_linknodes_list",
+           &D8connector<double>::template get_linknodes_list<
+               std::vector<std::vector<int>>>,
+           R"pdoc(
 returns a list (not an array!) of link nodes.
 
 Description:
@@ -1664,20 +1971,19 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_linknodes_list_oriented",
-      &D8connector<double>::template get_linknodes_list_oriented<std::vector<std::vector<int> > >,
-      R"pdoc(
+)pdoc")
+
+      .def("get_linknodes_list_oriented",
+           &D8connector<double>::template get_linknodes_list_oriented<
+               std::vector<std::vector<int>>>,
+           R"pdoc(
 returns a list (not an array!) of link nodes, donor first, rec second.
 
 Description:
 ------------
 
 2D link of link nodes. index is link index and it provides a list of nodes
-composing the link. This version orients the list with the donor always first 
+composing the link. This version orients the list with the donor always first
 (and the receiver always second).
 
 Returns
@@ -1689,46 +1995,40 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_SFD_receivers_at_node", 
-      &D8connector<double>:: get_SFD_receivers_at_node,
-      R"pdoc(Returns the node index of the SFD receivers for a given node index)pdoc"
-      )
-    
-    .def(
-      "get_SFD_dx_at_node", 
-      &D8connector<double>:: get_SFD_dx_at_node,
-      R"pdoc(Returns the distance to the SFD receivers for a given node index)pdoc"
-      )
-    
-    .def(
-      "get_SFD_ndonors_at_node", 
-      &D8connector<double>:: get_SFD_ndonors_at_node
+)pdoc")
 
-      )
-    
-    .def(
-      "get_SFD_donors_at_node", 
-      &D8connector<double>::template get_SFD_donors_at_node<std::vector<int> >,
-      R"pdoc(Returns a list of SFD donors for a given node index)pdoc"
-      )
-    
-    .def(
-      "get_SFD_gradient", 
-      &D8connector<double>::template get_SFD_gradient<py::array_t<double,1>, py::array_t<double,1> >,
-      py::arg("topography"),
-      R"pdoc(
+      .def(
+          "get_SFD_receivers_at_node",
+          &D8connector<double>::get_SFD_receivers_at_node,
+          R"pdoc(Returns the node index of the SFD receivers for a given node index)pdoc")
+
+      .def(
+          "get_SFD_dx_at_node", &D8connector<double>::get_SFD_dx_at_node,
+          R"pdoc(Returns the distance to the SFD receivers for a given node index)pdoc")
+
+      .def("get_SFD_ndonors_at_node",
+           &D8connector<double>::get_SFD_ndonors_at_node
+
+           )
+
+      .def("get_SFD_donors_at_node",
+           &D8connector<double>::template get_SFD_donors_at_node<
+               std::vector<int>>,
+           R"pdoc(Returns a list of SFD donors for a given node index)pdoc")
+
+      .def("get_SFD_gradient",
+           &D8connector<double>::template get_SFD_gradient<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("topography"),
+           R"pdoc(
 returns an array of node size with the topographic gradient
 
 Description:
 ------------
 
 Takes a topography and returns the steepest descent gradient using precomputed
-SFD receivers informations. Note that if you feed the function with a different 
-topography than the one the graph has been computed with - or if local minimas 
+SFD receivers informations. Note that if you feed the function with a different
+topography than the one the graph has been computed with - or if local minimas
 have been resolved, you may obtain local negative values.
 
 Parameters
@@ -1745,27 +2045,26 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_links_gradient", 
-      &D8connector<double>::template get_links_gradient< py::array_t<double,1>, py::array_t<double,1> >,
-      py::arg("topography"), py::arg("minimum_slope"),
-      R"pdoc(
+)pdoc")
+
+      .def("get_links_gradient",
+           &D8connector<double>::template get_links_gradient<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("topography"), py::arg("minimum_slope"),
+           R"pdoc(
 returns an array of link size with the topographic gradient for each of them.
 
 Description:
 ------------
 
-Takes a topography and returns the gradient for each topographic link. It can 
+Takes a topography and returns the gradient for each topographic link. It can
 recast teh negative/small gradients to a minimum value if needed.
 
 Parameters
 -----------
 
 - Topography (array 1D): the topography to use for the gradient computation
-- min_slope (float): the minimum slope - set to very negative value if not 
+- min_slope (float): the minimum slope - set to very negative value if not
 needed.
 
 Returns
@@ -1777,14 +2076,13 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_MFD_mean_gradient", 
-      &D8connector<double>::template get_MFD_mean_gradient< py::array_t<double,1>, py::array_t<double,1> >,
-      py::arg("topography"),
-      R"pdoc(
+)pdoc")
+
+      .def("get_MFD_mean_gradient",
+           &D8connector<double>::template get_MFD_mean_gradient<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("topography"),
+           R"pdoc(
 returns an array of node size with the mean topographic gradient for each nodes.
 
 Description:
@@ -1810,20 +2108,20 @@ B.G.
 
 )pdoc"
 
-      )
-    
-    .def(
-      "get_MFD_weighted_gradient", 
-      &D8connector<double>::template get_MFD_weighted_gradient< py::array_t<double,1>, py::array_t<double,1> >,
-      py::arg("topography"), py::arg("weights"),
-      R"pdoc(
+           )
+
+      .def("get_MFD_weighted_gradient",
+           &D8connector<double>::template get_MFD_weighted_gradient<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("topography"), py::arg("weights"),
+           R"pdoc(
 returns an array of node size with the weighted mean gradient for each nodes.
 
 Description:
 ------------
 
 returns an array of node size with the weighted mean gradient for each nodes.
-It requires a weight for each links which can be obtained using the 
+It requires a weight for each links which can be obtained using the
 ``get_link_weights`` function.
 
 Parameters
@@ -1842,14 +2140,13 @@ Authors:
 --------
 B.G.
 
-)pdoc"
-      )
-    
-    .def(
-      "get_link_weights", 
-      &D8connector<double>::template get_link_weights< py::array_t<double,1>, py::array_t<double,1> >,
-      py::arg("gradients"),py::arg("exponent"),
-      R"pdoc(
+)pdoc")
+
+      .def("get_link_weights",
+           &D8connector<double>::template get_link_weights<
+               py::array_t<double, 1>, py::array_t<double, 1>>,
+           py::arg("gradients"), py::arg("exponent"),
+           R"pdoc(
 Computes partition weights for each link function of rec slopes per node basis.
 
 Description:
@@ -1857,8 +2154,8 @@ Description:
 
 Assign a [0,1] weight to each link to partition flow in MFD from every nodes to
 their receivers. The partition uses an exponent to set the sensitivity to slope
-differences. in a general manner, the higher the value, the more weight would 
-go toward the steepest receiver. There are three particular cases (numerically 
+differences. in a general manner, the higher the value, the more weight would
+go toward the steepest receiver. There are three particular cases (numerically
 and conceptually):
 
 - exp = 0: equally parted towards all receivers regardless of their slopes
@@ -1878,50 +2175,54 @@ Array of link size of partition weights
 
 Authors:
 --------
-B.G.)pdoc"
-      )
-    
-    .def(
-      "set_stochaticiy_for_SFD", 
-      &D8connector<double>::set_stochaticiy_for_SFD,
-      py::arg("magnitude"),
-      R"pdoc(EXPERIMENTAL: adds stochasticity to the SFD receivers calculation. Best to ignore.)pdoc"
-      )
-  ;
+B.G.)pdoc")
 
-  py::class_<D4connector<double> >(m, "D4N", R"pdoc(DEPRECATED - will be back at some points, keeping for legacy)pdoc")
-    .def(py::init<int,int,double,double,double,double>())
-    .def("set_default_boundaries", &D4connector<double>::set_default_boundaries)
-    .def("set_custom_boundaries", &D4connector<double>::set_custom_boundaries<py::array_t<int,1> >)
-    .def("print_dim", &D4connector<double>::print_dim)
-    .def("get_HS", &D4connector<double>::get_HS<std::vector<double>, py::array >)
-    // .def("fill_barne_2014", &D4connector<double>::fill_barne_2014<std::vector<double> >)
-    .def("get_mask_array",&D4connector<double>::get_mask_array)
-    .def("set_values_at_boundaries", &D4connector<double>::set_values_at_boundaries<py::array_t<double,1> >)
-    .def("set_out_boundaries_to_permissive", &D4connector<double>::set_out_boundaries_to_permissive)
-    .def("get_boundary_at_node", &D4connector<double>::get_boundary_at_node)
-  ;
+      .def(
+          "set_stochaticiy_for_SFD",
+          &D8connector<double>::set_stochaticiy_for_SFD, py::arg("magnitude"),
+          R"pdoc(EXPERIMENTAL: adds stochasticity to the SFD receivers calculation. Best to ignore.)pdoc");
 
-  py::class_<numvec<double> >(m,"numvecf64")
-    .def(py::init<py::array_t<double,1>&>())
-    .def("get", &numvec<double>::get)
-    .def("set", &numvec<double>::set)
-  ;
+  py::class_<D4connector<double>>(
+      m, "D4N",
+      R"pdoc(DEPRECATED - will be back at some points, keeping for legacy)pdoc")
+      .def(py::init<int, int, double, double, double, double>())
+      .def("set_default_boundaries",
+           &D4connector<double>::set_default_boundaries)
+      .def("set_custom_boundaries",
+           &D4connector<double>::set_custom_boundaries<py::array_t<int, 1>>)
+      .def("print_dim", &D4connector<double>::print_dim)
+      .def("get_HS",
+           &D4connector<double>::get_HS<std::vector<double>, py::array>)
+      // .def("fill_barne_2014",
+      // &D4connector<double>::fill_barne_2014<std::vector<double> >)
+      .def("get_mask_array", &D4connector<double>::get_mask_array)
+      .def("set_values_at_boundaries",
+           &D4connector<double>::set_values_at_boundaries<
+               py::array_t<double, 1>>)
+      .def("set_out_boundaries_to_permissive",
+           &D4connector<double>::set_out_boundaries_to_permissive)
+      .def("get_boundary_at_node", &D4connector<double>::get_boundary_at_node);
 
-  declare_graph<D8connector<double> >(m,"graph");
+  py::class_<numvec<double>>(m, "numvecf64")
+      .def(py::init<py::array_t<double, 1> &>())
+      .def("get", &numvec<double>::get)
+      .def("set", &numvec<double>::set);
+
+  declare_graph<D8connector<double>>(m, "graph");
   // declare_graph<D4connector<double> >(m,"graphD4");
 
-//=============================================================================================
-//=============================================================================================
-//===================== Standalone Algorithms =================================================
-//=============================================================================================
-//=============================================================================================
+  //=============================================================================================
+  //=============================================================================================
+  //===================== Standalone Algorithms
+  //=================================================
+  //=============================================================================================
+  //=============================================================================================
 
-  m.def(
-    "hillshade",
-    &hillshade<D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double>,
-    py::arg("connector"),py::arg("topography"),
-     R"pbdoc(
+  m.def("hillshade",
+        &hillshade<D8connector<double>, py::array_t<double, 1>,
+                   py::array_t<double, 1>, double>,
+        py::arg("connector"), py::arg("topography"),
+        R"pbdoc(
 Hillshading function for visualisation
 
 Description:
@@ -1944,115 +2245,59 @@ Authors:
 --------
 B.G.
 
-)pbdoc"
-     );
+)pbdoc");
 
+  m.def("rayshade",
+        &rayshade<DAGGER::graph<double, DAGGER::D8connector<double>>,
+                  D8connector<double>, py::array_t<double, 1>,
+                  py::array_t<double, 1>, double>);
 
-  m.def(
-    "rayshade",
-    &rayshade< DAGGER::graph<double, DAGGER::D8connector<double> >, D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double> 
-    );
+  m.def("set_BC_to_remove_seas",
+        &set_BC_to_remove_seas<D8connector<double>, py::array_t<double, 1>,
+                               double>);
 
-  m.def(
-    "set_BC_to_remove_seas",
-    &set_BC_to_remove_seas< D8connector<double>, py::array_t<double, 1>, double> 
-    );
+  m.def("label_depressions_PQ",
+        &label_depressions_PQ<py::array_t<double, 1>, py::array_t<int, 1>,
+                              D8connector<double>>);
 
-  
+  m.def("label_ocean", &label_ocean<py::array_t<double, 1>, py::array_t<int, 1>,
+                                    D8connector<double>>);
 
-  m.def(
-    "label_depressions_PQ",
-    &label_depressions_PQ< py::array_t<double, 1>, py::array_t<int, 1>, D8connector<double> > 
-    );
+  m.def("standalone_priority_flood",
+        &standalone_priority_flood<D8connector<double>, py::array_t<double, 1>,
+                                   py::array_t<double, 1>, double>,
+        py::arg("topography"), py::arg("connector"));
 
-  m.def(
-    "label_ocean",
-    &label_ocean< py::array_t<double, 1>, py::array_t<int, 1>, D8connector<double> > 
-    );
-
-
-  m.def(
-    "standalone_priority_flood",
-    &standalone_priority_flood<D8connector<double>, py::array_t<double, 1>, py::array_t<double, 1>, double >,
-   py::arg("topography"), py::arg("connector")
-  );
-
-  m.def(
-    "standalone_priority_flood_opti",
-    &standalone_priority_flood_opti<D8connector<double>,  DAGGER::graph<double, DAGGER::D8connector<double> >, py::array_t<double, 1>, py::array_t<double, 1>, double >,
-   py::arg("topography"), py::arg("connector"), py::arg("graph")
-  );
+  m.def("standalone_priority_flood_opti",
+        &standalone_priority_flood_opti<
+            D8connector<double>,
+            DAGGER::graph<double, DAGGER::D8connector<double>>,
+            py::array_t<double, 1>, py::array_t<double, 1>, double>,
+        py::arg("topography"), py::arg("connector"), py::arg("graph"));
 
   // m.def(
   //   "check_connector_template",
   //   &check_connector_template< D8connector<double>, double >
   // );
 
-
-  declare_popscape_old<DAGGER::D8connector<double> >(m,"popscape_old");
-  declare_popscape<DAGGER::D8connector<double> >(m,"popscape");
+  declare_popscape_old<DAGGER::D8connector<double>>(m, "popscape_old");
+  declare_popscape<DAGGER::D8connector<double>>(m, "popscape");
   // // declare_popscape_old<DAGGER::D4connector<double> >(m,"popscape_oldD4");
-  declare_trackscape<DAGGER::D8connector<double> >(m,"trackscape");
+  declare_trackscape<DAGGER::D8connector<double>>(m, "trackscape");
   // // declare_trackscape<DAGGER::D4connector<double> >(m,"trackscapeD4");
 
   py::enum_<RANDNOISE>(m, "NOISE")
-    .value("WHITE", RANDNOISE::WHITE)
-    .value("RED", RANDNOISE::RED)
-    .value("PERLIN", RANDNOISE::PERLIN)
-  ;
+      .value("WHITE", RANDNOISE::WHITE)
+      .value("RED", RANDNOISE::RED)
+      .value("PERLIN", RANDNOISE::PERLIN);
 
+  declare_graphflood<double, DAGGER::graph<double, DAGGER::D8connector<double>>,
+                     DAGGER::D8connector<double>>(m, "graphflood");
 
-  declare_graphflood< double, DAGGER::graph<double, DAGGER::D8connector<double> >, DAGGER::D8connector<double> >(m, "graphflood");
-
-
-  m.def("generate_perlin_noise_2D", &generate_perlin_noise_2D<py::array_t<double,1>, double, D8connector<double> >);
-
-  
-
-
-
-
+  m.def("generate_perlin_noise_2D",
+        &generate_perlin_noise_2D<py::array_t<double, 1>, double,
+                                  D8connector<double>>);
 };
 ;
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 // end of file
-
-
-
-

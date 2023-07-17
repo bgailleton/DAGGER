@@ -1,27 +1,23 @@
 #ifndef wrap_helper_HPP
 #define wrap_helper_HPP
 
-
 // STL imports
-#include <iostream>
-#include <string>
-#include <vector>
 #include <array>
-#include <map>
+#include <cmath>
 #include <ctime>
 #include <fstream>
+#include <initializer_list>
+#include <iostream>
+#include <map>
+#include <numeric>
 #include <queue>
 #include <stack>
-#include <iostream>
-#include <numeric>
-#include <cmath>
-#include <initializer_list>
+#include <stdlib.h>
+#include <string>
 #include <thread>
-#include<stdlib.h>
-#include<ctime>
+#include <vector>
 
 #include "utils.hpp"
-
 
 // defines all the format_input depnding on the eventual wrapper
 #ifdef DAGGER_FT_PYTHON
@@ -35,70 +31,18 @@
 #include "wrap_helper_cpp.hpp"
 #endif
 
+namespace DAGGER {
 
-namespace DAGGER
-{
-
-
-
-	template<typename in_t> 
-	auto format_input(in_t& tin){auto ret = _format_input(tin); return ret;}
-
-	template<class in_t, class out_t> 
-	out_t format_output(in_t& tin){out_t ret = _format_output(tin); return ret;}
-
-
-
-
-
+template <typename in_t> auto format_input(in_t &tin) {
+  auto ret = _format_input(tin);
+  return ret;
 }
 
+template <class in_t, class out_t> out_t format_output(in_t &tin) {
+  out_t ret = _format_output(tin);
+  return ret;
+}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+} // namespace DAGGER
 
 #endif

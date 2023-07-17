@@ -5,19 +5,25 @@
 % On linux: needs to copy paste libstdc++.so.6 from system to MATLAB system
 % otherwise does not work for some reason
 
-% Locating hte header(s) of interest (file holding the direct matlab/c++ adaptation)
-hppfiles = ["matmain.hpp"];
+% Locating hte header(s)
+of interest(file holding the direct matlab /
+            c++ adaptation) hppfiles = ["matmain.hpp"];
 
-% Path required to load the MATLAB and DAGGER-related inputs
-includepath = [fullfile(matlabroot,"extern","include"), "../../DAGGER", "../../popscape"];
+% Path required to load the MATLAB and DAGGER - related inputs includepath = [
+  fullfile(matlabroot, "extern", "include"), "../../DAGGER", "../../popscape"
+];
 
-% Libraries enabling management of MATLAB array, vectors and matrices on
-% windows
-% library_files = [fullfile(matlabroot,"extern","lib","win64","mingw64","libMatlabDataArray.lib"),...
-%     fullfile(matlabroot,"extern","lib","win64","mingw64","libMatlabEngine.lib")];
-% linux
-library_files = [fullfile(matlabroot,"extern","bin","glnxa64","libMatlabDataArray.so"),...
-    fullfile(matlabroot,"extern","bin","glnxa64","libMatlabEngine.so")];
+% Libraries enabling management of MATLAB array,
+    vectors and matrices on % windows % library_files = [
+      fullfile(matlabroot, "extern", "lib", "win64", "mingw64",
+               "libMatlabDataArray.lib"),
+      ... % fullfile(matlabroot, "extern", "lib", "win64", "mingw64",
+                     "libMatlabEngine.lib")
+    ];
+% linux library_files = [
+  fullfile(matlabroot, "extern", "bin", "glnxa64", "libMatlabDataArray.so"),
+  ... fullfile(matlabroot, "extern", "bin", "glnxa64", "libMatlabEngine.so")
+];
 
 % clibgen generates the actual binding files, all the magic happens here
 % MATLAB nicely automates the thing, but getting to this point was painful
@@ -28,8 +34,9 @@ clibgen.generateLibraryDefinition(hppfiles,... % Headers
     "Libraries",library_files,...
     IncludePath=includepath,... % finds the connected header files to include on the c++ side
     AdditionalCompilerFlags=["-std=c++17" "-O3"],... % Compiling options: I use standard c++17 constructs, and optimise to level 3
-    PackageName="DAGGER"); % in clib, the package will be ingested as DAGGER
+    PackageName="DAGGER");
+% in clib, the package will be ingested as DAGGER
 
-build(defineDAGGER);
-% path2lib = fullfile(matlabroot, "extern" ,"bin");
+               build(defineDAGGER);
+% path2lib = fullfile(matlabroot, "extern", "bin");
 % copyfile("DAGGER/DAGGERInterface.so", path2lib);

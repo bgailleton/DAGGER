@@ -16,5 +16,3 @@ gf.init_graph(con)
 
 
 fasft = ff.FF(gf,con,topo.ravel())
-
-

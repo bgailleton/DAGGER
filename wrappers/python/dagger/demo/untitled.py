@@ -37,4 +37,3 @@ B[A>=1] =1
 print(np.sum(B))
 
 input()
-

@@ -4,7 +4,7 @@ Developer guide
 ===============
 
 
-|You can find here information for extending or helping to the development of ``DAGGER``. The global philosophy is straightforward: each module follow a **standard interface**, i.e. a list of attribute and methods the given module **needs** to be compatible with the core of the framework. 
+|You can find here information for extending or helping to the development of ``DAGGER``. The global philosophy is straightforward: each module follow a **standard interface**, i.e. a list of attribute and methods the given module **needs** to be compatible with the core of the framework.
 
 |Of course, they can have as many additional functionalities as wanted - the standard interfaces are kept minimal to enforce unconditional compatibility between modules. Think of it like a car dashboard and its engine. No matter how fancy or cheap your dashboard is, there needs to be the same connectivy with the engine. THe rest of the dashboard are just optional.
 
@@ -41,7 +41,7 @@ It also need the following **methods** (written in ``c++`` format: return type n
 - ``int get_receivers_idx(int node, vector[int, nneihbours]& recs)``: take a node index, fetch its receivers (precomputed by an update_links function!), store them **in place** in the recs array and returns the number of receivers. While not the most instinctive function, it is by far the most efficient way to repeatedly fetch receivers info.
 - ``int get_donors_idx(int node, vector[int, nneihbours]& dons)``: Same idea, but with donors.
 - ``int get_neighbours_idx(int node, vector[int, nneihbours]& dons)``: Same idea, but with all neighbours.
-- ``bool flow_out_model(int node)``: uses the links and boundary condition information to determine whether flow actually leaves of the model or not. 
+- ``bool flow_out_model(int node)``: uses the links and boundary condition information to determine whether flow actually leaves of the model or not.
 - ``bool flow_out_or_pit(int node)``: Same idea, but also returns true if the node is a pit.
 - ``bool is_link_valid(int link_index)``: Check if a given link is valid or not. As link index is usually linked to node index via a geometrical relationship, some link indices can theoretically exist while not being valid depending on boundary conditions.
 - ``int get_from_link(int link_index)``: take a link index and returns the node on the donor side.

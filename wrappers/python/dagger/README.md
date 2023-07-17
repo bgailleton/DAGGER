@@ -1,6 +1,6 @@
 # `python` bindings to `DAGGER`
 
-In this folder, you can find the `python` bindings to `DAGGER` using `pybind11`. A `conda-forge` package will be available in the future, but so far you can easily install it in a `conda` environment. 
+In this folder, you can find the `python` bindings to `DAGGER` using `pybind11`. A `conda-forge` package will be available in the future, but so far you can easily install it in a `conda` environment.
 
 ## Quickstart if comfortable with `conda`
 
@@ -17,7 +17,7 @@ In this folder, you can find the `python` bindings to `DAGGER` using `pybind11`.
 
 I'll write more detailed instructions later but long story short `python` requires an **environment** to know which packages are available. To simplify its management, `conda` creates "boxes" inside the computer isolating a `python` environment in order to install anything you need in it without worrying about compatibility issues. It also provide easy ways to install and distribute libraries (not only in python but also R/Julia/C++/Whatever).
 
-Multiple implementations exists, but to guarantee full FOSS I recommend to install [`mambaforge`](https://github.com/conda-forge/miniforge#download). Once install, you can run in your terminal the `conda` commands. 
+Multiple implementations exists, but to guarantee full FOSS I recommend to install [`mambaforge`](https://github.com/conda-forge/miniforge#download). Once install, you can run in your terminal the `conda` commands.
 
 First let's create a new environment (i.e. creating the box, only needed once):
 

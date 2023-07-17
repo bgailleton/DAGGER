@@ -27,10 +27,9 @@ Contents
 ----------
 
 .. toctree::
-   
+
    quickstart
    installation
    modules
    developer
    api
-

@@ -77,7 +77,7 @@ if(run_test):
 	else:
 		print(f"{bcolors.YELLOW}Cannot run tests - you need to install pytest (pip install pytest){bcolors.ENDC}\n")
 
-	
+
 
 
 print(f"{bcolors.BOLD}Done!{bcolors.ENDC}")

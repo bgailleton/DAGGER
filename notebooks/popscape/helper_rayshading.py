@@ -14,33 +14,33 @@ from scipy.ndimage import gaussian_filter
 
 
 def rayshade(tackmod, ny, nx, ngauss_topo = 3, ngauss_water = 1, threshold_A = 1e4, img_path=None, zscale=10, fov=0, theta=135, zoom=0.75, phi=45, windowsize=(1000, 1000), shader = "desert"):
-    
+
     # Output path.
     if not img_path:
         img_path = tempfile.NamedTemporaryFile(suffix='.png').name
-    
+
     # Import needed packages.
     rayshader = rpackages.importr('rayshader')
-    
+
     z = tackmod.get_topo().reshape(ny,nx)
     z = gaussian_filter(z,ngauss_topo)
     Qw = tackmod.get_Qw().reshape(ny,nx)
     if(ngauss_water > 0):
         Qw = gaussian_filter(Qw,ngauss_water)
-    
+
     water = (Qw > threshold_A)
-    
-    
+
+
     # Convert array to matrix.
     z = np.asarray(z)
     rows, cols = z.shape
     z_mat = ro.r.matrix(z, nrow=rows, ncol=cols)
     ro.globalenv['elmat'] = z_mat
-    
+
     water = np.asarray(water)[::-1]
     water_mat = ro.r.matrix(water, nrow=rows, ncol=cols)
     ro.globalenv['wamat'] = water_mat
-    
+
     # Save python state to r.
     ro.globalenv['img_path'] = img_path
     ro.globalenv['zscale'] = zscale
@@ -49,7 +49,7 @@ def rayshade(tackmod, ny, nx, ngauss_topo = 3, ngauss_water = 1, threshold_A = 1
     ro.globalenv['zoom'] = zoom
     ro.globalenv['phi'] = phi
     ro.globalenv['windowsize'] = ro.IntVector(windowsize)
-    
+
     # Do the render.
     ro.r(f'''
         elmat %>%
@@ -67,6 +67,6 @@ def rayshade(tackmod, ny, nx, ngauss_topo = 3, ngauss_water = 1, threshold_A = 1
         Sys.sleep(0.2)
         render_snapshot(img_path)
     ''')
-    
+
     # Return path.
     return img_path

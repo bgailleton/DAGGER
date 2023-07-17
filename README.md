@@ -2,7 +2,7 @@
 
 `DAGGER` is a library to process digital topography. It is designed as a flexible backend engine for Topographic Analysis and Landscape Evolution Models, providing a range of method to calculate flow routing (Single/Multiple flow, receivers,donors,links,...), resolve local minima (fill, carve, reroute, ...) and a lot of related problems. Coded in `c++`, we provide example on how to use them natively with `python` (+TODO: `R,Julia,MATLAB,Js`).
 
-## Quickstart 
+## Quickstart
 
 - I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python) (principal and most complete/maintained frontend),
 - I want to use the [c++ version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/cpp) (the backend),

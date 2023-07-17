@@ -10,9 +10,9 @@ In order to run these examples out of the box, I reccomend you install the folow
 conda install -c conda-forge matplotlib ipympl jupyter-lab rasterio gdal numba
 
 # if you directly installed mambaforge:
-mamba install matplotlib ipympl jupyter-lab rasterio gdal numba 
+mamba install matplotlib ipympl jupyter-lab rasterio gdal numba
 ```
 
 ## Notebooks and scripts
 
-- `drainage_area`: shows how to calculate drainage area using `DAGGER`. It illustrates the differences between multiple flow direction (MFD) and single flow direction (SFD); how to preprocess a DEM and why it is important; 
+- `drainage_area`: shows how to calculate drainage area using `DAGGER`. It illustrates the differences between multiple flow direction (MFD) and single flow direction (SFD); how to preprocess a DEM and why it is important;

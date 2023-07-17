@@ -3,9 +3,9 @@
 Modules Description
 ###################
 
-| In this sections, we present the code structure, design and philosophy as well as the different modules. It does not details all the API and the different functions but the concepts and methods of the generic modules. The structure is based on 4 distinct types of module sometimes inter-connected: the ``connector``, the ``graph``, the ``wrap_helper`` and the ``algorithms``. 
+| In this sections, we present the code structure, design and philosophy as well as the different modules. It does not details all the API and the different functions but the concepts and methods of the generic modules. The structure is based on 4 distinct types of module sometimes inter-connected: the ``connector``, the ``graph``, the ``wrap_helper`` and the ``algorithms``.
 
-| These modules are connected via **standardised interfaces**, *i.e.* sets of predefined functions names and signatures that need to exists in any version of each module. 
+| These modules are connected via **standardised interfaces**, *i.e.* sets of predefined functions names and signatures that need to exists in any version of each module.
 
 | The ``connector`` and the ``graph`` modules manage everything related to node connectivity, respectively at local and global level. All their functions helps user access to relationships between nodes and their geometry (e.g. getting all the downstream receivers,  getting the immediate neighbours, converting between node indices to X/Y coordinates, ...).
 
@@ -22,7 +22,7 @@ Name Convention and Indexing
 ``Connector``
 =============
 
-| The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ... 
+| The ``connector`` modules manages the topology of the grid at a node level. In other words, it manages the type of **grid** discretising the data and can be used in a stand-alone way. It deals with everything related to a given node and its immediate neighbouring: retrieving neighbour indices, related link indices, manages boundary conditions or no data, distance between two neighbours, local slope, partitioning weights ...
 
 | Basically if you need any information concerning a node, its location and the relationship with its neighbours, this is the module to seek for. Anything "non local" will be managed by the ``graph``. Ultimately, the ``connector`` only needs geometrical plan-view information to fetch neighbours and links for each nodes (undirected graph): for example for regular grids it would be the number of row, col or the spacing in X and Y and the boundary codes (see bellow). If directionality is important, the ``connector`` can ingest a topographic field and compute a ``directed graph``, enabling the fetching of receivers and donors. Again the connector only bares this information at a node level - *i.e* which of the immediate neighbours are donors and receivers.
 
@@ -32,10 +32,10 @@ Boundary conditions
 
 ``DAGGER`` defines a number of boundary condition types in ``DAGGER/boundary_conditions.hpp``. Before reading the details, note that default sets of boundary conditions are available in ``DAGGER`` and users only need to manually set them for specific cases. Boundary conditions are ``UINT8`` integers (under the form of an enumeration for the sake of clarity) for each and every nodes and are stored in an encapsulated class in the ``connector`` (``connector.boundaries``). The latter contains a 1D array of node size of boundary codes as well as helper functions. Essentially, they will define two separate aspects of boundaries: (i) whether a link can exist between two nodes and (ii) if flux can enter/leave a cell or just in one way. The boundary codes are:
 
-- ``NO_FLOW (0)``: no data, the node will be ignored in most operations. Any link pointing to a ``NO_FLOW`` node is labelled "invalid", however ``NO_FLOW`` node can be listed when querying a list of neighbours. 
+- ``NO_FLOW (0)``: no data, the node will be ignored in most operations. Any link pointing to a ``NO_FLOW`` node is labelled "invalid", however ``NO_FLOW`` node can be listed when querying a list of neighbours.
 - ``FLOW (1)``: "normal" internal node. Flow can go through the cell in all directions but not leave the model (to the exception of explicitly unmanaged local minima).
 - ``FLOW_BUT (2)``: Not used at the moment, but provided as an hypothetical boundary label for a node that can receive and give flux but user may want to differentiate it from a normal node to add additional checks. For example this could be used in the case of specific numerical treatment of node connected to a ``OUT`` boundary.
-- ``CAN_OUT (3)``: nodes (often at the edge of the grid) where flux **can** leave the grid, but only if there is no downstream neighbours. 
+- ``CAN_OUT (3)``: nodes (often at the edge of the grid) where flux **can** leave the grid, but only if there is no downstream neighbours.
 - ``OUT (4)``: nodes (often at the edge of the grid) where flux **have to** leave the grid, even if there are downstream neighbours. Such nodes only receive flux but never give any.
 - ``FORCE_OUT (5)``: nodes (often at the edge of the grid) where flux not only **have to** leave the grid, but they will force ANY neighbours that can give flux. Such nodes only receive flux but never give any.
 - ``CANNOT_OUT (6)``: edge nodes where flux **CANNOT** leave the grid, they are basically ``FLOW`` nodes located at edges. The distinction from ``FLOW`` nodes remain important from a performance point of view: the code assumes a ``FLOW`` node has all its neighbours without checks while ``CANNOT_OUT`` nodes will spend extra computational effort to determine the exact number of neighbours (e.g. if the node is located at the first row of a regular grid).
@@ -79,4 +79,3 @@ You can find here a list of existing and planned connectors, with their developm
 - I am also slowly testing solutions for grid variants with different level of low memory usage (to the cost of performances) for processing very large grids as the memory footprint for large DEMs quickly increases.
 
 If you are interested in speeding up the addition of ``connector`` types or implement your own, see :ref:`developer`.
- 

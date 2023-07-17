@@ -3,26 +3,26 @@
 
 .. automodule:: dagger
 
-   
-   
-   
 
-   
-   
+
+
+
+
+
    .. rubric:: Functions
 
    .. autosummary::
-   
-      hillshade
-   
-   
 
-   
-   
+      hillshade
+
+
+
+
+
    .. rubric:: Classes
 
    .. autosummary::
-   
+
       D4N
       D8N
       FF
@@ -33,12 +33,3 @@
       numvecf64
       popscape
       trackscape
-   
-   
-
-   
-   
-   
-
-
-

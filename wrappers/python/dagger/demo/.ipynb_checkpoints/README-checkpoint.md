@@ -7,9 +7,8 @@ In order to run these examples out of the box, I reccomend you install the folow
 
 ```
 # If you have conda:
-conda install -c conda-forge matplotlib ipympl jupyter-lab rasterio gdal  
+conda install -c conda-forge matplotlib ipympl jupyter-lab rasterio gdal
 
 # if you directly installed mambaforge:
-mamba install matplotlib ipympl jupyter-lab rasterio gdal 
+mamba install matplotlib ipympl jupyter-lab rasterio gdal
 ```
-
