@@ -132,6 +132,7 @@ public:
   //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
   // Model options
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
   // # Is the graph SFD or MFD (or else)
   HYDRO hydromode = HYDRO::GRAPH_MFD;
@@ -158,6 +159,7 @@ public:
   CONVERGENCE convergence_mode = CONVERGENCE::NONE;
 
   // Param value holder
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
   // # Hydro timestep
   std::vector<fT> _dt_hydro = {1e-3};
@@ -211,11 +213,16 @@ public:
   std::vector<fT> _water_entries;
 
   // # Topological number correcting for MFD (see paper)
-  fT topological_number = 4. / 8;
+  fT topological_number = 4. / 8.;
 
   // # Use flow depth sensu Caesar Lisflood (only taking the height where water
   // can flow)
   bool hflow = false;
+
+  // # Is the model in hydrostationary mode
+  bool hydrostationary = true;
+  // # Experimental
+  fT Qwin_crit = 0.;
 
   // # Debugging temp holder
   bool debugntopo = true;
@@ -240,22 +247,36 @@ public:
   fT current_dt_prec = 0.;
   fT Vp = 0.;
 
+  // Setters and Getters
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # Manning's setter
   void set_mannings(fT val) { this->_mannings = {val}; }
 
-  fT get_dt_hydro() { return this->_dt_hydro[0]; }
+  // # Hydro constant timestep getter
+  fT get_dt_hydro() const { return this->_dt_hydro[0]; }
+  // # Setting the hydrologic time step to courant number
   void enable_courant_dt_hydro() {
     this->mode_dt_hydro = PARAM_DT_HYDRO::COURANT;
   }
+  // # Setting the hydrologic time step to courant number
   void disable_courant_dt_hydro() {
     this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
   }
 
+  // # Setting the courant number
   void set_courant_numer(fT val) { this->courant_number = val; };
+
+  // # Setting the max dt courant can set
   void set_max_courant_dt_hydro(fT val) { this->max_courant_dt_hydro = val; };
+
+  // # Setting the min dt courant can set
   void set_min_courant_dt_hydro(fT val) { this->min_courant_dt_hydro = val; };
 
+  // # Getting the courant dt used for the last time step
   fT get_courant_dt_hydro() { return this->courant_dt_hydro; }
 
+  // # Experimental
   int n_nodes_convergence() { return static_cast<int>(conv_nodes.size()); }
   int n_stack_convergence() {
     if (this->convergence_mode == CONVERGENCE::ALL ||
@@ -267,8 +288,41 @@ public:
     return 0;
   }
 
+  // # Set topological number
   void set_topological_number(fT val) { this->topological_number = val; };
+
+  // # get topological number
   fT get_topological_number() { return this->topological_number; };
+
+  // # Set partition method
+  void set_partition_method(MFD_PARTITIONNING &tmffmeth) {
+    this->weight_management = tmffmeth;
+  }
+
+  void set_stochaslope(fT val) {
+    this->stochaslope = true;
+    this->stochaslope_coeff = val;
+    this->connector->set_stochaticiy_for_SFD(val);
+  }
+  void disable_stochaslope() { this->stochaslope = false; }
+
+  void enable_hydrostationary() { this->hydrostationary = true; };
+  void disable_hydrostationary() { this->hydrostationary = false; };
+  void set_Qwin_crit(fT val) {
+    this->Qwin_crit = val;
+    this->hydromode = HYDRO::GRAPH_HYBRID;
+  }
+
+  void set_fixed_hw_at_boundaries(fT val) {
+    this->boundhw = BOUNDARY_HW::FIXED_HW;
+    this->bou_fixed_val = val;
+  }
+  void set_fixed_slope_at_boundaries(fT val) {
+    this->boundhw = BOUNDARY_HW::FIXED_SLOPE;
+    this->bou_fixed_val = val;
+  }
+
+  std::vector<fT> get_nT() { return this->DEBUGNTOPO; }
 
   // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   // =~=~=~=~=~= Morpho params and related functions =~=~=~=~=~=~=~
@@ -297,36 +351,8 @@ public:
   fT current_dt_prec_e = 0.;
   fT Vps = 0.;
 
-  void set_partition_method(MFD_PARTITIONNING &tmffmeth) {
-    this->weight_management = tmffmeth;
-  }
-
-  void set_stochaslope(fT val) {
-    this->stochaslope = true;
-    this->stochaslope_coeff = val;
-    this->connector->set_stochaticiy_for_SFD(val);
-  }
-  void disable_stochaslope() { this->stochaslope = false; }
-
-  bool hydrostationary = true;
-  void enable_hydrostationary() { this->hydrostationary = true; };
-  void disable_hydrostationary() { this->hydrostationary = false; };
-  fT Qwin_crit = 0.;
-  void set_Qwin_crit(fT val) {
-    this->Qwin_crit = val;
-    this->hydromode = HYDRO::GRAPH_HYBRID;
-  }
-
-  void set_fixed_hw_at_boundaries(fT val) {
-    this->boundhw = BOUNDARY_HW::FIXED_HW;
-    this->bou_fixed_val = val;
-  }
-  void set_fixed_slope_at_boundaries(fT val) {
-    this->boundhw = BOUNDARY_HW::FIXED_SLOPE;
-    this->bou_fixed_val = val;
-  }
-
-  std::vector<fT> get_nT() { return this->DEBUGNTOPO; }
+  std::vector<int> _sed_entry_nodes;
+  std::vector<fT> _sed_entries;
 
   // ######################################
   // ###### Hydro monitorers ##############
@@ -466,9 +492,6 @@ public:
   fT dt_morpho_multiplier = 1.;
   void set_dt_morpho_multiplier(fT val) { this->dt_morpho_multiplier = val; }
   std::vector<fT> _dt_morpho = {1e-3};
-
-  std::vector<int> _sed_entry_nodes;
-  std::vector<fT> _sed_entries;
 
   // ######################################
   // Parameters for Hydrograph ############
