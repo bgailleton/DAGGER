@@ -15,7 +15,7 @@ __version__ = "0.0.1"
 #	 Sort input source files if you glob sources to ensure bit-for-bit
 #	 reproducible builds (https://github.com/pybind/python_example/pull/53)
 MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None), ("BOOST_AVAILABLE", None)]
-EXTRA_COMPILE = ['-O3', '-Wall']
+EXTRA_COMPILE = ['-O3', '-Wall', '-Wextra']
 EXTRA_LINK = ['-O3']
 # LIBBR = ["boost_system"]
 LIBBR = []
