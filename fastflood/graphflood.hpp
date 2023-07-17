@@ -1,5 +1,4 @@
-#ifndef GRAPHFLOOD_HPP
-#define GRAPHFLOOD_HPP
+#pragma once
 
 // STL imports
 #include <array>
@@ -104,7 +103,35 @@ public:
   Graph_t *graph;
   Connector_t *connector;
 
-  // Model running mode
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~ Main data holders ~=~=~=~=~=~~=~=~=~=~=~~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # Hydraulic Surface elevation (bedrock + sed + water)
+  std::vector<fT> _surface;
+
+  // # Water depth
+  std::vector<fT> _hw;
+
+  // # Water discharge
+  std::vector<fT> _Qw;
+
+  // # Sediment discahrge
+  std::vector<fT> _Qs;
+
+  // # Sediment height
+  std::vector<fT> _hs;
+
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~= Hydro params and related functions ~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  // _      _      _      _      _      _      _      _
+  // )`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // Model options
 
   // # Is the graph SFD or MFD (or else)
   HYDRO hydromode = HYDRO::GRAPH_MFD;
@@ -121,12 +148,100 @@ public:
   // # How to manage tthe time step for hydrological calculation
   PARAM_DT_HYDRO mode_dt_hydro = PARAM_DT_HYDRO::COURANT;
 
+  // # How to manage Water inputs
+  WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
+
   // # How to manage boundary conditions
   BOUNDARY_HW boundhw = BOUNDARY_HW::FIXED_HW;
 
+  // # method to check convergence (Experimental)
+  CONVERGENCE convergence_mode = CONVERGENCE::NONE;
+
+  // Param value holder
+
+  // # Hydro timestep
+  std::vector<fT> _dt_hydro = {1e-3};
+
+  // # courant stuff
+  // ## actual courant number
+  fT courant_number = 5e-4;
+  // ## maximum dt under courant conditions
+  fT max_courant_dt_hydro = 1e3;
+  // ## minimum dt under courant conditions
+  fT min_courant_dt_hydro = 1e-4;
+  // ## actual time step (default -1 means not calculated yet)
+  fT courant_dt_hydro = -1;
+
+  // # minimum slope for manning's calculation
   fT minslope = 0.;
 
-  std::vector<fT> _dt_hydro = {1e-3};
+  // # Stochasticity management (experimental)
+  // ## Enable stochasticity added to the slope
+  bool stochaslope = false;
+  // # Stochasticity magnitude
+  fT stochaslope_coeff = 1.;
+  // # Stochasticity magnitude
+  fT bou_fixed_val = 0.;
+
+  // # Convergence checekrs
+  // ## nodes used to check convergence
+  std::vector<int> conv_nodes;
+  // ## Initial discharge at convergence nodes
+  std::vector<fT> conv_ini_Qw;
+  // ## tracking delta hw at convergence nodes
+  std::vector<std::vector<fT>> conv_dhw;
+  // ## tracking discharge ratio at convergence nodes
+  std::vector<std::vector<fT>> conv_Qr;
+  // ## tracking which nodes have converged
+  std::vector<std::uint8_t> converged;
+
+  // # Manning's constant
+  // ## is manning spatially constant
+  bool mode_mannings = false;
+  // ## Data holder
+  std::vector<fT> _mannings = {0.033};
+
+  // # Input discharge water
+  // ## As precipitations
+  std::vector<fT> _precipitations = {1e-4};
+  // ## As discrete entry points
+  // ### Entry points
+  std::vector<int> _water_entry_nodes;
+  // ### Entry discahrge
+  std::vector<fT> _water_entries;
+
+  // # Topological number correcting for MFD (see paper)
+  fT topological_number = 4. / 8;
+
+  // # Use flow depth sensu Caesar Lisflood (only taking the height where water
+  // can flow)
+  bool hflow = false;
+
+  // # Debugging temp holder
+  bool debugntopo = true;
+  std::vector<fT> DEBUGNTOPO;
+  fT debug_CFL = 0.;
+
+  // # Create random device and Mersenne Twister engine
+  std::random_device rd;
+  std::mt19937 gen;
+  std::uniform_int_distribution<> dis;
+
+  // Randomiser helper
+  DAGGER::easyRand randu;
+
+  // # Precipitons stuff (will wvolve or get remove or remain experimental
+  // anyway)
+  std::vector<fT> last_Smax;
+  std::vector<fT> last_dt_prec;
+  std::vector<fT> last_dt_prec_e;
+  std::vector<fT> last_sw_prec;
+  std::vector<fT> last_dx_prec;
+  fT current_dt_prec = 0.;
+  fT Vp = 0.;
+
+  void set_mannings(fT val) { this->_mannings = {val}; }
+
   fT get_dt_hydro() { return this->_dt_hydro[0]; }
   void enable_courant_dt_hydro() {
     this->mode_dt_hydro = PARAM_DT_HYDRO::COURANT;
@@ -135,22 +250,57 @@ public:
     this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
   }
 
-  fT courant_number = 5e-4;
-  fT max_courant_dt_hydro = 1e3;
-  fT min_courant_dt_hydro = 1e-4;
   void set_courant_numer(fT val) { this->courant_number = val; };
   void set_max_courant_dt_hydro(fT val) { this->max_courant_dt_hydro = val; };
   void set_min_courant_dt_hydro(fT val) { this->min_courant_dt_hydro = val; };
 
-  fT courant_dt_hydro = -1;
   fT get_courant_dt_hydro() { return this->courant_dt_hydro; }
+
+  int n_nodes_convergence() { return static_cast<int>(conv_nodes.size()); }
+  int n_stack_convergence() {
+    if (this->convergence_mode == CONVERGENCE::ALL ||
+        this->convergence_mode == CONVERGENCE::QWR)
+      return static_cast<int>(this->conv_Qr[0].size());
+    if (this->convergence_mode == CONVERGENCE::ALL ||
+        this->convergence_mode == CONVERGENCE::DHW)
+      return static_cast<int>(this->conv_dhw[0].size());
+    return 0;
+  }
+
+  void set_topological_number(fT val) { this->topological_number = val; };
+  fT get_topological_number() { return this->topological_number; };
+
+  // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  // =~=~=~=~=~= Morpho params and related functions =~=~=~=~=~=~=~
+  // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  //                   . - ~ ~ ~ - .
+  //         _     .-~               ~- .
+  //         \ `..~                       ` .
+  //           }  }              /       \   \
+// (\   \\ \~^..'                 |       }  \
+// \`.-~  o      /       }       |        /  \
+// (__          |       /        |       /    `.
+  // `- - ~ ~ -._|      /_ - ~ ~ ^|   ____/- _    `.
+  //         |     /          |     /     ~-.     ~- _
+  //         |_____|          |_____|         ~ - . _ _~_-_
+  // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+
+  // # method to manage time steps for the morpho (WIP)
+  PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
+
+  // # method to manage sediment input (WIP)
+  SED_INPUT sed_input_mode = SED_INPUT::NONE;
+
+  fT tau_max = 0.;
+  fT current_dt_prec_e = 0.;
+  fT Vps = 0.;
 
   void set_partition_method(MFD_PARTITIONNING &tmffmeth) {
     this->weight_management = tmffmeth;
   }
 
-  bool stochaslope = false;
-  fT stochaslope_coeff = 1.;
   void set_stochaslope(fT val) {
     this->stochaslope = true;
     this->stochaslope_coeff = val;
@@ -167,21 +317,6 @@ public:
     this->hydromode = HYDRO::GRAPH_HYBRID;
   }
 
-  // vecotr of node size
-  // #  Hydraulic Surface elevation (bedrock + sed + water)
-  std::vector<fT> _surface;
-
-  // # Water depth
-  std::vector<fT> _hw;
-  // # Water discharge
-  std::vector<fT> _Qw;
-
-  // # Sediment discahrge
-  std::vector<fT> _Qs;
-  // # Sediment height
-  std::vector<fT> _hs;
-
-  fT bou_fixed_val = 0.;
   void set_fixed_hw_at_boundaries(fT val) {
     this->boundhw = BOUNDARY_HW::FIXED_HW;
     this->bou_fixed_val = val;
@@ -191,29 +326,7 @@ public:
     this->bou_fixed_val = val;
   }
 
-  bool debugntopo = true;
-  std::vector<fT> DEBUGNTOPO;
   std::vector<fT> get_nT() { return this->DEBUGNTOPO; }
-
-  fT debug_CFL = 0.;
-
-  // Convergence checker
-  CONVERGENCE convergence_mode = CONVERGENCE::NONE;
-  std::vector<int> conv_nodes;
-  std::vector<fT> conv_ini_Qw;
-  std::vector<std::vector<fT>> conv_dhw;
-  std::vector<std::vector<fT>> conv_Qr;
-  std::vector<std::uint8_t> converged;
-  int n_nodes_convergence() { return static_cast<int>(conv_nodes.size()); }
-  int n_stack_convergence() {
-    if (this->convergence_mode == CONVERGENCE::ALL ||
-        this->convergence_mode == CONVERGENCE::QWR)
-      return static_cast<int>(this->conv_Qr[0].size());
-    if (this->convergence_mode == CONVERGENCE::ALL ||
-        this->convergence_mode == CONVERGENCE::DHW)
-      return static_cast<int>(this->conv_dhw[0].size());
-    return 0;
-  }
 
   // ######################################
   // ###### Hydro monitorers ##############
@@ -287,27 +400,6 @@ public:
     return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_flowvec);
   }
 
-  fT tau_max = 0.;
-
-  // EXPERIMENTAL STUFF
-  // EXPE OTHER STUFF
-  std::vector<fT> last_Smax;
-
-  // # EXPE PRECIPITIONS
-  std::vector<fT> last_dt_prec;
-  std::vector<fT> last_dt_prec_e;
-  std::vector<fT> last_sw_prec;
-  std::vector<fT> last_dx_prec;
-  fT current_dt_prec = 0.;
-  fT current_dt_prec_e = 0.;
-  fT Vp = 0.;
-  fT Vps = 0.;
-  // Create random device and Mersenne Twister engine
-  std::random_device rd;
-  std::mt19937 gen;
-  // Create uniform integer distribution
-  std::uniform_int_distribution<> dis;
-
   // ######################################
   // ###### Morpho monitorers #############
   // ######################################
@@ -371,41 +463,16 @@ public:
   ;
 
   // # ke (coefficient for erosion)
-  PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
   fT dt_morpho_multiplier = 1.;
   void set_dt_morpho_multiplier(fT val) { this->dt_morpho_multiplier = val; }
   std::vector<fT> _dt_morpho = {1e-3};
 
-  SED_INPUT sed_input_mode = SED_INPUT::NONE;
   std::vector<int> _sed_entry_nodes;
   std::vector<fT> _sed_entries;
-
-  // Randomiser helper
-  DAGGER::easyRand randu;
 
   // ######################################
   // Parameters for Hydrograph ############
   // ######################################
-
-  // # ke (coefficient for erosion)
-  bool mode_mannings = false;
-  std::vector<fT> _mannings = {0.033};
-  void set_mannings(fT val) { this->_mannings = {val}; }
-
-  // # ke (coefficient for erosion)
-  WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
-  std::vector<fT> _precipitations = {1e-4};
-  std::vector<int> _water_entry_nodes;
-  std::vector<fT> _water_entries;
-
-  // fT mannings = 0.033
-  fT topological_number = 4. / 8;
-  void set_topological_number(fT val) { this->topological_number = val; };
-  fT get_topological_number() { return this->topological_number; };
-
-  // # ke (coefficient for erosion)
-
-  bool hflow = false;
 
   graphflood() { this->gen = std::mt19937(this->rd()); };
   graphflood(Graph_t &graph, Connector_t &connector) {
@@ -3636,5 +3703,3 @@ public:
 // end of graphflood class
 
 } // namespace DAGGER
-
-#endif
