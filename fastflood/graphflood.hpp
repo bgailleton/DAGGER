@@ -265,7 +265,7 @@ public:
   }
 
   // # Setting the courant number
-  void set_courant_numer(fT val) { this->courant_number = val; };
+  void set_courant_number(fT val) { this->courant_number = val; };
 
   // # Setting the max dt courant can set
   void set_max_courant_dt_hydro(fT val) { this->max_courant_dt_hydro = val; };
@@ -274,11 +274,13 @@ public:
   void set_min_courant_dt_hydro(fT val) { this->min_courant_dt_hydro = val; };
 
   // # Getting the courant dt used for the last time step
-  fT get_courant_dt_hydro() { return this->courant_dt_hydro; }
+  fT get_courant_dt_hydro() const { return this->courant_dt_hydro; }
 
   // # Experimental
-  int n_nodes_convergence() { return static_cast<int>(conv_nodes.size()); }
-  int n_stack_convergence() {
+  int n_nodes_convergence() const {
+    return static_cast<int>(conv_nodes.size());
+  }
+  int n_stack_convergence() const {
     if (this->convergence_mode == CONVERGENCE::ALL ||
         this->convergence_mode == CONVERGENCE::QWR)
       return static_cast<int>(this->conv_Qr[0].size());
@@ -288,41 +290,160 @@ public:
     return 0;
   }
 
-  // # Set topological number
+  // # Set topological number (deprecated, now dynamically calculated)
   void set_topological_number(fT val) { this->topological_number = val; };
 
-  // # get topological number
-  fT get_topological_number() { return this->topological_number; };
+  // # get topological number (deprecated, now dynamically calculated)
+  fT get_topological_number() const { return this->topological_number; };
 
   // # Set partition method
   void set_partition_method(MFD_PARTITIONNING &tmffmeth) {
     this->weight_management = tmffmeth;
   }
 
+  // # Set the stochasticity coeff (de facto enable stochaslope stuff)
   void set_stochaslope(fT val) {
     this->stochaslope = true;
     this->stochaslope_coeff = val;
     this->connector->set_stochaticiy_for_SFD(val);
   }
+
+  // # Disable the stochasticity on slope calculations
   void disable_stochaslope() { this->stochaslope = false; }
 
+  // # Set the model to hydrostationary mode
   void enable_hydrostationary() { this->hydrostationary = true; };
+
+  // # Set the model to dynamic mode
   void disable_hydrostationary() { this->hydrostationary = false; };
+
+  // # (Past experiment, does not work) Set the model to Qwincrit
   void set_Qwin_crit(fT val) {
     this->Qwin_crit = val;
     this->hydromode = HYDRO::GRAPH_HYBRID;
   }
 
+  // # set the boundaries to a constant flow depth
   void set_fixed_hw_at_boundaries(fT val) {
     this->boundhw = BOUNDARY_HW::FIXED_HW;
     this->bou_fixed_val = val;
   }
+
+  // # set the boundaries to a constant hydraulic slope
   void set_fixed_slope_at_boundaries(fT val) {
     this->boundhw = BOUNDARY_HW::FIXED_SLOPE;
     this->bou_fixed_val = val;
   }
 
+  // # get the array of topological numbers
   std::vector<fT> get_nT() { return this->DEBUGNTOPO; }
+
+  // Optional hydraulic model monitoring
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # Tracking the total input of water added to the model
+  fT tot_Qw_input = 0;
+  fT get_tot_Qw_input() const { return this->tot_Qw_input; }
+
+  // # Tracking the total Qwin exiting the model (for mass balance cheking for
+  // example)
+  fT tot_Qwin_output = 0;
+  fT get_tot_Qwin_output() const { return this->tot_Qwin_output; }
+
+  // # Tracking the total Qwout exiting the model (for mass balance cheking for
+  // example)
+  fT tot_Qw_output = 0;
+  fT get_tot_Qw_output() const { return this->tot_Qw_output; }
+
+  // # Tracking the total Qs exiting the model (for mass balance cheking for
+  // example)
+  fT tot_Qs_output = 0;
+  fT get_tot_Qs_output() const { return this->tot_Qs_output; }
+
+  // # Qw_out recorder for the whole landscape
+  // ## switch activating the recording
+  bool record_Qw_out = false;
+  // ## Data holder
+  std::vector<fT> _rec_Qwout;
+  // ## Switching on the recording
+  void enable_Qwout_recording() { this->record_Qw_out = true; };
+  // ## Switching off the recording
+  void disable_Qwout_recording() {
+    this->record_Qw_out = false;
+    this->_rec_Qwout.clear();
+  };
+  // ## Exporting the output
+  template <class out_t> out_t get_Qwout_recording() {
+    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_Qwout);
+  }
+
+  // # Hydraulic slope recorder for the whole landscape
+  // ## switch activating the recording
+  bool record_Sw = false;
+  // ## Data holder
+  std::vector<fT> _rec_Sw;
+  // ## Switching on the recording
+  void enable_Sw_recording() { this->record_Sw = true; };
+  // ## Switching off the recording
+  void disable_Sw_recording() {
+    this->record_Sw = false;
+    this->_rec_Sw.clear();
+  };
+  // ## Exporting the output
+  template <class out_t> out_t get_Sw_recording() {
+    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_Sw);
+  }
+
+  // # Flow depth increment recorder for the whole landscape
+  // ## switch activating the recording
+  bool record_dhw = false;
+  // ## Data holder
+  std::vector<fT> _rec_dhw;
+  // ## Switching on the recording
+  void enable_dhw_recording() { this->record_dhw = true; };
+  // ## Switching off the recording
+  void disable_dhw_recording() {
+    this->record_dhw = false;
+    this->_rec_dhw.clear();
+  };
+  // ## Exporting the output
+  template <class out_t> out_t get_dhw_recording() {
+    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_dhw);
+  }
+
+  // # Local minima initial filling recorder for the whole landscape
+  // ## switch activating the recording
+  bool record_filling = false;
+  // ## Data holder
+  std::vector<fT> _rec_filling;
+  // ## Switching on the recording
+  void enable_filling_recording() { this->record_filling = true; };
+  // ## Switching off the recording
+  void disable_filling_recording() {
+    this->record_filling = false;
+    this->_rec_filling.clear();
+  };
+  // ## Exporting the output
+  template <class out_t> out_t get_filling_recording() {
+    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_filling);
+  }
+
+  // # FLow vector recorder for the whole landscape
+  // ## switch activating the recording
+  bool record_flowvec = false;
+  // ## Data holder
+  std::vector<fT> _rec_flowvec;
+  // ## Switching on the recording
+  void enable_flowvec_recording() { this->record_flowvec = true; };
+  // ## Switching off the recording
+  void disable_flowvec_recording() {
+    this->record_flowvec = false;
+    this->_rec_flowvec.clear();
+  };
+  // ## Exporting the output
+  template <class out_t> out_t get_flowvec_recording() {
+    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_flowvec);
+  }
 
   // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   // =~=~=~=~=~= Morpho params and related functions =~=~=~=~=~=~=~
@@ -353,78 +474,6 @@ public:
 
   std::vector<int> _sed_entry_nodes;
   std::vector<fT> _sed_entries;
-
-  // ######################################
-  // ###### Hydro monitorers ##############
-  // ######################################
-
-  // Low cost monitoring parameters
-  fT tot_Qw_input = 0;
-  fT get_tot_Qw_input() const { return this->tot_Qw_input; }
-
-  fT tot_Qwin_output = 0;
-  fT get_tot_Qwin_output() const { return this->tot_Qwin_output; }
-
-  fT tot_Qw_output = 0;
-  fT get_tot_Qw_output() const { return this->tot_Qw_output; }
-
-  fT tot_Qs_output = 0;
-  fT get_tot_Qs_output() const { return this->tot_Qs_output; }
-
-  bool record_Qw_out = false;
-  std::vector<fT> _rec_Qwout;
-  void enable_Qwout_recording() { this->record_Qw_out = true; };
-  void disable_Qwout_recording() {
-    this->record_Qw_out = false;
-    this->_rec_Qwout.clear();
-  };
-  template <class out_t> out_t get_Qwout_recording() {
-    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_Qwout);
-  }
-
-  bool record_Sw = false;
-  std::vector<fT> _rec_Sw;
-  void enable_Sw_recording() { this->record_Sw = true; };
-  void disable_Sw_recording() {
-    this->record_Sw = false;
-    this->_rec_Sw.clear();
-  };
-  template <class out_t> out_t get_Sw_recording() {
-    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_Sw);
-  }
-
-  bool record_dhw = false;
-  std::vector<fT> _rec_dhw;
-  void enable_dhw_recording() { this->record_dhw = true; };
-  void disable_dhw_recording() {
-    this->record_dhw = false;
-    this->_rec_dhw.clear();
-  };
-  template <class out_t> out_t get_dhw_recording() {
-    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_dhw);
-  }
-
-  bool record_filling = false;
-  std::vector<fT> _rec_filling;
-  void enable_filling_recording() { this->record_filling = true; };
-  void disable_filling_recording() {
-    this->record_filling = false;
-    this->_rec_filling.clear();
-  };
-  template <class out_t> out_t get_filling_recording() {
-    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_filling);
-  }
-
-  bool record_flowvec = false;
-  std::vector<fT> _rec_flowvec;
-  void enable_flowvec_recording() { this->record_flowvec = true; };
-  void disable_flowvec_recording() {
-    this->record_flowvec = false;
-    this->_rec_flowvec.clear();
-  };
-  template <class out_t> out_t get_flowvec_recording() {
-    return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_flowvec);
-  }
 
   // ######################################
   // ###### Morpho monitorers #############
