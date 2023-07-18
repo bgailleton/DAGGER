@@ -338,6 +338,61 @@ public:
   // # get the array of topological numbers
   std::vector<fT> get_nT() { return this->DEBUGNTOPO; }
 
+  // # Setting the timestep for constant hydro (does not have any effect if
+  // courant is on)
+  void set_dt_hydro(fT tdt) { this->_dt_hydro = {tdt}; }
+
+  // # Setting dicrete entry point for water discharge
+  template <class out_t, class in_t>
+  void set_water_input_by_entry_points(out_t &hw_entry, in_t &hw_indices) {
+    // preformatting the inputs
+    auto tin = DAGGER::format_input(hw_entry);
+    auto tin_idx = DAGGER::format_input(hw_indices);
+
+    // Setting the general mode
+    this->water_input_mode = WATER_INPUT::ENTRY_POINTS_H;
+    this->_water_entry_nodes = DAGGER::to_vec(tin_idx);
+    this->_water_entries = DAGGER::to_vec(tin);
+
+    // Correcting boundary conditions
+    for (size_t i = 0; i < this->_water_entry_nodes.size(); ++i) {
+      this->connector->boundaries.codes[this->_water_entry_nodes[i]] =
+          BC::FORCE_IN;
+    }
+  }
+
+  // # Setting global constant precipitation rates
+  void set_water_input_by_constant_precipitation_rate(fT precipitations) {
+    this->water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
+    this->_precipitations = {precipitations};
+  }
+
+  // # Setting global constant precipitation rates
+  template <class out_t>
+  void set_water_input_by_variable_precipitation_rate(out_t &precipitations) {
+    this->water_input_mode = WATER_INPUT::PRECIPITATIONS_VARIABLE;
+    auto tin = format_input(precipitations);
+    this->_precipitations = DAGGER::to_vec(tin);
+  }
+
+  // # Setting Flow partition to MFD
+  void enable_MFD() { this->hydromode = HYDRO::GRAPH_MFD; }
+
+  // # Setting Flow partition to SFD
+  void enable_SFD() { this->hydromode = HYDRO::GRAPH_SFD; }
+
+  // # Local Minima will be filled with water automatically
+  void fill_minima() { this->depression_management = HYDROGRAPH_LM::FILL; }
+
+  // # Flow will route through local minimas, negative slopes will be treated as
+  // 1e-6
+  void reroute_minima() {
+    this->depression_management = HYDROGRAPH_LM::REROUTE;
+  }
+
+  // # Flow stops at local minimas
+  void ignore_minima() { this->depression_management = HYDROGRAPH_LM::IGNORE; }
+
   // Optional hydraulic model monitoring
   //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
 
@@ -462,6 +517,10 @@ public:
   // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   // =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 
+  // The whole morpho section is highly WIP and not really detailed yet as it
+  // will really evolve
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
   // # method to manage time steps for the morpho (WIP)
   PARAM_DT_MORPHO mode_dt_morpho = PARAM_DT_MORPHO::HYDRO;
 
@@ -474,10 +533,6 @@ public:
 
   std::vector<int> _sed_entry_nodes;
   std::vector<fT> _sed_entries;
-
-  // ######################################
-  // ###### Morpho monitorers #############
-  // ######################################
 
   bool record_edot = false;
   std::vector<fT> _rec_edot;
@@ -500,10 +555,6 @@ public:
   template <class out_t> out_t get_ddot_recording() {
     return DAGGER::format_output<std::vector<fT>, out_t>(this->_rec_ddot);
   }
-
-  // ######################################
-  // Parameters for morpho ################
-  // ######################################
 
   // # a exponent for erosion
   bool mode_aexp = false;
@@ -542,81 +593,9 @@ public:
   void set_dt_morpho_multiplier(fT val) { this->dt_morpho_multiplier = val; }
   std::vector<fT> _dt_morpho = {1e-3};
 
-  // ######################################
-  // Parameters for Hydrograph ############
-  // ######################################
-
-  graphflood() { this->gen = std::mt19937(this->rd()); };
-  graphflood(Graph_t &graph, Connector_t &connector) {
-    // Ingesting graph and connectors
-    this->graph = &graph;
-    this->connector = &connector;
-
-    this->gen = std::mt19937(this->rd());
-  }
-
-  template <class topo_t> void set_topo(topo_t &topo) {
-    auto tin = DAGGER::format_input(topo);
-    std::vector<double> temp = DAGGER::to_vec(tin);
-    if (this->_hw.size() == 0)
-      this->_hw = std::vector<fT>(this->graph->nnodes, 0);
-    this->_surface = std::vector<fT>(temp);
-    for (int i = 0; i < this->graph->nnodes; ++i)
-      this->_surface[i] -= this->_hw[i];
-  }
-
-  template <class topo_t> void set_hw(topo_t &thw) {
-    auto tin = DAGGER::format_input(thw);
-    std::vector<double> temp = DAGGER::to_vec(tin);
-
-    if (this->_hw.size() == 0)
-      this->_hw = std::move(temp);
-    else {
-      for (int i = 0; i < this->graph->nnodes; ++i)
-        this->_surface[i] += temp[i] - this->_hw[i];
-      this->_hw = std::move(temp);
-    }
-  }
-
-  void set_dt_hydro(fT tdt) {
-    // this->mode_dt_hydro = PARAM_DT_HYDRO::CONSTANT;
-    this->_dt_hydro = {tdt};
-  }
-
   void set_dt_morpho(fT tdt) {
     this->mode_dt_morpho = PARAM_DT_MORPHO::CONSTANT;
     this->_dt_morpho = {tdt};
-  }
-
-  template <class out_t, class in_t>
-  void set_water_input_by_entry_points(out_t &hw_entry, in_t &hw_indices) {
-    // preformatting the inputs
-    auto tin = DAGGER::format_input(hw_entry);
-    auto tin_idx = DAGGER::format_input(hw_indices);
-
-    // Setting the general mode
-    this->water_input_mode = WATER_INPUT::ENTRY_POINTS_H;
-
-    this->_water_entry_nodes = DAGGER::to_vec(tin_idx);
-    this->_water_entries = DAGGER::to_vec(tin);
-
-    for (size_t i = 0; i < this->_water_entry_nodes.size(); ++i) {
-      this->connector->boundaries.codes[this->_water_entry_nodes[i]] =
-          BC::FORCE_IN;
-    }
-  }
-
-  // template<class out_t>
-  void set_water_input_by_constant_precipitation_rate(fT precipitations) {
-    this->water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
-    this->_precipitations = {precipitations};
-  }
-
-  template <class out_t>
-  void set_water_input_by_variable_precipitation_rate(out_t &precipitations) {
-    this->water_input_mode = WATER_INPUT::PRECIPITATIONS_VARIABLE;
-    auto tin = format_input(precipitations);
-    this->_precipitations = DAGGER::to_vec(tin);
   }
 
   template <class out_t, class in_t>
@@ -631,20 +610,6 @@ public:
     this->_sed_entry_nodes = DAGGER::to_vec(tin_idx);
     this->_sed_entries = DAGGER::to_vec(tin);
   }
-
-  fT hw(int i) { return this->_hw[i]; }
-  fT Qw(int i) { return this->_Qw[i]; }
-  fT Qs(int i) { return this->_Qs[i]; }
-  fT surface(int i) { return this->_surface[i]; }
-
-  void enable_MFD() { this->hydromode = HYDRO::GRAPH_MFD; }
-  void enable_SFD() { this->hydromode = HYDRO::GRAPH_SFD; }
-
-  void fill_minima() { this->depression_management = HYDROGRAPH_LM::FILL; }
-  void reroute_minima() {
-    this->depression_management = HYDROGRAPH_LM::REROUTE;
-  }
-  void ignore_minima() { this->depression_management = HYDROGRAPH_LM::IGNORE; }
 
   void enable_morpho() { this->morphomode = MORPHO::TL; }
   void disable_morpho() { this->morphomode = MORPHO::NONE; }
@@ -680,6 +645,119 @@ public:
     this->mode_ke = PARAM_KE::VARIABLE;
   }
 
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~= Functions setting up the model ~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  // _      _      _      _      _      _      _      _
+  // )`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // Constructors
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # Model constructor without any params (need to seed the randomiser though)
+  graphflood() { this->gen = std::mt19937(this->rd()); };
+
+  // # Model classic constructor from existing graph and connector objects
+  graphflood(Graph_t &graph, Connector_t &connector) {
+    // Ingesting graph and connectors
+    this->graph = &graph;
+    this->connector = &connector;
+
+    // Seeding the random engine
+    this->gen = std::mt19937(this->rd());
+  }
+
+  // # Setting initial topo (or updating topo from external sources)
+  template <class topo_t> void set_topo(topo_t &topo) {
+    // formatting input from higher level languages to c++ veclike stuff
+    auto tin = DAGGER::format_input(topo);
+    std::vector<double> temp = DAGGER::to_vec(tin);
+
+    // Initialising flow depth if not done yet
+    bool inithw = false;
+    if (this->_hw.size() == 0) {
+      inithw = true;
+      this->_hw = std::vector<fT>(this->graph->nnodes, 0);
+    }
+
+    // Fedding the surface (and correcting to eventual existing flow depth)
+    this->_surface = std::vector<fT>(temp);
+    if (inithw == false) {
+      for (int i = 0; i < this->graph->nnodes; ++i) {
+        this->_surface[i] += this->_hw[i];
+      }
+    }
+
+    // Done
+  }
+
+  // # Setting the flow depth to an external value
+  template <class topo_t> void set_hw(topo_t &thw) {
+    // formatting input from higher level languages to c++ veclike stuff
+    auto tin = DAGGER::format_input(thw);
+    std::vector<double> temp = DAGGER::to_vec(tin);
+
+    // case one: no preexisting flow depth, adding hw to hydraulic surface
+    if (this->_hw.size() == 0) {
+      this->_hw = std::move(temp);
+      for (int i = 0; i < this->graph->nnodes; ++i)
+        this->_surface[i] += this->_hw[i];
+    }
+    // case two: preexisting flow depth, correcting to hw
+    else {
+      for (int i = 0; i < this->graph->nnodes; ++i)
+        this->_surface[i] += temp[i] - this->_hw[i];
+      this->_hw = std::move(temp);
+    }
+  }
+
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~= Generic accessors for internal use ~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  // _      _      _      _      _      _      _      _
+  // )`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // Surfaces and Hydraulic components
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # get local flow depth at node
+  fT hw(int i) { return this->_hw[i]; }
+
+  // # get local input flow discharge at node
+  fT Qw(int i) { return this->_Qw[i]; }
+
+  // # get local sediment input discharge at node
+  fT Qs(int i) { return this->_Qs[i]; }
+
+  // # get local topographic + water surface at node
+  fT surface(int i) { return this->_surface[i]; }
+
+  // # Manning's coefficient at node
+  fT mannings(int i) {
+    if (this->mode_mannings)
+      return this->_mannings[i];
+    else
+      return this->_mannings[0];
+  }
+
+  // # Precipitation rate at node
+  fT precipitations(int i) {
+    if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
+      return this->_precipitations[i];
+    else
+      return this->_precipitations[0];
+  }
+
+  // Morpho params (WIP, no working version yet)
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # get topographic + water surface
   fT aexp(int i) {
     if (this->mode_aexp)
       return this->_aexp[i];
@@ -748,20 +826,6 @@ public:
       return this->_rho[0];
   }
 
-  fT mannings(int i) {
-    if (this->mode_mannings)
-      return this->_mannings[i];
-    else
-      return this->_mannings[0];
-  }
-
-  fT precipitations(int i) {
-    if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE)
-      return this->_precipitations[i];
-    else
-      return this->_precipitations[0];
-  }
-
   void block_uplift(fT val) {
     for (int i = 0; i < this->connector->nnodes; ++i) {
       if (this->connector->boundaries.can_out(i) == false)
@@ -777,7 +841,201 @@ public:
     }
   }
 
-  // Main running function:
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~= Running and helper functions ~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  // _      _      _      _      _      _      _      _
+  // )`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # MAin running function
+  void run() {
+    // Saving the topological number if needed
+    if (this->debugntopo)
+      this->DEBUGNTOPO = std::vector<fT>(this->connector->nnodes, 0);
+
+    this->debug_CFL = 0.;
+
+    this->tau_max = 0.;
+
+    // Graph Processing
+    this->graph_automator();
+
+    // Initialise the water discharge fields according to water input condition
+    // and other monitoring features:
+    this->init_Qw();
+
+    // reinitialising the sediments if needed
+    if (this->morphomode != MORPHO::NONE)
+      this->init_Qs();
+
+    // Am I in SFD or MFD
+    bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
+
+    // To be used if courant dt hydro is selected
+    fT tcourant_dt_hydro = std::numeric_limits<fT>::max();
+
+    // Vertical motions are applied at the end of the timestep
+    std::vector<fT> vmot, vmot_hw(this->graph->nnodes, 0.);
+
+    // -> Only initialising vertical motions for the bedrock if morpho is on
+    if (this->morphomode != MORPHO::NONE)
+      vmot = std::vector<fT>(this->graph->nnodes, 0.);
+
+    // Caching neighbours, slopes and weights
+    auto receivers = this->connector->get_empty_neighbour();
+    std::array<fT, 8> weights, slopes;
+
+    // main loop
+    for (int i = this->graph->nnodes - 1; i >= 0; --i) {
+
+      // Getting next node in line
+      int node = this->get_istack_node(i);
+
+      // Processing case where the node is a model edge, or no data
+      // this function  returns true if the node was boundary and does not need
+      // to be processed THis is where all the boundary treatment happens, if
+      // you need to add something happening at the boundaries
+      if (this->_initial_check_boundary_pit(node, receivers, vmot_hw))
+        continue;
+
+      // if(this->hydrostationary == false)
+      // {
+      // 	if(this->dt_hydro(node) > 0)
+      // 		this->_hw[node] += this->dt_hydro(node) *
+      // this->precipitations(node); 	else 		this->_hw[node] += 1e-3
+      // * this->precipitations(node);
+
+      // }
+
+      // CFL calculator
+      // fT sum_ui_over_dxi = 0.;
+
+      // Deprecated test to switch dynamically between SFD and MFD (does not
+      // really add anything and is buggy in rivers) if(this->hydromode ==
+      // HYDRO::GRAPH_HYBRID) 	SF = this->_Qw[node] < this->Qwin_crit;
+
+      // Getting the receivers
+      int nrecs;
+      if (SF)
+        nrecs = 1;
+      else
+        nrecs = this->connector->get_receivers_idx_links(node, receivers);
+
+      // Caching Slope max
+      fT Smax;
+      fT dw0max;
+      fT dx;
+      int recmax = node;
+
+      // NOTE:
+      //  No need to calculate the topological number anymore, but keeping it
+      //  for recording its value
+      fT topological_number_v2 = 0.;
+
+      this->_compute_slopes_weights_et_al(node, SF, Smax, slopes, weights,
+                                          nrecs, receivers, recmax, dx, dw0max,
+                                          topological_number_v2);
+
+      // Initialising the total Qout
+      fT Qwin = this->_Qw[node];
+
+      // precalculating the power
+      fT pohw = std::pow(this->_hw[node], TWOTHIRD);
+      // std:: cout << "pohw:" << pohw << "|" << this->_hw[node] << std::endl;
+
+      // Squarerooting Smax
+      // fT debug_S = Smax;
+      auto sqrtSmax = std::sqrt(Smax);
+
+      // Flow Velocity
+      fT u_flow = pohw * sqrtSmax / this->mannings(node);
+      // Volumetric discahrge
+      fT Qwout = dw0max * this->_hw[node] * u_flow;
+      // std::cout << Qwout << "|";
+
+      // Eventually recording Smax
+      if (this->record_Sw)
+        this->_rec_Sw[node] = Smax;
+
+      // temp calc for courant
+      // if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && this->_hw[node] >
+      // 0 && dx >0) 	sum_ui_over_dxi = u_flow/dx;
+
+      // Automates the computation of morpho LEM if needed
+      this->_compute_morpho(node, recmax, dx, Smax, vmot);
+
+      // transfer fluxes
+      // Computing the transfer of water and sed
+      this->_compute_transfers(nrecs, recmax, node, SF, receivers, weights,
+                               Qwin, Qwout);
+
+      // Computing courant based dt
+      if (this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && u_flow > 0) {
+        fT provisional_dt = (this->courant_number * dx) / u_flow;
+        provisional_dt = std::min(provisional_dt, this->max_courant_dt_hydro);
+        provisional_dt = std::max(provisional_dt, this->min_courant_dt_hydro);
+        tcourant_dt_hydro = std::min(provisional_dt, tcourant_dt_hydro);
+      }
+
+      // computing hydro vertical motion changes for next time step
+      if (this->hydrostationary)
+        vmot_hw[node] +=
+            (this->_Qw[node] - Qwout) / this->connector->get_area_at_node(node);
+      else
+        vmot_hw[node] +=
+            (this->_Qw[node] - Qwout) / this->connector->get_area_at_node(node);
+
+      if (this->record_Qw_out)
+        this->_rec_Qwout[node] += Qwout;
+    }
+
+    // if(this->tau_max > 500)
+    // 	std::cout << "WARNING::tau_max is " << this->tau_max << std::endl;
+
+    // END OF MAIN LOOP
+
+    // Computing final courant based dt
+
+    if (this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT) {
+      if (this->courant_dt_hydro == -1)
+        this->courant_dt_hydro = 1e-3;
+      else if (tcourant_dt_hydro > 0 &&
+               tcourant_dt_hydro != std::numeric_limits<fT>::max())
+        this->courant_dt_hydro = tcourant_dt_hydro;
+    }
+
+    if (this->convergence_mode == CONVERGENCE::ALL ||
+        this->convergence_mode == CONVERGENCE::DHW) {
+      for (int i = 0; i < this->n_nodes_convergence(); ++i)
+        this->conv_dhw[i].emplace_back(
+            vmot_hw[this->conv_nodes
+                        [i]]); // /this->dt_hydro(this->conv_nodes[i]));
+    }
+
+    if (this->convergence_mode == CONVERGENCE::ALL ||
+        this->convergence_mode == CONVERGENCE::QWR) {
+      for (int i = 0; i < this->n_nodes_convergence(); ++i)
+        this->conv_Qr[i].emplace_back(this->_rec_Qwout[this->conv_nodes[i]] /
+                                      this->_Qw[this->conv_nodes[i]]);
+    }
+
+    // Applying vmots with the right dt
+    this->_compute_vertical_motions(vmot_hw, vmot);
+  }
+
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~= Legacy archive ~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  // _      _      _      _      _      _      _      _
+  // )`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_)`'-.,_
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+  //~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=
+
+  // # DEPRECATED
   void _run() {
 
     if (this->debugntopo)
@@ -1180,8 +1438,8 @@ public:
     // std::cout << "CFL::" << this->debug_CFL << std::endl;
   }
 
-  // Main running function (version 2)
-  void run() {
+  // # DEPRECATED
+  void __run() {
 
     // if(this->hydrostationary)
     if (true) {
@@ -1193,181 +1451,7 @@ public:
       this->_run_dynamics();
   }
 
-  void _run_hydrostationary() {
-    // Saving the topological number if needed
-    if (this->debugntopo)
-      this->DEBUGNTOPO = std::vector<fT>(this->connector->nnodes, 0);
-
-    this->debug_CFL = 0.;
-
-    this->tau_max = 0.;
-
-    // Graph Processing
-    this->graph_automator();
-
-    // Initialise the water discharge fields according to water input condition
-    // and other monitoring features:
-    this->init_Qw();
-
-    // reinitialising the sediments if needed
-    if (this->morphomode != MORPHO::NONE)
-      this->init_Qs();
-
-    // Am I in SFD or MFD
-    bool SF = (this->hydromode == HYDRO::GRAPH_SFD);
-
-    // To be used if courant dt hydro is selected
-    fT tcourant_dt_hydro = std::numeric_limits<fT>::max();
-
-    // Vertical motions are applied at the end of the timestep
-    std::vector<fT> vmot, vmot_hw(this->graph->nnodes, 0.);
-
-    // -> Only initialising vertical motions for the bedrock if morpho is on
-    if (this->morphomode != MORPHO::NONE)
-      vmot = std::vector<fT>(this->graph->nnodes, 0.);
-
-    // Caching neighbours, slopes and weights
-    auto receivers = this->connector->get_empty_neighbour();
-    std::array<fT, 8> weights, slopes;
-
-    // main loop
-    for (int i = this->graph->nnodes - 1; i >= 0; --i) {
-
-      // Getting next node in line
-      int node = this->get_istack_node(i);
-
-      // Processing case where the node is a model edge, or no data
-      // this function  returns true if the node was boundary and does not need
-      // to be processed THis is where all the boundary treatment happens, if
-      // you need to add something happening at the boundaries
-      if (this->_initial_check_boundary_pit(node, receivers, vmot_hw))
-        continue;
-
-      // if(this->hydrostationary == false)
-      // {
-      // 	if(this->dt_hydro(node) > 0)
-      // 		this->_hw[node] += this->dt_hydro(node) *
-      // this->precipitations(node); 	else 		this->_hw[node] += 1e-3
-      // * this->precipitations(node);
-
-      // }
-
-      // CFL calculator
-      // fT sum_ui_over_dxi = 0.;
-
-      // Deprecated test to switch dynamically between SFD and MFD (does not
-      // really add anything and is buggy in rivers) if(this->hydromode ==
-      // HYDRO::GRAPH_HYBRID) 	SF = this->_Qw[node] < this->Qwin_crit;
-
-      // Getting the receivers
-      int nrecs;
-      if (SF)
-        nrecs = 1;
-      else
-        nrecs = this->connector->get_receivers_idx_links(node, receivers);
-
-      // Caching Slope max
-      fT Smax;
-      fT dw0max;
-      fT dx;
-      int recmax = node;
-
-      // NOTE:
-      //  No need to calculate the topological number anymore, but keeping it
-      //  for recording its value
-      fT topological_number_v2 = 0.;
-
-      this->_compute_slopes_weights_et_al(node, SF, Smax, slopes, weights,
-                                          nrecs, receivers, recmax, dx, dw0max,
-                                          topological_number_v2);
-
-      // Initialising the total Qout
-      fT Qwin = this->_Qw[node];
-
-      // precalculating the power
-      fT pohw = std::pow(this->_hw[node], TWOTHIRD);
-      // std:: cout << "pohw:" << pohw << "|" << this->_hw[node] << std::endl;
-
-      // Squarerooting Smax
-      // fT debug_S = Smax;
-      auto sqrtSmax = std::sqrt(Smax);
-
-      // Flow Velocity
-      fT u_flow = pohw * sqrtSmax / this->mannings(node);
-      // Volumetric discahrge
-      fT Qwout = dw0max * this->_hw[node] * u_flow;
-      // std::cout << Qwout << "|";
-
-      // Eventually recording Smax
-      if (this->record_Sw)
-        this->_rec_Sw[node] = Smax;
-
-      // temp calc for courant
-      // if(this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && this->_hw[node] >
-      // 0 && dx >0) 	sum_ui_over_dxi = u_flow/dx;
-
-      // Automates the computation of morpho LEM if needed
-      this->_compute_morpho(node, recmax, dx, Smax, vmot);
-
-      // transfer fluxes
-      // Computing the transfer of water and sed
-      this->_compute_transfers(nrecs, recmax, node, SF, receivers, weights,
-                               Qwin, Qwout);
-
-      // Computing courant based dt
-      if (this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT && u_flow > 0) {
-        fT provisional_dt = (this->courant_number * dx) / u_flow;
-        provisional_dt = std::min(provisional_dt, this->max_courant_dt_hydro);
-        provisional_dt = std::max(provisional_dt, this->min_courant_dt_hydro);
-        tcourant_dt_hydro = std::min(provisional_dt, tcourant_dt_hydro);
-      }
-
-      // computing hydro vertical motion changes for next time step
-      if (this->hydrostationary)
-        vmot_hw[node] +=
-            (this->_Qw[node] - Qwout) / this->connector->get_area_at_node(node);
-      else
-        vmot_hw[node] +=
-            (this->_Qw[node] - Qwout) / this->connector->get_area_at_node(node);
-
-      if (this->record_Qw_out)
-        this->_rec_Qwout[node] += Qwout;
-    }
-
-    // if(this->tau_max > 500)
-    // 	std::cout << "WARNING::tau_max is " << this->tau_max << std::endl;
-
-    // END OF MAIN LOOP
-
-    // Computing final courant based dt
-
-    if (this->mode_dt_hydro == PARAM_DT_HYDRO::COURANT) {
-      if (this->courant_dt_hydro == -1)
-        this->courant_dt_hydro = 1e-3;
-      else if (tcourant_dt_hydro > 0 &&
-               tcourant_dt_hydro != std::numeric_limits<fT>::max())
-        this->courant_dt_hydro = tcourant_dt_hydro;
-    }
-
-    if (this->convergence_mode == CONVERGENCE::ALL ||
-        this->convergence_mode == CONVERGENCE::DHW) {
-      for (int i = 0; i < this->n_nodes_convergence(); ++i)
-        this->conv_dhw[i].emplace_back(
-            vmot_hw[this->conv_nodes
-                        [i]]); // /this->dt_hydro(this->conv_nodes[i]));
-    }
-
-    if (this->convergence_mode == CONVERGENCE::ALL ||
-        this->convergence_mode == CONVERGENCE::QWR) {
-      for (int i = 0; i < this->n_nodes_convergence(); ++i)
-        this->conv_Qr[i].emplace_back(this->_rec_Qwout[this->conv_nodes[i]] /
-                                      this->_Qw[this->conv_nodes[i]]);
-    }
-
-    // Applying vmots with the right dt
-    this->_compute_vertical_motions(vmot_hw, vmot);
-  }
-
+  // # DEPRECATED EXPERIMENT
   void _run_hydrostationary_lock() {
     // Saving the topological number if needed
     if (this->debugntopo)
@@ -1540,6 +1624,7 @@ public:
     this->_compute_vertical_motions(vmot_hw, vmot);
   }
 
+  // # DEPRECATED EXPERIMENT
   void _run_hydrostationary_averaged_test() {
     // Saving the topological number if needed
     if (this->debugntopo)
@@ -1702,6 +1787,7 @@ public:
     this->_compute_vertical_motions_averaged_test(vmot_hw, vmot);
   }
 
+  // # DEPRECATED EXPERIMENT
   void
   _run_hydrostationary_subgraph_test() { /*
                                                 //
@@ -1884,6 +1970,7 @@ public:
                                         */
   }
 
+  // # DEPRECATED
   void _run_dynamics() {
     // Saving the topological number if needed
     if (this->debugntopo)
