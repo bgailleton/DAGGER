@@ -1302,8 +1302,8 @@ void declare_graphflood(py::module &m, std::string typestr) {
 
       .def("get_courant_dt_hydro",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
-      .def("set_courant_numer",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_numer)
+      .def("set_courant_number",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_number)
       .def("set_max_courant_dt_hydro",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
       .def("set_min_courant_dt_hydro",
