@@ -4,7 +4,7 @@
 
 ## Quickstart
 
-- I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python) (principal and most complete/maintained frontend),
+- I want to use the [python version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/python/deployment/dagger) (principal and most complete/maintained frontend),
 - I want to use the [c++ version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/cpp) (the backend),
 - I am interested by the [MATLAB version](https://github.com/bgailleton/DAGGER/tree/main/wrappers/MATLAB) (still fiddling with the details, not working yet, see local README),
 - To do: the other bindings
