@@ -12,6 +12,14 @@ ymin = 0.;
 
 topo = clib.DAGGER.quick_fluvial_topo(5, "periodic_EW");
 
+gut = rand(1, (nx * nx));
+
+% sqrt(size(topo.double)) size(topo.double)
+
+        size(gut)
+
+            topor = topo + gut;
+
 % daggerFD = clib.DAGGER.daggerFD_double_Int_();
 % daggerFD.init(nx, ny, dx, dy, xmin, ymin, "periodic_EW");
 % % f = figure;

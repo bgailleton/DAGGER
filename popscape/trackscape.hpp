@@ -25,7 +25,6 @@
 #include <iostream>
 #include <map>
 #include <numeric>
-#include <omp.h>
 #include <queue>
 #include <stack>
 #include <stdlib.h>

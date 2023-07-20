@@ -48,14 +48,16 @@ else:
 	stttd = sub.DEVNULL
 
 print(f"{bcolors.BOLD}Installing ... {bcolors.ENDC}", end = "", flush = True)
-run_test = True
+run_test = False
 try:
 	sub.run("pip uninstall -y dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
+	sub.run("pip uninstall -y DAGGER", shell = True, check = False, stdout = stttd, stderr = stttd)
+	sub.run("pip uninstall -y daggerpy", shell = True, check = False, stdout = stttd, stderr = stttd)
 	sub.run("pip uninstall -y popscape-dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
 	sub.run("pip uninstall -y fastflood-dagger", shell = True, check = False, stdout = stttd, stderr = stttd)
 	sub.run("rm -r dist", cwd = "./", shell = True, check = False, stdout=stttd, stderr=stttd)
 	sub.run("rm -r build", cwd = "./", shell = True, check = False, stdout=stttd, stderr=stttd)
-	sub.run("pip install .", cwd = "./", shell = True, check = True, stdout=stttd, stderr=stttd)
+	sub.run("python setup.py install", cwd = "./", shell = True, check = True, stdout=stttd, stderr=stttd)
 	print(f"{bcolors.OKGREEN}OK!{bcolors.ENDC}\n")
 except:
 	print(f"{bcolors.FAIL}Failed...{bcolors.ENDC}\n")

@@ -21,10 +21,10 @@
 // template<class fT>
 // matlab::data::TypedArray<double> quick_fluvial_topo(int ncycles, std::string
 // boundaries)
-matlab::data::Array quick_fluvial_topo(int ncycles, std::string boundaries) {
-  auto ttopo = DAGGER::_quick_fluvial_topo<double>(ncycles, boundaries);
-  return DAGGER::format_output<decltype(ttopo),
-                               matlab::data::TypedArray<double>>(ttopo);
+std::vector<double> quick_fluvial_topo(int ncycles, std::string boundaries) {
+  return DAGGER::_quick_fluvial_topo<double>(ncycles, boundaries);
+  // return DAGGER::format_output<decltype(ttopo),
+  //                            matlab::data::TypedArray<double>>(ttopo);
 }
 
 // fT is the generic floating point type
@@ -52,13 +52,12 @@ public:
     this->graph = DAGGER::graph<fT, DAGGER::D8connector<fT>>(this->connector);
   }
 
-  matlab::data::TypedArray<fT> compute(matlab::data::TypedArray<fT> &ttopo,
-                                       bool SFD) {
+  std::vector<double> compute(std::vector<double> &ttopo, bool SFD) {
     // std::vector<fT> topo = DAGGER::to_vec(ttopo);
-    matlab::data::TypedArray<fT> ret =
-        this->graph.template compute_graph<matlab::data::TypedArray<fT>,
-                                           matlab::data::TypedArray<fT>>(
-            ttopo, SFD, false);
+    std::vector<double> ret =
+        this->graph
+            .template compute_graph<std::vector<double>, std::vector<double>>(
+                ttopo, SFD, false);
     if (SFD) {
       this->ix = std::vector<int_t>(this->nxy, 0);
       this->ixc = std::vector<int_t>(this->nxy, 0);
@@ -73,9 +72,10 @@ public:
     return ret;
   }
 
-  matlab::data::TypedArray<fT> get_DA() {
-    return this->graph.template accumulate_constant_downstream_SFD<
-        matlab::data::TypedArray<fT>>(this->dx * this->dy);
+  std::vector<fT> get_DA() {
+    return this->graph
+        .template accumulate_constant_downstream_SFD<std::vector<fT>>(this->dx *
+                                                                      this->dy);
   }
 
 private:

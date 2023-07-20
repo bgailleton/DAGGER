@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 import os
 import platform
 
-__version__ = "0.0.1"
+__version__ = "0.0.2"
 
 
 
@@ -103,13 +103,12 @@ setup(
     long_description=readme + '\n\n' + history,
     include_package_data=True,
     keywords='dagger',
-    name='DAGGER',
-    packages=find_packages(include=['dagger', 'dagger.*']),
+    name='daggerpy',
     test_suite='tests',
     tests_require=test_requirements,
     ext_modules=ext_modules,
     url='https://github.com/bgailleton/DAGGER',
-    version='0.0.1',
+    version=__version__,
     zip_safe=False,
     cmdclass={"build_ext": build_ext},
 )

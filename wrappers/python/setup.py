@@ -37,8 +37,8 @@ ext_modules = [
 					define_macros = MACROS,
 					cxx_std=17,
 
-	       			 extra_compile_args=EXTRA_COMPILE,
-	       			 extra_link_args=EXTRA_LINK,
+					 extra_compile_args=EXTRA_COMPILE,
+					 extra_link_args=EXTRA_LINK,
 
 				),
 ]
