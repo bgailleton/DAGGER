@@ -2297,6 +2297,9 @@ B.G.
   m.def("generate_perlin_noise_2D",
         &generate_perlin_noise_2D<py::array_t<double, 1>, double,
                                   D8connector<double>>);
+
+  m.def("quick_fluvial_topo",
+        &quick_fluvial_topo<float, py::array_t<float, 1>>);
 };
 ;
 

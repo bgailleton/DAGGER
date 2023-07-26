@@ -1333,6 +1333,8 @@ void declare_graphflood(py::module &m, std::string typestr) {
       .def("run_graphipiton",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_graphipiton)
       .def("run_exp", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_exp)
+      .def("run_hydro_only",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_hydro_only)
 
       .def("define_precipitations_Ath",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::define_precipitations_Ath)
@@ -2297,6 +2299,9 @@ B.G.
   m.def("generate_perlin_noise_2D",
         &generate_perlin_noise_2D<py::array_t<double, 1>, double,
                                   D8connector<double>>);
+
+  m.def("quick_fluvial_topo",
+        &quick_fluvial_topo<float, py::array_t<float, 1>>);
 };
 ;
 

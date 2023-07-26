@@ -1,5 +1,7 @@
-#ifndef BITHELPER_HPP
-#define BITHELPER_HPP
+#pragma once
+
+#include <immintrin.h>
+
 #include <bitset>
 #include <cassert>
 
@@ -7,6 +9,85 @@ static inline __m256i blendvps_si256(__m256i &a, __m256i &b, __m256i &mask) {
   __m256 res = _mm256_blendv_ps(_mm256_castsi256_ps(a), _mm256_castsi256_ps(b),
                                 _mm256_castsi256_ps(mask));
   return _mm256_castps_si256(res);
+}
+
+template <class Ti>
+void reorderVectors(const std::vector<Ti> &indices, std::vector<float> &out,
+                    const std::vector<std::vector<float>> &inputVectors) {
+  const int vectorSize = inputVectors[0].size();
+  const int numVectors = inputVectors.size();
+
+  // Create an array of AVX registers to store the reordered elements
+  __m256 outRegisters[numVectors];
+
+  // Process elements in chunks of 8 using AVX2
+  for (int i = 0; i < vectorSize; i += 8) {
+    // Load 8 indices into an AVX register
+    __m256i indexVector = _mm256_loadu_si256((__m256i *)&indices[i]);
+
+    // Gather elements from input vectors based on the indices
+    for (int v = 0; v < numVectors; ++v) {
+      const float *inputVector = inputVectors[v].data();
+      __m256i gatherIndices =
+          _mm256_add_epi32(indexVector, _mm256_set1_epi32(v * vectorSize));
+      outRegisters[v] =
+          _mm256_i32gather_ps(inputVector, gatherIndices, sizeof(float));
+    }
+
+    // Store the gathered elements to the output array
+    for (int v = 0; v < numVectors; ++v) {
+      _mm256_storeu_ps(&out[v * vectorSize + i], outRegisters[v]);
+    }
+  }
+}
+
+template <class Ti>
+void reorderVector_classics(const std::vector<Ti> &indices,
+                            std::vector<float> &out,
+                            const std::vector<float> &inputVectors) {
+  for (int i = 0; i < indices.size(); ++i) {
+    // int ni = indices[i];
+    out[i] = inputVectors[indices[i]];
+  }
+}
+
+template <class Ti>
+void reorderVector_classics_R_r(const std::vector<Ti> &indices,
+                                std::vector<float> &out,
+                                const std::vector<float> &inputVectors) {
+  for (int i = indices.size() - 1; i >= 0; --i) {
+    // int ni = indices[i];
+    out[indices[i]] = inputVectors[i];
+  }
+}
+
+template <class Ti>
+void reorderVector_classics_R(const std::vector<Ti> &indices,
+                              std::vector<float> &out,
+                              const std::vector<float> &inputVectors) {
+  for (int i = indices.size() - 1; i >= 0; --i) {
+    // int ni = indices[i];
+    out[i] = inputVectors[indices[i]];
+  }
+}
+
+template <class Ti>
+void reorderVector(const std::vector<Ti> &indices, std::vector<float> &data,
+                   const std::vector<float> &inputVectors) {
+  const int N = data.size();
+
+  // Process elements in chunks of 8 using AVX2
+  for (int i = 0; i < N; i += 8) {
+    // Load 8 indices into an AVX register
+    __m256i indexVector = _mm256_loadu_si256((__m256i *)&indices[i]);
+
+    // Gather elements from the data vector based on the indices
+    __m256 gatheredData =
+        _mm256_i32gather_ps(inputVectors.data(), indexVector, sizeof(float));
+
+    // Store the gathered elements to the output array
+    _mm256_storeu_ps(&data[i], gatheredData);
+  }
 }
 
 // This function has been checked on the 5th of July
@@ -312,4 +393,19 @@ void reversedRadixSort(std::vector<uint32_t> &arr, int start, int end) {
   }
 }
 
-#endif
+template <class T, class S, class C>
+S &Container(std::priority_queue<T, S, C> &q) {
+  struct HackedQueue : private std::priority_queue<T, S, C> {
+    static S &Container(std::priority_queue<T, S, C> &q) {
+      return q.*&HackedQueue::c;
+    }
+  };
+  return HackedQueue::Container(q);
+}
+
+template <class T, class S> S &Container(std::stack<T, S> &q) {
+  struct HackedQueue : private std::stack<T, S> {
+    static S &Container(std::stack<T, S> &q) { return q.*&HackedQueue::c; }
+  };
+  return HackedQueue::Container(q);
+}

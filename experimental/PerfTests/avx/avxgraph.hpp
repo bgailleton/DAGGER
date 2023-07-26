@@ -1,5 +1,5 @@
-#ifndef GRAPHAVX_HPP
-#define GRAPHAVX_HPP
+#pragma once
+
 #include "avxcon.hpp"
 
 template <class Connector_t> class graphavx {
@@ -118,6 +118,84 @@ public:
   void toposort_SFD_beta() {
     this->stack.clear();
     this->stack.reserve(this->connector->nxy);
+
+    bool opti_space = false;
+    // std::cout << "B" << std::endl;
+
+    std::array<std::stack<int, std::vector<int>>, 8> nextnodes;
+    // std::cout << "C" << std::endl;
+
+    std::vector<int> bezlvl;
+    bezlvl.reserve(this->connector->nx * 10);
+    // std::cout << "D" << std::endl;
+
+    for (int i = 0; i < this->connector->nxy; ++i) {
+      if (this->connector->Sreceivers(i) == i) {
+        bezlvl.emplace_back(i);
+      }
+    }
+    // std::cout << "E" << std::endl;
+
+    for (int i = 0; i < 8; ++i)
+      nextnodes[i].emplace(bezlvl[i]);
+
+    // std::cout << "A" << std::endl;
+    int bslr = 8;
+    int nempty = 1;
+    std::array<int, 8> neighbours;
+    int nn;
+
+    while (nempty != 8) {
+      nempty = 0;
+      bool reverse = false;
+      for (int i = 0; i < 8; ++i) {
+        if (nextnodes[i].empty()) {
+          ++nempty;
+          continue;
+        }
+
+        int node = nextnodes[i].top();
+        nextnodes[i].pop();
+
+        this->stack.emplace_back(node);
+        nn = this->connector->SDonors(node, neighbours);
+        for (int j = 0; j < nn; ++j)
+          nextnodes[i].emplace(neighbours[j]);
+
+        if (nextnodes[i].empty()) {
+          if (bslr < static_cast<int>(bezlvl.size())) {
+            nextnodes[i].emplace(bezlvl[bslr]);
+            ++bslr;
+          } else if (opti_space) {
+            for (int ii = 0; ii < 8; ++ii) {
+              if (nextnodes[ii].size() > 1) {
+                // reverse = true;
+                std::vector<int> &cont = Container(nextnodes[ii]);
+                nextnodes[i].emplace(cont.back());
+                cont.pop_back();
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      // padding
+      for (int i = 0; i < nempty; ++i) {
+        this->stack.emplace_back(0);
+      }
+
+      // if(reverse)
+      // {
+      //   for(int i =0; i<4; ++i)
+      //     std::swap(nextnodes[i],nextnodes[7-i]);
+      // }
+    }
+  }
+
+  void toposort_SFD_beta_1() {
+    this->stack.clear();
+    this->stack.reserve(this->connector->nxy);
     // this->leveler.clear();
     // this->leveler.reserve(this->connector->nxy);
     this->argstack.clear();
@@ -230,10 +308,10 @@ public:
       // // if(i > this->connector->nx * 10) printM256(ttArecs);
       // ttArecs = _mm256_add_ps(tadd,ttArecs);
       // // if(i > this->connector->nx * 10) printM256(ttArecs);
-      std::array<int, 8> ino{this->stack[i - 0], this->stack[i - 1],
-                             this->stack[i - 2], this->stack[i - 3],
-                             this->stack[i - 4], this->stack[i - 5],
-                             this->stack[i - 6], this->stack[i - 7]};
+      std::array<uint32_t, 8> ino{this->stack[i - 0], this->stack[i - 1],
+                                  this->stack[i - 2], this->stack[i - 3],
+                                  this->stack[i - 4], this->stack[i - 5],
+                                  this->stack[i - 6], this->stack[i - 7]};
       std::array<int, 8> recs{this->connector->Sreceivers(ino[0]),
                               this->connector->Sreceivers(ino[1]),
                               this->connector->Sreceivers(ino[2]),
@@ -295,6 +373,30 @@ public:
   }
 
   std::vector<float> _compute_drainage_area_beta() {
+
+    std::vector<float> tDA(this->stack.size(),
+                           this->connector->get_cell_area(0));
+
+    // Perform vectorized addition A[i + 8] += A[i] using AVX2
+    for (int i = 0; i < this->stack.size() - 8; i += 8) {
+      __m256 vecA =
+          _mm256_loadu_ps(&tDA[i]); // Load 8 elements from A[i] to A[i + 7]
+      __m256 vecB = _mm256_loadu_ps(
+          &tDA[i + 8]); // Load 8 elements from A[i + 8] to A[i + 15]
+      __m256 result = _mm256_add_ps(vecA, vecB); // Perform vectorized addition
+      _mm256_storeu_ps(
+          &tDA[i + 8],
+          result); // Store the result back to A[i + 8] to A[i + 15]
+    }
+
+    // return tDA;
+
+    std::vector<float> DA(this->connector->nxy);
+    reorderVector_classics_R_r(this->stack, DA, tDA);
+    return DA;
+  }
+
+  std::vector<float> _compute_drainage_area_beta1() {
     std::vector<float> tA(this->connector->nxy,
                           this->connector->get_cell_area(0));
     float *ptrA = tA.data();
@@ -446,5 +548,3 @@ public:
     npy::SaveArrayAsNumpy(path, fortran_order, shape.size(), shape.data(), tA);
   }
 };
-
-#endif

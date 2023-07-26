@@ -600,6 +600,12 @@ std::vector<fT> _quick_fluvial_topo(int ncycles, std::string boundaries) {
   return psc.topography;
 }
 
+template <class fT, class out_t>
+out_t quick_fluvial_topo(int ncycles, std::string boundaries) {
+  std::vector<fT> out = _quick_fluvial_topo<fT>(ncycles, boundaries);
+  return DAGGER::format_output<std::vector<fT>, out_t>(out);
+}
+
 // End of namespace fastflood
 }; // namespace DAGGER
 

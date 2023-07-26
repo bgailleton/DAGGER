@@ -52,6 +52,8 @@ public:
   int nlinks() { return this->nnodes * 4; };
   size_t nnodes_t = 0;
 
+  int nxy() const { return this->nnodes; }
+
   static const int nneighbours = 8;
   static const size_t nneighbours_t = 8;
 
@@ -164,6 +166,9 @@ public:
     // this->_allocate_vectors();
     // this->precompute_links();
   }
+
+  // Complying to the standard
+  int tSreceivers(int i) const { return this->Sreceivers[i]; };
 
   template <class topo_t> void update_links_from_topo(topo_t &ttopo) {
     auto topo = format_input(ttopo);
