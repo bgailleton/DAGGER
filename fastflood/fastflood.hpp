@@ -292,7 +292,7 @@ public:
     std::vector<bool> done(this->connector->nnodes, false);
     for (int ti = this->connector->nnodes - 1; ti >= 0; --ti) {
       int i = int(this->graph->Sstack[ti]);
-      int rec = this->connector->Sreceivers[i];
+      int rec = this->connector->_Sreceivers[i];
 
       if (gradients[i] < 0) {
         ++nneg;
@@ -831,7 +831,7 @@ public:
 
     for (int i = 0; i < this->graph->nnodes; ++i) {
       if (!this->connector->flow_out_model(i)) {
-        int rec = this->connector->Sreceivers[i];
+        int rec = this->connector->_Sreceivers[i];
         float_t dx = this->connector->Sdistance2receivers[i];
         S_h[i] = std::max((this->topography[i] + this->hw[i] -
                            this->topography[rec] - this->hw[rec]) /
@@ -1065,7 +1065,7 @@ public:
         continue;
 
       // Receiver node
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
 
       // distance to the next node and to othogonal nodes
       float_t tdx = this->connector->Sdistance2receivers[node];
@@ -3456,7 +3456,7 @@ public:
             throw std::runtime_error("EQUALITYYYYYY");
         }
 
-        if (this->connector->Sreceivers[i] != steepest_i)
+        if (this->connector->_Sreceivers[i] != steepest_i)
           throw std::runtime_error("QQQQWAGYNIARD");
       }
     }

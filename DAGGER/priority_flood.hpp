@@ -202,7 +202,7 @@ void _PriorityFool(std::vector<fT> &topography, Connector_t *connector,
         fT ts = (topography[n] - topography[c.node]) / dx;
         if (ts >= connector->SS[n]) {
           connector->SS[n] = ts;
-          connector->Sreceivers[n] = c.node;
+          connector->_Sreceivers[n] = c.node;
           connector->Sdistance2receivers[n] = dx;
         }
       }
@@ -309,7 +309,7 @@ bool PriorityFlood_opti(std::vector<fT> &topography, Connector_t &connector,
     }
 
     if (connector.boundaries.can_out(node) == false) {
-      closed[node] = closed[connector.Sreceivers[node]];
+      closed[node] = closed[connector._Sreceivers[node]];
 
       if (closed[node])
         ++checker;

@@ -306,7 +306,7 @@ graph, links, nodes and local minima The core of the code in other words.
       // {
       // 	// need_recompute = simple_depression_hierarchy<fT,
       // std::vector<fT>, Connector_t >(faketopo, this->connector, this->Sstack,
-      // this->connector->Sreceivers); 	need_recompute =
+      // this->connector->_Sreceivers); 	need_recompute =
       // simple_depression_solver
       // }
 
@@ -382,7 +382,7 @@ graph, links, nodes and local minima The core of the code in other words.
 
     for (int i = 0; i < this->nnodes; ++i) {
       if (this->connector->boundaries.can_out(i) == false &&
-          i == this->connector->Sreceivers[i]) {
+          i == this->connector->_Sreceivers[i]) {
         if (this->debug_mask)
           this->_debug_mask[i] = 1;
         ++this->n_pits;
@@ -543,7 +543,7 @@ graph, links, nodes and local minima The core of the code in other words.
     int istack = 0;
     for (int i = 0; i < this->nnodes; ++i) {
       // if they are base level I include them in the stack
-      if (this->connector->Sreceivers[i] == i) {
+      if (this->connector->_Sreceivers[i] == i) {
         stackhelper.emplace(i);
         // ++istack;
       }
@@ -696,7 +696,7 @@ graph, links, nodes and local minima The core of the code in other words.
       if (this->connector->flow_out_model(node))
         continue;
       // Getting the single receiver info
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       // Checking the difference in elevation
       fT dz = topography[node] - topography[rec];
       // if the difference in elevation is bellow 0 I need to carve
@@ -719,7 +719,7 @@ graph, links, nodes and local minima The core of the code in other words.
       if (this->connector->flow_out_model(node))
         continue;
 
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       fT dz = topography[node] - topography[rec];
 
       if (dz <= 0) {
@@ -787,8 +787,8 @@ graph, links, nodes and local minima The core of the code in other words.
     for (int i = this->nnodes - 1; i >= 0; --i) {
       auto v = this->Sstack[i];
       isdone[v] = true;
-      if (int(v) != this->connector->Sreceivers[v]) {
-        if (isdone[this->connector->Sreceivers[v]]) {
+      if (int(v) != this->connector->_Sreceivers[v]) {
+        if (isdone[this->connector->_Sreceivers[v]]) {
           std::cout << "Receiver processed before node stack is fucked"
                     << std::endl;
           return false;
@@ -802,7 +802,7 @@ graph, links, nodes and local minima The core of the code in other words.
   std::vector<bool> has_Srecs() {
     std::vector<bool> haSrecs(this->nnodes, true);
     for (int i = 0; i < this->nnodes; ++i) {
-      if (this->connector->Sreceivers[i] == i)
+      if (this->connector->_Sreceivers[i] == i)
         haSrecs[i] = false;
     }
     return haSrecs;
@@ -870,7 +870,7 @@ graph, links, nodes and local minima The core of the code in other words.
       // ignoring the not ode and outlets
       if (this->connector->flow_out_or_pit(tnode) == false) {
         // Getting the receiver
-        int rec = this->connector->Sreceivers[tnode];
+        int rec = this->connector->_Sreceivers[tnode];
         // checkng if receiver is visited but not node
         if (vis[rec]) {
           // current noer is visited
@@ -956,7 +956,7 @@ graph, links, nodes and local minima The core of the code in other words.
       // ignoring the not ode and outlets
       if (this->connector->flow_out_or_pit(tnode) == false) {
         // Getting the receiver
-        int rec = this->connector->Sreceivers[tnode];
+        int rec = this->connector->_Sreceivers[tnode];
         // checkng if receiver is visited but not node
         if (vis[node] && rec != node && tnode != node) {
           // current noer is visited
@@ -1025,7 +1025,7 @@ graph, links, nodes and local minima The core of the code in other words.
       if (this->connector->boundaries.no_data(node) == false)
         continue;
 
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       if (this->connector->flow_out_or_pit(node) == false) {
         flowacc[rec] += flowacc[node] + 1;
       }
@@ -1121,7 +1121,7 @@ graph, links, nodes and local minima The core of the code in other words.
         // {
         // 	std::cout << "WARNING_DEBUG_45b::FLOW OUTS - NOT ON DEM EDGE "
         // << std::endl;; 	std::cout << node << "||" <<
-        // this->connector->Sreceivers[node] << std::endl;
+        // this->connector->_Sreceivers[node] << std::endl;
         // 	this->connector->debug_print_neighbours(node);
 
         // }
@@ -1131,7 +1131,7 @@ graph, links, nodes and local minima The core of the code in other words.
         continue;
       }
 
-      out[this->connector->Sreceivers[node]] += out[node];
+      out[this->connector->_Sreceivers[node]] += out[node];
     }
 
     // if(abs(bal) > 1e-3)
@@ -1163,7 +1163,7 @@ graph, links, nodes and local minima The core of the code in other words.
       if (this->connector->flow_out_or_pit(node))
         continue;
 
-      out[this->connector->Sreceivers[node]] += out[node];
+      out[this->connector->_Sreceivers[node]] += out[node];
     }
 
     return out;
@@ -1255,7 +1255,7 @@ graph, links, nodes and local minima The core of the code in other words.
         continue;
 
       out[node] += this->connector->get_area_at_node(node);
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       if (node != rec)
         out[rec] += out[node];
     }
@@ -1363,7 +1363,7 @@ graph, links, nodes and local minima The core of the code in other words.
       if (this->connector->flow_out_or_pit(node))
         continue;
       // Getting the receiver
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       // And integrating the distance from outlets
       distfromoutlet[node] =
           distfromoutlet[rec] + this->connector->Sdistance2receivers[node];
@@ -1387,7 +1387,7 @@ graph, links, nodes and local minima The core of the code in other words.
       // checking if active
       if (this->connector->flow_out_or_pit(node))
         continue;
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       if (distfromsources[rec] == 0 ||
           distfromsources[rec] > distfromsources[node] +
                                      this->connector->Sdistance2receivers[node])
@@ -1413,7 +1413,7 @@ graph, links, nodes and local minima The core of the code in other words.
       // checking if active
       if (this->connector->flow_out_or_pit(node))
         continue;
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       if (distfromsources[rec] == 0 ||
           distfromsources[rec] < distfromsources[node] +
                                      this->connector->Sdistance2receivers[node])
@@ -1704,7 +1704,7 @@ graph, links, nodes and local minima The core of the code in other words.
   // 		{
   // 			need_recompute = simple_depression_hierarchy<fT,
   // std::vector<fT>, Connector_t >(faketopo, this->connector, this->Sstack,
-  // this->connector->Sreceivers);
+  // this->connector->_Sreceivers);
   // 		}
 
   // 		// Right, if reomputed needs to be

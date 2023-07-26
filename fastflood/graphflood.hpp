@@ -1264,11 +1264,11 @@ public:
 
       // ROUTINES FOR Single FLow Directions
       // -> Slope
-      Smax = this->get_Sw(node, this->connector->Sreceivers[node],
+      Smax = this->get_Sw(node, this->connector->_Sreceivers[node],
                           this->connector->Sdistance2receivers[node],
                           this->minslope);
       // -> rec
-      recmax = this->connector->Sreceivers[node];
+      recmax = this->connector->_Sreceivers[node];
       // -> dy (integrated width)
       dw0max = this->connector->get_travers_dy_from_dx(
           this->connector->Sdistance2receivers[node]);
@@ -1659,7 +1659,7 @@ public:
 
     while (this->connector->flow_out_or_pit(ti) == false) {
       flow_line.emplace_back(ti);
-      ti = this->connector->Sreceivers[ti];
+      ti = this->connector->_Sreceivers[ti];
     }
     // std::cout << "Last node is " << ti << std::endl;
 
@@ -2310,7 +2310,7 @@ public:
 
       // if(vis[node]) continue;
 
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       if (Ath < DA[node]) {
         vis[node] = true;
       } else {
@@ -2363,7 +2363,7 @@ public:
       int node = this->graph->Sstack[i];
       if (vis[node])
         continue;
-      int rec = this->connector->Sreceivers[node];
+      int rec = this->connector->_Sreceivers[node];
       vis[node] = true;
       if (Ath < DA[node]) {
         vis[rec] = true;
@@ -2906,7 +2906,7 @@ public:
       fT Smax = this->connector->SS[node];
       fT dx = this->connector->Sdistance2receivers[node];
       fT dw0max = this->connector->get_travers_dy_from_dx(dx);
-      int recmax = this->connector->Sreceivers[node];
+      int recmax = this->connector->_Sreceivers[node];
 
       // precalculating the power
       fT pohw = std::pow(this->_hw[node], TWOTHIRD);
