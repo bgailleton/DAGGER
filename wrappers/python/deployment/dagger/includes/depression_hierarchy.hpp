@@ -138,7 +138,7 @@ public:
 // 	{
 // 		int node = connector.Sstack[i];
 // 		if(connector.boundaries.no_data(node)) continue;
-// 		int rec = connector.Sreceivers[node];
+// 		int rec = connector._Sreceivers[node];
 // 		if(node == rec)
 // 		{
 // 			if(connector.flow_out_model(node))
@@ -286,16 +286,16 @@ public:
 template <class Connector_t>
 int reroute(Connector_t *connector,
             // std::vector<int>& baslab,
-            std::vector<int> &Sreceivers, int from, int pass) {
+            std::vector<int> &_Sreceivers, int from, int pass) {
   // std::cout << "rerouting" << std::endl;
   int A = from;
-  int B = Sreceivers[A];
+  int B = _Sreceivers[A];
   bool goon = true;
   while (goon) {
-    int C = Sreceivers[B];
+    int C = _Sreceivers[B];
     if (C == B)
       goon = false;
-    Sreceivers[B] = A;
+    _Sreceivers[B] = A;
     A = B;
     B = C;
   }
@@ -304,29 +304,29 @@ int reroute(Connector_t *connector,
   // do
   // {
   // 	// ++i;
-  // 	int C = Sreceivers[B];
-  // 	Sreceivers[B] = A;
+  // 	int C = _Sreceivers[B];
+  // 	_Sreceivers[B] = A;
   // 	connector->debug_print_row_col(B);
   // 	// std::cout << " now gives to "; connector->debug_print_row_col(A);
   // std::cout << "||"; 	A = B; 	B = C;
   // 	// if(i >1000)
   // 		// std::cout << A  << "|" << B << std::endl;
-  // }while(Sreceivers[B] != B);
+  // }while(_Sreceivers[B] != B);
 
   if (pass != -1)
-    Sreceivers[from] = pass;
+    _Sreceivers[from] = pass;
   else
-    Sreceivers[pass] = pass;
+    _Sreceivers[pass] = pass;
 
   return B;
 
-  // if(passout) Sreceivers[pass] = pass;
+  // if(passout) _Sreceivers[pass] = pass;
 }
 
 template <class float_t, class topo_t, class Connector_t>
 bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
                                  std::vector<size_t> &Sstack,
-                                 std::vector<int> &Sreceivers) {
+                                 std::vector<int> &_Sreceivers) {
 
   // PROBLEM IDENTIFIED:: WHEN REROUTING THE SF, THE SFD DOES NOT NECESSARILY
   // DRAINS TO THE BASIN, ITSELF CALCULATED IN MFD LIKE
@@ -350,7 +350,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
     if (connector->boundaries.no_data(node))
       continue;
 
-    int rec = Sreceivers[node];
+    int rec = _Sreceivers[node];
 
     if (node == rec) {
 
@@ -407,7 +407,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
     if (connector->boundaries.can_out(next.node)) {
       // std::cout << "A" << std::endl;
       // std::cout << " reroute from edges";
-      reroute(connector, Sreceivers, next.node, -1);
+      reroute(connector, _Sreceivers, next.node, -1);
       // std::cout << " done";
       // std::cout << "B" << std::endl;
       basopen[tbas] = true;
@@ -437,7 +437,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
           does_it_outlets = true;
           node_outlet.node = nei;
           node_outlet.score = topography[nei];
-          restor_Srec = Sreceivers[nei];
+          restor_Srec = _Sreceivers[nei];
         }
       }
 
@@ -445,7 +445,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
         PQ.emplace(PQH(nei, topography[nei]));
         baslab[nei] = tbas;
         bnei = tbas;
-        Sreceivers[nei] = next.node;
+        _Sreceivers[nei] = next.node;
       }
     }
 
@@ -460,7 +460,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
       // std::cout << " potential outlet. ";
 
       int bnei = baslab[node_outlet.node];
-      Sreceivers[node_outlet.node] = restor_Srec;
+      _Sreceivers[node_outlet.node] = restor_Srec;
       // if(bnei == 0)
       // 	throw
 
@@ -470,7 +470,8 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
         // std::endl; std::cout << " rerouting: link is " ;
         // connector->debug_print_row_col(node_outlet.node); std::cout << " to
         // "; connector->debug_print_row_col(next.node);
-        int lnode = reroute(connector, Sreceivers, next.node, node_outlet.node);
+        int lnode =
+            reroute(connector, _Sreceivers, next.node, node_outlet.node);
         // std::cout << "D" << std::endl;
         // basopen[tbas] = true;
         std::queue<int> basb;
@@ -492,7 +493,7 @@ bool simple_depression_hierarchy(topo_t &topography, Connector_t *connector,
 
             // std::cout << "C1::" << "|" <<  baslab[link[0]] << "|" <<
             // next.node << std::endl;
-            lnode = reroute(connector, Sreceivers, link[1], link[0]);
+            lnode = reroute(connector, _Sreceivers, link[1], link[0]);
             // std::cout << "D" << std::endl;
             basb.emplace(baslab[lnode]);
           }

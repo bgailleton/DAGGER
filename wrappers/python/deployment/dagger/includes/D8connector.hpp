@@ -52,6 +52,8 @@ public:
   int nlinks() { return this->nnodes * 4; };
   size_t nnodes_t = 0;
 
+  int nxy() const { return this->nnodes; }
+
   static const int nneighbours = 8;
   static const size_t nneighbours_t = 8;
 
@@ -132,7 +134,7 @@ public:
   // -> Steepest donors (nnodes * nneighbours size)
   // --> Sdonors of node i are located from index i*nneighbours to index
   // i*nneighbours + nSdonors[i] not included
-  std::vector<int> Sreceivers, nSdonors, Sdonors;
+  std::vector<int> _Sreceivers, nSdonors, Sdonors;
 
   // Single graph distance to receivers
   std::vector<T> Sdistance2receivers;
@@ -164,6 +166,9 @@ public:
     // this->_allocate_vectors();
     // this->precompute_links();
   }
+
+  // Complying to the standard
+  int Sreceivers(int i) const { return this->_Sreceivers[i]; };
 
   template <class topo_t> void update_links_from_topo(topo_t &ttopo) {
     auto topo = format_input(ttopo);
@@ -1702,9 +1707,9 @@ public:
 
     this->linkdir = std::vector<uI_t>(this->nnodes * 4, maxu);
     this->ridknil = std::vector<uI_t>(this->nnodes * 4, maxu);
-    this->Sreceivers = std::vector<int>(this->nnodes, -1);
+    this->_Sreceivers = std::vector<int>(this->nnodes, -1);
     for (int i = 0; i < this->nnodes; ++i)
-      this->Sreceivers[i] = i;
+      this->_Sreceivers[i] = i;
     this->Sdistance2receivers = std::vector<T>(this->nnodes, -1);
     this->SS = std::vector<T>(this->nnodes, 0.);
 
@@ -1930,13 +1935,13 @@ public:
         slope = this->randu->get();
         if (this->is_link_inverse(i)) {
           if (this->SS[to] < slope) {
-            this->Sreceivers[to] = from;
+            this->_Sreceivers[to] = from;
             this->Sdistance2receivers[to] = dx;
             this->SS[to] = slope;
           }
         } else if (this->SS[from] < slope) {
           // saving the Sreceivers info as temporary best choice
-          this->Sreceivers[from] = to;
+          this->_Sreceivers[from] = to;
           this->Sdistance2receivers[from] = dx;
           this->SS[from] = slope;
         }
@@ -1955,7 +1960,7 @@ public:
         // if Steepest Slope is higher than the current recorded one
         if (this->SS[from] < slope) {
           // saving the Sreceivers info as temporary best choice
-          this->Sreceivers[from] = to;
+          this->_Sreceivers[from] = to;
           this->Sdistance2receivers[from] = dx;
           this->SS[from] = slope;
         }
@@ -1967,7 +1972,7 @@ public:
         // NOte that slope is absolute values
         slope = std::abs(slope);
         if (this->SS[to] < slope) {
-          this->Sreceivers[to] = from;
+          this->_Sreceivers[to] = from;
           this->Sdistance2receivers[to] = dx;
           this->SS[to] = slope;
         }
@@ -1991,7 +1996,7 @@ public:
     // iterating through all the nodes
     for (int i = 0; i < this->nnodes; ++i) {
       // SF so rid == i cause there is only 1 rec
-      int trec = this->Sreceivers[i];
+      int trec = this->_Sreceivers[i];
       if (trec == i)
         continue;
 
@@ -2019,7 +2024,7 @@ public:
 
     for (int i = 0; i < this->nnodes; ++i) {
       // SF so rid == i cause there is only 1 rec
-      int trec = this->Sreceivers[i];
+      int trec = this->_Sreceivers[i];
       if (trec == i)
         continue;
       this->Sdonors[trec * this->nneighbours + this->nSdonors[trec]] = i;
@@ -2029,7 +2034,7 @@ public:
 
   void _reallocate_vectors() {
     for (int i = 0; i < this->nnodes; ++i) {
-      this->Sreceivers[i] = i;
+      this->_Sreceivers[i] = i;
       this->Sdistance2receivers[i] = 0;
       this->SS[i] = 0;
     }
@@ -2084,10 +2089,10 @@ public:
     int node = this->nodeid_from_row_col(row, col);
     std::vector<int> out_receivers;
     int trow, tcol;
-    this->rowcol_from_node_id(this->Sreceivers[node], trow, tcol);
+    this->rowcol_from_node_id(this->_Sreceivers[node], trow, tcol);
     out_receivers = std::vector<int>{trow, tcol};
 
-    std::cout << "Srec is " << this->Sreceivers[node] << " node was " << node
+    std::cout << "Srec is " << this->_Sreceivers[node] << " node was " << node
               << std::endl;
     return out_receivers;
   }
@@ -2121,7 +2126,7 @@ public:
                 << " topo " << topography[r] << std::endl;
     }
 
-    std::cout << "And finally Srec is " << this->Sreceivers[i] << std::endl;
+    std::cout << "And finally Srec is " << this->_Sreceivers[i] << std::endl;
     ;
   }
 
@@ -2141,7 +2146,7 @@ public:
     auto array = format_input<array_t>(tarray);
     U out = 0;
     for (int i = 0; i < this->nnodes; ++i) {
-      if (this->Sreceivers[i] == i) {
+      if (this->_Sreceivers[i] == i) {
         if (include_internal_pits) {
           out += array[i];
         } else if (this->flow_out_model(i)) {
@@ -2162,7 +2167,7 @@ public:
     auto array = format_input<array_t>(tarray);
     std::vector<T> out = std::vector<T>(this->nnodes, 0);
     for (int i = 0; i < this->nnodes; ++i) {
-      if (this->Sreceivers[i] == i) {
+      if (this->_Sreceivers[i] == i) {
         if (include_internal_pits)
           out[i] = array[i];
         else if (this->flow_out_model(i))
@@ -2180,7 +2185,7 @@ public:
   template <class ti_t> bool flow_out_model(ti_t node) {
 
     bool con_val = this->boundaries.can_out(node);
-    if (con_val && this->Sreceivers[node] == int(node)) {
+    if (con_val && this->_Sreceivers[node] == int(node)) {
       return true;
     }
     return false;
@@ -2189,13 +2194,13 @@ public:
   template <class ti_t> bool is_pit(ti_t node) {
 
     bool con_val = this->boundaries.can_out(node);
-    if (!con_val && this->Sreceivers[node] == int(node))
+    if (!con_val && this->_Sreceivers[node] == int(node))
       return true;
     return false;
   }
 
   template <class ti_t> bool flow_out_or_pit(ti_t node) {
-    if (this->Sreceivers[node] == int(node))
+    if (this->_Sreceivers[node] == int(node))
       return true;
     return false;
   }
@@ -2213,7 +2218,7 @@ public:
   }
 
   template <class out_t> out_t get_SFD_receivers() {
-    return format_output<std::vector<int>, out_t>(this->Sreceivers);
+    return format_output<std::vector<int>, out_t>(this->_Sreceivers);
   }
 
   template <class out_t> out_t get_SFD_dx() {
@@ -2292,7 +2297,7 @@ public:
     return out;
   }
 
-  int get_SFD_receivers_at_node(int i) { return this->Sreceivers[i]; }
+  int get_SFD_receivers_at_node(int i) { return this->_Sreceivers[i]; }
 
   int get_SFD_dx_at_node(int i) { return this->Sdistance2receivers[i]; }
 
@@ -2337,8 +2342,8 @@ public:
   template <class topo_t> std::vector<T> _get_SFD_gradient(topo_t &topography) {
     std::vector<T> gradient(this->nnodes, 0.);
     for (int i = 0; i < this->nnodes; ++i) {
-      if (this->Sreceivers[i] != i)
-        gradient[i] = (topography[i] - topography[this->Sreceivers[i]]) /
+      if (this->_Sreceivers[i] != i)
+        gradient[i] = (topography[i] - topography[this->_Sreceivers[i]]) /
                       this->Sdistance2receivers[i];
     }
     return gradient;

@@ -109,7 +109,7 @@ std::vector<int> _label_depressions_PQ(Connector_t *connector, in_t &topography,
       continue;
 
     // then emplace if pit
-    if (connector->Sreceivers[i] == i) {
+    if (connector->_Sreceivers[i] == i) {
       sirius.emplace(PQH(i, topography[i]));
       int tlab = tree.add();
       baslab[i] = tlab;
@@ -738,7 +738,7 @@ bool simple_depression_solver(Connector_t *connector,
 // for(auto node:Sstack)
 // {
 // 	if(connector->flow_out_model(node)) processed[node] = true;
-// 	else processed[node] = processed[connector->Sreceivers[node]];
+// 	else processed[node] = processed[connector->_Sreceivers[node]];
 // }
 
 // PQ_i_d nexus;
@@ -914,7 +914,7 @@ bool simple_depression_solver(Connector_t *connector,
 // 	int lab = 0;
 // 	for(auto node : Sstack)
 // 	{
-// 		int rec = connector->Sreceivers[node];
+// 		int rec = connector->_Sreceivers[node];
 // 		if(connector->flow_out_model(node))
 // 		{
 // 			basin_key[node] = 0;

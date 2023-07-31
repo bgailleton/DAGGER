@@ -39,7 +39,7 @@ void check_connector_template_generic(Connector_t &con) {
   // Generic init function
   // Return nothing, initialise the data structure.
   // Argument: the number of nodes in the connector (includes no data)
-  void (Connector_t::*initialisation)(int) = &Connector_t::init;
+  void (Connector_t::*init)(int) = &Connector_t::init;
 
   // Generic function precomputing elements in the graph.
   // Its interpretation is free and really depends on the type of
@@ -48,16 +48,15 @@ void check_connector_template_generic(Connector_t &con) {
   // topography; an irregular grid could regrid there, or simply, if the
   // neighbouring never caches anything for a memory-saving connector, do
   // nothing.
-  void (Connector_t::*preco)() = &Connector_t::compute;
+  void (Connector_t::*compute)() = &Connector_t::compute;
 
   // Connect a (new) topography, to be used for computing receivers/donors.
-  void (Connector_t::*connect_topo)(VECLIKE &) =
-      &Connector_t::connect_topography;
+  void (Connector_t::*connect_topo)(VECLIKE &) = &Connector_t::connect_topo;
 
   // return the number of neighbours and fill the CONTAINER_NEIGHBOURS_INT with
   // nn neighbours
   int (Connector_t::*Neighbours)(int, CONTAINER_NEIGHBOURS_INT &) =
-      &Connector_t::neighbouring_nodes;
+      &Connector_t::Neighbours;
 
   // return the number of neighbours and fill the CONTAINER_NEIGHBOURS_INT and
   // with nn neighbours

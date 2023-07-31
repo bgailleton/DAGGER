@@ -846,7 +846,7 @@ public:
           continue;
         }
 
-        this->tSrec = this->connector.Sreceivers[this->tnode];
+        this->tSrec = this->connector._Sreceivers[this->tnode];
 
         // feeding the local private variables
         this->tdx = this->connector.Sdistance2receivers[this->tnode];
@@ -1953,7 +1953,7 @@ public:
   }
 
   void _ready_node_state() {
-    this->tSrec = this->connector.Sreceivers[this->tnode];
+    this->tSrec = this->connector._Sreceivers[this->tnode];
 
     // feeding the local private variables
     this->tdx = this->connector.Sdistance2receivers[this->tnode];
@@ -2140,7 +2140,7 @@ public:
       if (!this->connector.flow_out_or_pit(node) == false)
         continue;
       // # receiver
-      int rec = this->connector.Sreceivers[node];
+      int rec = this->connector._Sreceivers[node];
       // # distance to receiver
       fT dx = this->connector.Sdistance2receivers[node];
       // # cell area
@@ -2305,7 +2305,7 @@ public:
     for (int i = 0; i < this->graph.nnodes; ++i) {
 
       int node = this->graph.Sstack[i];
-      int rec = this->connector.Sreceivers[node];
+      int rec = this->connector._Sreceivers[node];
 
       if (this->connector.flow_out_or_pit(node))
         continue;

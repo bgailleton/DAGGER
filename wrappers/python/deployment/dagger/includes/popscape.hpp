@@ -157,7 +157,7 @@ public:
         if (this->connector.flow_out_or_pit(node))
           continue;
 
-        int rec = this->connector.Sreceivers[node];
+        int rec = this->connector._Sreceivers[node];
         this->topography[node] =
             this->topography[rec] +
             this->connector.Sdistance2receivers[node] *
@@ -270,7 +270,7 @@ public:
     fT chimax = 0;
     for (int i = 0; i < this->graph.nnodes; ++i) {
       int node = this->graph.Sstack[i];
-      int rec = this->connector.Sreceivers[node];
+      int rec = this->connector._Sreceivers[node];
       if (node == rec)
         continue;
 
@@ -440,7 +440,7 @@ public:
         int node = this->graph.Sstack[i];
         if (this->connector.flow_out_or_pit(node))
           continue;
-        int rec = this->connector.Sreceivers[node];
+        int rec = this->connector._Sreceivers[node];
         this->topography[node] =
             this->topography[rec] + this->connector.Sdistance2receivers[node] *
                                         std::pow(1e2, 1. / n) /
@@ -502,7 +502,7 @@ public:
     for (int i = 0; i < this->graph.nnodes; ++i) {
 
       int node = this->graph.Sstack[i];
-      int rec = this->connector.Sreceivers[node];
+      int rec = this->connector._Sreceivers[node];
 
       if (!this->connector.flow_out_or_pit(node) == false)
         continue;

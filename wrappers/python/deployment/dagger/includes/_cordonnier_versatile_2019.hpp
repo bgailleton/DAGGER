@@ -207,7 +207,7 @@ public:
         continue;
 
       // If it is its own receiver, then
-      if (connector->Sreceivers[node] == int(node)) {
+      if (connector->_Sreceivers[node] == int(node)) {
         // incrementing the basin label
         ++this->nbas;
         // is it a base level
@@ -474,17 +474,17 @@ public:
         int from = this->receivers_node[bas].first;
         int to = this->receivers_node[bas].second;
         // std::cout << "B" << std::endl;
-        // std::cout << connector->Sreceivers[this->pitnode[bas]] << "|";
+        // std::cout << connector->_Sreceivers[this->pitnode[bas]] << "|";
 
         int A = from;
-        int B = connector->Sreceivers[A];
+        int B = connector->_Sreceivers[A];
         int C = B;
         // std::cout << "C" << std::endl;
 
         while (A != this->pitnode[bas]) {
           // std::cout << B << std::endl;
-          C = connector->Sreceivers[B];
-          connector->Sreceivers[B] = A;
+          C = connector->_Sreceivers[B];
+          connector->_Sreceivers[B] = A;
           // connector->Sdistance2receivers[B] =
           // connector->Sdistance2receivers[A];
           connector->Sdistance2receivers[B] = connector->dx;
@@ -494,10 +494,10 @@ public:
         }
         // std::cout << "D" << std::endl;
 
-        connector->Sreceivers[from] = to;
+        connector->_Sreceivers[from] = to;
         connector->Sdistance2receivers[from] = connector->dx;
 
-        // std::cout << connector->Sreceivers[this->pitnode[bas]] << std::endl;
+        // std::cout << connector->_Sreceivers[this->pitnode[bas]] << std::endl;
       }
 
     } else if (method == DEPRES::cordonnier_fill) {
@@ -519,7 +519,7 @@ public:
         int to = this->receivers_node[bas].second;
 
         // float_t cost = topography[to];
-        connector->Sreceivers[from] = to;
+        connector->_Sreceivers[from] = to;
         connector->Sdistance2receivers[from] = connector->dx;
         topography[from] = std::max(topography[to], topography[from]) +
                            connector->randu->get() * 1e-6 + 1e-8;
@@ -555,7 +555,7 @@ public:
 
             topography[tn] =
                 topography[n] + connector->randu->get() * 1e-6 + 1e-8;
-            connector->Sreceivers[tn] = n;
+            connector->_Sreceivers[tn] = n;
             connector->Sdistance2receivers[tn] =
                 connector->Sdistance2receivers[n];
             Q.emplace(tn);
@@ -591,7 +591,7 @@ public:
       // 	int from = this->receivers_node[bas].first;
       // 	int to = this->receivers_node[bas].second;
       // 	float_t zref = std::max(topography[from], topography[to]);
-      // 	connector->Sreceivers[from] = to;
+      // 	connector->_Sreceivers[from] = to;
       // 	connector->Sdistance2receivers[from] = connector->dx;
       // 	isinQ[from] = true;
       // 	std::queue<int> Q;Q.emplace(from);
@@ -602,8 +602,8 @@ public:
       // 		int nn = connector->get_neighbour_idx(next, neighbours);
 
       // 		float_t lowest_z =
-      // std::max(topography[connector->Sreceivers[next]],topography[next]);
-      // int nznodeext = connector->Sreceivers[next];
+      // std::max(topography[connector->_Sreceivers[next]],topography[next]);
+      // int nznodeext = connector->_Sreceivers[next];
 
       // 		for(int tnn = 0 ; tnn<nn; ++tnn )
       // 		{
@@ -636,7 +636,7 @@ public:
       // 				continue;
       // 			if(topography[n] <= zref)
       // 			{
-      // 				connector->Sreceivers[n] = next;
+      // 				connector->_Sreceivers[n] = next;
       // 				isinQ[n] = true;
       // 				Q.emplace(n);
       // 			}
@@ -645,7 +645,7 @@ public:
       // 		topography[next] = std::max(lowest_z + minimum_slope +
       // connector->randu->get() * slope_randomness, topography[next]);
       // zref = std::max(topography[next],zref);
-      // connector->Sreceivers[next] = nznodeext;
+      // connector->_Sreceivers[next] = nznodeext;
       // connector->Sdistance2receivers[next] = connector->dx;
       // 	}
 
@@ -664,7 +664,7 @@ public:
         int to = this->receivers_node[bas].second;
         // std::cout << "rerouting " << this->pitnode[bas] << " to " << to <<
         // std::endl;
-        connector->Sreceivers[this->pitnode[bas]] = to;
+        connector->_Sreceivers[this->pitnode[bas]] = to;
         connector->Sdistance2receivers[this->pitnode[bas]] = connector->dx;
       }
     }
@@ -772,7 +772,7 @@ public:
 // 		std::vector<int> next_nodes;
 // 		next_nodes.reserve(this->con->nx * 4);
 // 		for(int i=0; i<this->graph->nnodes; ++i) if(i ==
-// this->graph->connector->Sreceivers[i]) next_nodes.emplace_back(i);
+// this->graph->connector->_Sreceivers[i]) next_nodes.emplace_back(i);
 // bool keepon = true; 		do
 // 		{
 // 			this->toposort_section(next_nodes);
@@ -832,7 +832,7 @@ public:
 // 		int jn = 0;
 // 		for(int j=0; j< nn; ++j)
 // 		{
-// 			if(this->graph->connector->Sreceivers[this->neighbours[j]]
+// 			if(this->graph->connector->_Sreceivers[this->neighbours[j]]
 // == i)
 // 			{
 // 				// this->is_Sdonor[j] = true;

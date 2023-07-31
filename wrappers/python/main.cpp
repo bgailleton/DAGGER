@@ -14,6 +14,8 @@
 #include "trackscape.hpp"
 #include "utils.hpp"
 
+#include "river_tools_python.hpp"
+
 using namespace DAGGER;
 
 template <typename CONNECTOR_T>
@@ -2276,6 +2278,10 @@ B.G.
             DAGGER::graph<double, DAGGER::D8connector<double>>,
             py::array_t<double, 1>, py::array_t<double, 1>, double>,
         py::arg("topography"), py::arg("connector"), py::arg("graph"));
+
+  m.def("RiverNetwork",
+        RiverNetwork<double, DAGGER::D8connector<double>,
+                     DAGGER::graph<double, DAGGER::D8connector<double>>>);
 
   // m.def(
   //   "check_connector_template",

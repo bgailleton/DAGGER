@@ -14,6 +14,8 @@
 #include "trackscape.hpp"
 #include "utils.hpp"
 
+#include "river_tools_python.hpp"
+
 using namespace DAGGER;
 
 template <typename CONNECTOR_T>
@@ -1333,6 +1335,8 @@ void declare_graphflood(py::module &m, std::string typestr) {
       .def("run_graphipiton",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_graphipiton)
       .def("run_exp", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_exp)
+      .def("run_hydro_only",
+           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_hydro_only)
 
       .def("define_precipitations_Ath",
            &graphflood<fT, GRAPH_T, CONNECTOR_T>::define_precipitations_Ath)
@@ -2274,6 +2278,10 @@ B.G.
             DAGGER::graph<double, DAGGER::D8connector<double>>,
             py::array_t<double, 1>, py::array_t<double, 1>, double>,
         py::arg("topography"), py::arg("connector"), py::arg("graph"));
+
+  m.def("RiverNetwork",
+        RiverNetwork<double, DAGGER::D8connector<double>,
+                     DAGGER::graph<double, DAGGER::D8connector<double>>>);
 
   // m.def(
   //   "check_connector_template",
