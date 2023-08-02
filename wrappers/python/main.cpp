@@ -1346,90 +1346,90 @@ void declare_graphflood(py::module &m, std::string typestr) {
 
 PYBIND11_MODULE(dagger, m) {
   m.doc() = R"pbdoc(
-      DAGGER - python API
-      ===================
+		DAGGER - python API
+		===================
 
-      Quick API
-      ---------
+		Quick API
+		---------
 
-      .. autosummary::
+		.. autosummary::
 
-          graph
-          graph.init_graph
-          graph.set_opt_stst_rerouting
-          graph.compute_graph
-          graph.is_Sstack_full
-          graph.activate_opti_sparse_border_cordonnier
-          graph.get_all_nodes_upstream_of
-          graph.get_all_nodes_downstream_of
-          graph.get_SFD_stack
-          graph.get_MFD_stack
-          graph.accumulate_constant_downstream_SFD
-          graph.accumulate_variable_downstream_SFD
-          graph.accumulate_constant_downstream_MFD
-          graph.accumulate_variable_downstream_MFD
-          graph.set_LMR_method
-          graph.set_minimum_slope_for_LMR
-          graph.set_slope_randomness_for_LMR
-          graph.get_SFD_distance_from_outlets
-          graph.get_SFD_min_distance_from_sources
-          graph.get_SFD_max_distance_from_sources
-          graph.get_MFD_max_distance_from_sources
-          graph.get_MFD_min_distance_from_sources
-          graph.get_MFD_max_distance_from_outlets
-          graph.get_MFD_min_distance_from_outlets
-          graph.get_SFD_basin_labels
+			graph
+			graph.init_graph
+			graph.set_opt_stst_rerouting
+			graph.compute_graph
+			graph.is_Sstack_full
+			graph.activate_opti_sparse_border_cordonnier
+			graph.get_all_nodes_upstream_of
+			graph.get_all_nodes_downstream_of
+			graph.get_SFD_stack
+			graph.get_MFD_stack
+			graph.accumulate_constant_downstream_SFD
+			graph.accumulate_variable_downstream_SFD
+			graph.accumulate_constant_downstream_MFD
+			graph.accumulate_variable_downstream_MFD
+			graph.set_LMR_method
+			graph.set_minimum_slope_for_LMR
+			graph.set_slope_randomness_for_LMR
+			graph.get_SFD_distance_from_outlets
+			graph.get_SFD_min_distance_from_sources
+			graph.get_SFD_max_distance_from_sources
+			graph.get_MFD_max_distance_from_sources
+			graph.get_MFD_min_distance_from_sources
+			graph.get_MFD_max_distance_from_outlets
+			graph.get_MFD_min_distance_from_outlets
+			graph.get_SFD_basin_labels
 
-          D8N
-          D8N.__init__
-          D8N.set_default_boundaries
-          D8N.set_custom_boundaries
-          D8N.print_dim
-          D8N.get_HS
-          D8N.get_mask_array
-          D8N.set_values_at_boundaries
-          D8N.set_out_boundaries_to_permissive
-          D8N.get_boundary_at_node
-          D8N.get_rowcol_Sreceivers
-          D8N.print_receivers
-          D8N.get_rec_array_size
-          D8N.update_links_MFD_only
-          D8N.update_links
-          D8N.update_links_from_topo
-          D8N.sum_at_outlets
-          D8N.keep_only_at_outlets
-          D8N.get_SFD_receivers
-          D8N.get_SFD_dx
-          D8N.get_SFD_ndonors
-          D8N.get_SFD_donors_flat
-          D8N.get_SFD_donors_list
-          D8N.get_links
-          D8N.get_linknodes_flat
-          D8N.get_linknodes_list
-          D8N.get_linknodes_list_oriented
-          D8N.get_SFD_receivers_at_node
-          D8N.get_SFD_dx_at_node
-          D8N.get_SFD_ndonors_at_node
-          D8N.get_SFD_donors_at_node
-          D8N.get_SFD_gradient
-          D8N.get_links_gradient
-          D8N.get_MFD_mean_gradient
-          D8N.get_MFD_weighted_gradient
-          D8N.get_link_weights
-          D8N.set_stochaticiy_for_SFD
-
-
-      Full API
-      ---------
-
-      .. autoclass:: D8N
-        :members:
-
-      .. autoclass:: graph
-        :members:
+			D8N
+			D8N.__init__
+			D8N.set_default_boundaries
+			D8N.set_custom_boundaries
+			D8N.print_dim
+			D8N.get_HS
+			D8N.get_mask_array
+			D8N.set_values_at_boundaries
+			D8N.set_out_boundaries_to_permissive
+			D8N.get_boundary_at_node
+			D8N.get_rowcol_Sreceivers
+			D8N.print_receivers
+			D8N.get_rec_array_size
+			D8N.update_links_MFD_only
+			D8N.update_links
+			D8N.update_links_from_topo
+			D8N.sum_at_outlets
+			D8N.keep_only_at_outlets
+			D8N.get_SFD_receivers
+			D8N.get_SFD_dx
+			D8N.get_SFD_ndonors
+			D8N.get_SFD_donors_flat
+			D8N.get_SFD_donors_list
+			D8N.get_links
+			D8N.get_linknodes_flat
+			D8N.get_linknodes_list
+			D8N.get_linknodes_list_oriented
+			D8N.get_SFD_receivers_at_node
+			D8N.get_SFD_dx_at_node
+			D8N.get_SFD_ndonors_at_node
+			D8N.get_SFD_donors_at_node
+			D8N.get_SFD_gradient
+			D8N.get_links_gradient
+			D8N.get_MFD_mean_gradient
+			D8N.get_MFD_weighted_gradient
+			D8N.get_link_weights
+			D8N.set_stochaticiy_for_SFD
 
 
-  )pbdoc";
+		Full API
+		---------
+
+		.. autoclass:: D8N
+		:members:
+
+		.. autoclass:: graph
+		:members:
+
+
+	)pbdoc";
 
   py::enum_<DEPRES>(m, "LMR")
       .value("cordonnier_fill", DEPRES::cordonnier_fill)
@@ -1492,12 +1492,12 @@ The constructor only needs basics geometrical information.
 Parameters:
 -----------
 
-    * nx (int): number of nodes in the X direction (columns)
-    * ny (int): number of nodes in the Y direction (rows)
-    * dx (float64): distance between nodes in the x directions
-    * dy (float64): distance between nodes in the y directions
-    * x_min (float64): X coordinates of the bottom left corner
-    * y_min (float64): Y coordinates of the top left corner
+	* nx (int): number of nodes in the X direction (columns)
+	* ny (int): number of nodes in the Y direction (rows)
+	* dx (float64): distance between nodes in the x directions
+	* dy (float64): distance between nodes in the y directions
+	* x_min (float64): X coordinates of the bottom left corner
+	* y_min (float64): Y coordinates of the top left corner
 
 
 Authors:
@@ -1525,12 +1525,12 @@ The constructor only needs basics geometrical information.
 Parameters:
 -----------
 
-    * nx (int): number of nodes in the X direction (columns)
-    * ny (int): number of nodes in the Y direction (rows)
-    * dx (float64): distance between nodes in the x directions
-    * dy (float64): distance between nodes in the y directions
-    * x_min (float64): X coordinates of the bottom left corner
-    * y_min (float64): Y coordinates of the top left corner
+	* nx (int): number of nodes in the X direction (columns)
+	* ny (int): number of nodes in the Y direction (rows)
+	* dx (float64): distance between nodes in the x directions
+	* dy (float64): distance between nodes in the y directions
+	* x_min (float64): X coordinates of the bottom left corner
+	* y_min (float64): Y coordinates of the top left corner
 
 
 Authors:
@@ -1556,8 +1556,8 @@ right boundary codes and recompute the linknode array)
 Parameters:
 -----------
 
-    * boundary_preset (str): the preset. Can be "4edges", "periodic_EW" or
-      "periodic_NS"
+	* boundary_preset (str): the preset. Can be "4edges", "periodic_EW" or
+		"periodic_NS"
 
 
 Authors:
@@ -1585,8 +1585,8 @@ points to the landscape.
 Parameters:
 -----------
 
-    * boundary_codes (1D Array): the uint8 array of node size containing the
-      boundary codes (see section :ref:`boundary`)
+	* boundary_codes (1D Array): the uint8 array of node size containing the
+		boundary codes (see section :ref:`boundary`)
 
 
 Authors:
@@ -1624,8 +1624,8 @@ Useful to impose boundary condition in LEMs in a versatile way.
 Parameters:
 -----------
 
-    * array_to_modify (1D Array): flot64 array to be modified in place
-    * value (float64): value to impose
+	* array_to_modify (1D Array): flot64 array to be modified in place
+	* value (float64): value to impose
 
 
 Authors:
@@ -2237,13 +2237,13 @@ Returns a [0,1] hillshade for a regular grid. Negative/nodata are set to 0
 Parameters:
 -----------
 
-    * D8connector
-    * Flat topography of node size (1D array)
+	* D8connector
+	* Flat topography of node size (1D array)
 
 Returns:
 --------
 
-    * Flat hillshade of node size (1D array)
+	* Flat hillshade of node size (1D array)
 
 Authors:
 --------
@@ -2282,6 +2282,9 @@ B.G.
   m.def("RiverNetwork",
         RiverNetwork<double, DAGGER::D8connector<double>,
                      DAGGER::graph<double, DAGGER::D8connector<double>>>);
+  m.def("DrainageDivides",
+        DrainageDivides<double, DAGGER::D8connector<double>,
+                        DAGGER::graph<double, DAGGER::D8connector<double>>>);
 
   // m.def(
   //   "check_connector_template",

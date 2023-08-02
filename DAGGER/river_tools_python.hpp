@@ -152,4 +152,47 @@ py::dict RiverNetwork(fT threshold, py::array_t<fT, 1> &tAQw,
   return output;
 }
 
+template <class fT, class Connector_t, class Graph_t>
+py::dict DrainageDivides(Connector_t &connector, Graph_t &graph,
+                         py::array_t<fT, 1> &ttopo, py::array_t<int, 1> &tBID) {
+
+  // preformatting inputs
+  auto topo = DAGGER::format_input(ttopo);
+  auto BID = DAGGER::format_input(tBID);
+
+  std::vector<int> nodes;
+  nodes.reserve(connector.nxy());
+  std::vector<int> basinID;
+  basinID.reserve(connector.nxy());
+  std::vector<fT> ZZ;
+  ZZ.reserve(connector.nxy());
+
+  auto neigh = connector.get_empty_neighbour();
+  for (int i = 0; i < connector.nxy(); ++i) {
+    // if nodata -> leave
+    if (connector.boundaries.no_data(i))
+      continue;
+
+    int TB = BID[i];
+    // getting neighbours
+    int nn = connector.Neighbours(i, neigh);
+    // if not the same basin ID -> register, as simple as that
+    for (int j = 0; j < nn; ++j) {
+      if (BID[neigh[j]] != TB) {
+        nodes.emplace_back(i);
+        basinID.emplace_back(BID[i]);
+        ZZ.emplace_back(topo[i]);
+      }
+    }
+  }
+
+  // Formatting the ouput dictionnary
+  py::dict output;
+  output["nodes"] = py::array(nodes.size(), nodes.data());
+  output["basinID"] = py::array(basinID.size(), basinID.data());
+  output["elevation"] = py::array(ZZ.size(), ZZ.data());
+
+  return output;
+}
+
 #endif // safeguarding cases where all hpp are included in a non-python context
