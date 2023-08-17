@@ -220,7 +220,7 @@ public:
 
     std::vector<fT> ntopo(nxy, 0.);
 
-    D8connector<double> ncon = _create_connector(
+    D8connector<fT> ncon = _create_connector(
         nx, ny, this->connector.dx * 2, this->connector.dy * 2, fT(0.), fT(0.));
     ncon.set_default_boundaries(this->boundary_string);
 
@@ -516,13 +516,15 @@ public:
       fT elevation_k = ielevation;
       fT elevation_prev = std::numeric_limits<fT>::max();
       fT tolerance = 1e-4;
-
-      while (abs(elevation_k - elevation_prev) > tolerance) {
+      int nit = 0;
+      while (abs(elevation_k - elevation_prev) > tolerance && nit < 10) {
         elevation_prev = elevation_k;
-        fT slope = std::max(elevation_k - irec_elevation, 1e-6);
+        fT slope =
+            std::max(elevation_k - irec_elevation, static_cast<fT>(1e-6));
         fT diff = (elevation_k - ielevation + factor * std::pow(slope, n)) /
                   (1. + factor * n * std::pow(slope, n - 1));
         elevation_k -= diff;
+        ++nit;
       }
 
       this->topography[node] = elevation_k;

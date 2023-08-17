@@ -52,8 +52,6 @@ public:
   int nlinks() { return this->nnodes * 4; };
   size_t nnodes_t = 0;
 
-  int nxy() const { return this->nnodes; }
-
   static const int nneighbours = 8;
   static const size_t nneighbours_t = 8;
 
@@ -96,7 +94,7 @@ public:
   // // #--->  0 = in, no out, all fluxes leave the system, internal or external
   // // #--->  1 = "normal" cell, in, out, internal
   // // #--->  2 = external periodic boundary
-  // // #--->	3 = in, can out but can also give to neighbours
+  // // #---> 3 = in, can out but can also give to neighbours
   // std::vector<int> boundary;
 
   // NEW BOUNDARY SYSTEM
@@ -167,7 +165,16 @@ public:
     // this->precompute_links();
   }
 
+  //======================================================
+  //======================================================
+  //======================================================
   // Complying to the standard
+  //======================================================
+  //======================================================
+  //======================================================
+
+  int nxy() const { return this->nnodes; }
+
   int Sreceivers(int i) const { return this->_Sreceivers[i]; };
 
   int Neighbours(int i, std::array<int, 8> &tin) {
@@ -1512,7 +1519,7 @@ public:
         ++size;
       }
       // else
-      // 	std::cout << "nope:" << li << "|";
+      //  std::cout << "nope:" << li << "|";
 
       int oli = (i + this->reruobhgien[this->ridknil[li]]) * 4 + j;
       if (this->is_link_valid(oli)) {
@@ -1521,7 +1528,7 @@ public:
         ++size;
       }
       // else
-      // 	std::cout << "epon:" << li << "|";
+      //  std::cout << "epon:" << li << "|";
     }
     return size;
   }
@@ -1537,7 +1544,7 @@ public:
           ++size;
       }
       // else
-      // 	std::cout << "nope:" << li << "|";
+      //  std::cout << "nope:" << li << "|";
 
       int oli = (i + this->reruobhgien[this->ridknil[li]]) * 4 + j;
       if (this->is_link_valid(oli)) {
@@ -1547,7 +1554,7 @@ public:
           ++size;
       }
       // else
-      // 	std::cout << "epon:" << li << "|";
+      //  std::cout << "epon:" << li << "|";
     }
     return size;
   }
@@ -1853,15 +1860,15 @@ public:
     // == false || this->is_in_bound_and_can_create_link(n1) == false); bool
     // both_forced = false; if(nodes_can_create_links)
     // {
-    // 	if(this->boundaries.forcing_io(n1) && this->boundaries.forcing_io(n2))
-    // 		both_forced = true;
+    //  if(this->boundaries.forcing_io(n1) && this->boundaries.forcing_io(n2))
+    //      both_forced = true;
     // }
 
     // // Then not a valid link
     // if(nodes_can_create_links || both_forced)
     // {
-    // 	n1 = -1;
-    // 	n2 = -1;
+    //  n1 = -1;
+    //  n2 = -1;
     // }
   }
 
@@ -1935,9 +1942,9 @@ public:
 
       // if(to < 0 || to >= this->nnodes)
       // {
-      // 	std::cout << "HAPPENS::" << from << "/" << to << " dir:" <<
+      //  std::cout << "HAPPENS::" << from << "/" << to << " dir:" <<
       // int(this->linkdir[i]) << std::endl;
-      // 	// std::cout << i << " vs " << node * 4
+      //  // std::cout << i << " vs " << node * 4
       // }
 
       // getting the link infos
@@ -2042,7 +2049,7 @@ public:
 
     for (int i = 0; i < this->nnodes; ++i) {
       // for(int j=0; j < this->nneighbours; ++j)
-      // 	this->Sdonors[i * this->nneighbours + j] = -1;
+      //  this->Sdonors[i * this->nneighbours + j] = -1;
       this->nSdonors[i] = 0;
     }
 
@@ -2305,7 +2312,7 @@ public:
     std::vector<std::vector<int>> out(this->links.size());
     // for(size_t i=0; i<this->links.size();++i)
     // {
-    // 	out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
+    //  out[i] = std::vector<int>{this->linknodes[i*2], this->linknodes[i*2+1]};
     // }
     return out;
   }
@@ -2314,7 +2321,7 @@ public:
     std::vector<std::vector<int>> out(this->links.size());
     // for(size_t i=0; i<this->links.size();++i)
     // {
-    // 	out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2],
+    //  out[i] = (this->links[i] >= 1)? std::vector<int>{this->linknodes[i*2],
     // this->linknodes[i*2+1]} :  std::vector<int>{this->linknodes[i*2 + 1],
     // this->linknodes[i*2]};
     // }
@@ -2335,27 +2342,28 @@ public:
   }
 
   /*
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                                                                                                          . - ~ ~ ~ - .
-                          ..     _      .-~               ~-.
-                   //|     \ `..~                      `.
-                  || |      }  }              /       \  \
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  . - ~ ~ ~ - .
+                                                                                                  ..     _      .-~               ~-.
+                                                                   //| \ `..~ `.
+                                                                  || |      }  }
+  /       \  \
   (\   \\ \~^..'                 |         }  \
    \`.-~  o      /       }       |        /    \
    (__          |       /        |       /      `.
-          `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-                                                          |     /          | /
+                                  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _ `. |
+  /          | /
   ~-.     ~- _
-                                                          |_____| |_____| ~ - .
+                                                                                                                                                                                                                                  |_____| |_____| ~ - .
   _ _~_-_
 
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                  Functions computing gradients
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  Functions computing gradients
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   */
 
   template <class out_t, class topo_t>
@@ -2470,7 +2478,7 @@ public:
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                                                                          . - ~ ~ ~ - .
+                                                                                                                                                                                                                                                                                                                                                                  . - ~ ~ ~ - .
 ..     _      .-~               ~-.
 //|     \ `..~                      `.
 || |      }  }              /       \  \
@@ -2478,8 +2486,8 @@ public:
 \`.-~  o      /       }       |        /    \
 (__          |       /        |       /      `.
 `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-                          |     /          |     /     ~-.     ~- _
-                          |_____|          |_____|         ~ - . _ _~_-_
+                                                                                                  |     /          |     /     ~-.     ~- _
+                                                                                                  |_____|          |_____|         ~ - . _ _~_-_
 
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -2502,6 +2510,19 @@ public:
     }
 
     return format_output<decltype(weights), out_t>(weights);
+  }
+
+  std::vector<T> _get_link_weights(std::vector<T> &gradient, T exp) {
+    std::vector<T> weights(this->links.size(), 0.);
+    if (exp <= 0) {
+      this->_get_link_weights_f_nrecs(weights);
+    } else if (exp == 1) {
+      this->_get_link_weights_proposlope(weights, gradient);
+    } else {
+      this->_get_link_weights_exp(weights, gradient, exp);
+    }
+
+    return weights;
   }
 
   void _get_link_weights_f_nrecs(std::vector<T> &weights) {
@@ -2549,7 +2570,7 @@ public:
   }
 
   // ------------------------------------------------
-  //	                             	              __
+  //                                                __
   //                                             / _)
   //                                    _.----._/ /
   //   Conversion METHODS              /         /
@@ -2599,7 +2620,7 @@ public:
 
   // ------------------------------------------------
 
-  //	                             	            __
+  //                                              __
   //                                             / _)
   //                                    _.----._/ /
   //   Neighbouring METHODS            /         /
@@ -2613,40 +2634,40 @@ public:
   // false)
   // {
 
-  // 	// preformatting the output
-  // 	std::vector<Neighbour<int,T> > neighbours;
+  //  // preformatting the output
+  //  std::vector<Neighbour<int,T> > neighbours;
 
-  // 	// Reserving size depending on the flow topology
-  // 	neighbours.reserve(8);
+  //  // Reserving size depending on the flow topology
+  //  neighbours.reserve(8);
 
-  // 	size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);
+  //  size_t id_oldneighbourer = this->_get_oldneighbourer_id(i);
 
-  // 	// Now I need to determine the index of the oldneighbourer vector
-  // 	// Which provides adder to determine the neighbours
+  //  // Now I need to determine the index of the oldneighbourer vector
+  //  // Which provides adder to determine the neighbours
   // f(boundary_conditions)
-  // 	// internal node 0
-  // 	// periodic_first_row 1
-  // 	// periodic_last_row 2
-  // 	// periodic_first_col 3
-  // 	// periodic last_col 4
-  // 	// normal_first_row 5
-  // 	// normal_last_row 6
-  // 	// normal_first_col 7
-  // 	// normal_last_col 8
-  // 	// normal_top_left 9
-  // 	// normal_top_right 10
-  // 	// normal_bottom_left 11
-  // 	// normal_bottom_right 12
-  // 	// top_left_periodic 13
-  // 	// top_right_periodic 14
-  // 	// periodic_bottom_left 15
-  // 	// periodic_bottom_right 16
+  //  // internal node 0
+  //  // periodic_first_row 1
+  //  // periodic_last_row 2
+  //  // periodic_first_col 3
+  //  // periodic last_col 4
+  //  // normal_first_row 5
+  //  // normal_last_row 6
+  //  // normal_first_col 7
+  //  // normal_last_col 8
+  //  // normal_top_left 9
+  //  // normal_top_right 10
+  //  // normal_bottom_left 11
+  //  // normal_bottom_right 12
+  //  // top_left_periodic 13
+  //  // top_right_periodic 14
+  //  // periodic_bottom_left 15
+  //  // periodic_bottom_right 16
 
-  // 		this->set_neighbours_in_vector(neighbours, i, id_oldneighbourer,
+  //      this->set_neighbours_in_vector(neighbours, i, id_oldneighbourer,
   // ignore_nodata);
 
-  // 	// and return it
-  // 	return neighbours;
+  //  // and return it
+  //  return neighbours;
   // }
 
   // // This function is the helper of the neighbouring function: it fills the
@@ -2654,41 +2675,41 @@ public:
   // set_neighbours_in_vector(std::vector<Neighbour<int,T> >& neighbours, int&
   // i, size_t& id_oldneighbourer, bool ignore_nodata)
   // {
-  // 	// node index of the current neighbour
-  // 	int tn;
+  //  // node index of the current neighbour
+  //  int tn;
 
-  // 	// If you wonder why I am not iterating with a vector and everything
-  // here, it is for the small perf gain of doing it this way 	tn =
-  // this->oldneighbourer[id_oldneighbourer][1]; 	if(tn !=
+  //  // If you wonder why I am not iterating with a vector and everything
+  // here, it is for the small perf gain of doing it this way     tn =
+  // this->oldneighbourer[id_oldneighbourer][1];  if(tn !=
   // this->not_a_node
   // && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[1]));
-  // tn = this->oldneighbourer[id_oldneighbourer][3]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][3];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[3]));
-  // tn = this->oldneighbourer[id_oldneighbourer][4]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][4];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[4]));
-  // tn = this->oldneighbourer[id_oldneighbourer][6]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][6];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[6]));
-  // tn = this->oldneighbourer[id_oldneighbourer][0]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][0];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[0]));
-  // tn = this->oldneighbourer[id_oldneighbourer][2]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][2];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[2]));
-  // tn = this->oldneighbourer[id_oldneighbourer][5]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][5];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[5]));
-  // tn = this->oldneighbourer[id_oldneighbourer][7]; 	if(tn !=
+  // tn = this->oldneighbourer[id_oldneighbourer][7];     if(tn !=
   // this->not_a_node && (ignore_nodata == false || (ignore_nodata &&
   // !this->boundaries.no_data(tn))))
   // neighbours.emplace_back(Neighbour<int, T>(tn + i, this->lengthener[7]));
@@ -2779,9 +2800,9 @@ public:
 
     // if(id_oldneighbourer == -1)
     // {
-    // 	int row,col;
-    // 	this->rowcol_from_node_id(i,row,col);
-    // 	std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/"
+    //  int row,col;
+    //  this->rowcol_from_node_id(i,row,col);
+    //  std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/"
     // << this->nnodes << " row: " << row << " col: " << col << std::endl;
     // throw std::runtime_error("neighbouring issue");
     // }
@@ -2848,9 +2869,9 @@ public:
 
     // if(id_oldneighbourer == -1)
     // {
-    // 	int row,col;
-    // 	this->rowcol_from_node_id(i,row,col);
-    // 	std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/"
+    //  int row,col;
+    //  this->rowcol_from_node_id(i,row,col);
+    //  std::cout << "boundary was " << this->boundary[i] << " i: " << i << "/"
     // << this->nnodes << " row: " << row << " col: " << col << std::endl;
     // throw std::runtime_error("neighbouring issue");
     // }
@@ -2930,33 +2951,33 @@ public:
 
   // std::vector<int> get_neighbour_idx(int i)
   // {
-  // 	std::vector<int> neighs;neighs.reserve(8);
-  // 	int tn = this->get_left_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_top_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_right_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_bottom_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_topleft_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_topright_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_bottomright_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
-  // 	tn = this->get_bottomleft_idx(i);
-  // 	if(tn >= 0 )
-  // 		neighs.emplace_back(tn);
+  //  std::vector<int> neighs;neighs.reserve(8);
+  //  int tn = this->get_left_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_top_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_right_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_bottom_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_topleft_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_topright_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_bottomright_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
+  //  tn = this->get_bottomleft_idx(i);
+  //  if(tn >= 0 )
+  //      neighs.emplace_back(tn);
 
-  // 	return neighs;
+  //  return neighs;
   // }
 
   // Some of my algorithm are adapted from richdem and require iterating through
@@ -2987,37 +3008,37 @@ public:
   // DEPRECATED
   // inline bool can_flow_out_there(int i)
   // {
-  // 	if(this->boundary[i] == 3 || this->boundary[i] == 0 )
-  // 		return true;
-  // 	else
-  // 	{
-  // 		return false;
-  // 	}
+  //  if(this->boundary[i] == 3 || this->boundary[i] == 0 )
+  //      return true;
+  //  else
+  //  {
+  //      return false;
+  //  }
   // }
 
   // // method to check if a node can even accept flow
   // inline bool can_flow_even_go_there(int i)
   // {
-  // 	if(this->boundary[i] < 0)
-  // 		return false;
-  // 	else
-  // 	{
-  // 		return true;
-  // 	}
+  //  if(this->boundary[i] < 0)
+  //      return false;
+  //  else
+  //  {
+  //      return true;
+  //  }
   // }
 
   // inline bool is_active(int i)
   // {
-  // 	if(this->can_flow_out_there(i) && this->boundary[i] != 3)
-  // 		return false;
-  // 	else if(this->boundary[i] == 3)
-  // 		return true;
-  // 	else if(this->boundary[i] == 4)
-  // 		return false;
+  //  if(this->can_flow_out_there(i) && this->boundary[i] != 3)
+  //      return false;
+  //  else if(this->boundary[i] == 3)
+  //      return true;
+  //  else if(this->boundary[i] == 4)
+  //      return false;
 
-  // 	if(this->can_flow_even_go_there(i))
-  // 		return true;
-  // 	return false;
+  //  if(this->can_flow_even_go_there(i))
+  //      return true;
+  //  return false;
   // }
 
   // Returns true if the node is on the dem edge
@@ -3230,17 +3251,17 @@ public:
 
     // else
     // {
-    // 	std::cout << "Node was " << node_from << " to was " << node_to << "
-    // possible neighbours to node_from:" << std::endl; 	std::cout <<
-    // this->get_top_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_topright_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_right_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_bottomright_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_bottom_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_bottomleft_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_left_idx(node_from) << std::endl; 	std::cout <<
-    // this->get_topleft_idx(node_from) << std::endl; 	std::cout << "Boundary
-    // was " << this->boundary[node_from] << std::endl; 	throw
+    //  std::cout << "Node was " << node_from << " to was " << node_to << "
+    // possible neighbours to node_from:" << std::endl;     std::cout <<
+    // this->get_top_idx(node_from) << std::endl;   std::cout <<
+    // this->get_topright_idx(node_from) << std::endl;  std::cout <<
+    // this->get_right_idx(node_from) << std::endl;     std::cout <<
+    // this->get_bottomright_idx(node_from) << std::endl;   std::cout <<
+    // this->get_bottom_idx(node_from) << std::endl;    std::cout <<
+    // this->get_bottomleft_idx(node_from) << std::endl;    std::cout <<
+    // this->get_left_idx(node_from) << std::endl;  std::cout <<
+    // this->get_topleft_idx(node_from) << std::endl;   std::cout << "Boundary
+    // was " << this->boundary[node_from] << std::endl;     throw
     // std::runtime_error("Fatal error in
     // DAGGER::D8connector::get_orthogonal_nodes -> from: " +
     // std::to_string(node_from) + " and node to " + std::to_string(node_to));
@@ -3395,313 +3416,313 @@ void set_BC_to_remove_seas(Connector_t &connector, topo_t &ttopography,
 };
 
 //  DEPRECATED AND MOVED OUTSIDE OF THE CONNECTOR
-// 	template <class topo_t>
-// 	std::vector<double> PriorityFlood(topo_t& ttopography)
-// 	{
-// 		std::random_device rd; // obtain a random number from hardware
-// 	  std::mt19937 gen(rd()); // seed the generator
-// 	  std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the
+//  template <class topo_t>
+//  std::vector<double> PriorityFlood(topo_t& ttopography)
+//  {
+//      std::random_device rd; // obtain a random number from hardware
+//    std::mt19937 gen(rd()); // seed the generator
+//    std::uniform_real_distribution<> distr(1e-7, 1e-6); // define the
 // range
 
-// 		auto tttopography = format_input(ttopography);
-// 		std::vector<double> topography = to_vec(tttopography);
+//      auto tttopography = format_input(ttopography);
+//      std::vector<double> topography = to_vec(tttopography);
 
-// 	  PQ_i_d open;
-// 	  std::queue<PQ_helper<int,double> > pit;
+//    PQ_i_d open;
+//    std::queue<PQ_helper<int,double> > pit;
 
-// 	  uint64_t processed_cells = 0;
-// 	  uint64_t pitc            = 0;
-// 	  int      false_pit_cells = 0;
-// 	  double PitTop = -9999;
+//    uint64_t processed_cells = 0;
+//    uint64_t pitc            = 0;
+//    int      false_pit_cells = 0;
+//    double PitTop = -9999;
 
-// 	  std::vector<bool> closed(this->nnodes,false);
+//    std::vector<bool> closed(this->nnodes,false);
 
-// 	  // RDLOG_PROGRESS<<"Adding cells to the priority queue...";
-// 	  for(int i = 0; i<this->nnodes; ++i)
-// 	  {
-// 	  	if(this->can_flow_out_there(i))
-// 	  	{
-// 	  		closed[i] = true;
-// 	  		open.emplace(i,topography[i]);
-// 	  	}
-// 	  }
+//    // RDLOG_PROGRESS<<"Adding cells to the priority queue...";
+//    for(int i = 0; i<this->nnodes; ++i)
+//    {
+//      if(this->can_flow_out_there(i))
+//      {
+//          closed[i] = true;
+//          open.emplace(i,topography[i]);
+//      }
+//    }
 
-// 	  // RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
-// 	  auto neighbours = this->get_empty_neighbour();
+//    // RDLOG_PROGRESS<<"Performing Priority-Flood+Epsilon...";
+//    auto neighbours = this->get_empty_neighbour();
 
-// 	  while(open.size()>0 || pit.size()>0)
-// 	  {
-// 	    PQ_helper<int,double> c;
+//    while(open.size()>0 || pit.size()>0)
+//    {
+//      PQ_helper<int,double> c;
 
-// 	    if(pit.size()>0 && open.size()>0 &&
+//      if(pit.size()>0 && open.size()>0 &&
 // open.top().score==pit.front().score)
-// 	    {
-// 	      c=open.top(); open.pop();
-// 	      PitTop=-9999;
-// 	    }
-// 	    else if(pit.size()>0)
-// 	    {
-// 	      c=pit.front(); pit.pop();
-// 	      if(PitTop==-9999)
-// 	        PitTop=topography[c.node];
-// 	    }
-// 	    else
-// 	    {
-// 	      c=open.top(); open.pop();
-// 	      PitTop=-9999;
-// 	    }
-// 	    processed_cells++;
+//      {
+//        c=open.top(); open.pop();
+//        PitTop=-9999;
+//      }
+//      else if(pit.size()>0)
+//      {
+//        c=pit.front(); pit.pop();
+//        if(PitTop==-9999)
+//          PitTop=topography[c.node];
+//      }
+//      else
+//      {
+//        c=open.top(); open.pop();
+//        PitTop=-9999;
+//      }
+//      processed_cells++;
 
-// 	    int nn = this->get_neighbour_idx(c.node, neighbours);
-// 	    for(int tnn = 0; tnn<nn; ++nn)
-// 	    {
-// 	    	int n = neighbours[tnn];
-// 	      if(this->is_active(n) == false)
-// 	      	continue;
+//      int nn = this->get_neighbour_idx(c.node, neighbours);
+//      for(int tnn = 0; tnn<nn; ++nn)
+//      {
+//          int n = neighbours[tnn];
+//        if(this->is_active(n) == false)
+//          continue;
 
-// 	      if(closed[n])
-// 	        continue;
+//        if(closed[n])
+//          continue;
 
-// 	      closed[n]=true;
-// 	      if(topography[n] <=
+//        closed[n]=true;
+//        if(topography[n] <=
 // std::nextafter(c.score,std::numeric_limits<double>::infinity()))
-// 	      {
-// 	        if(PitTop!=-9999 && PitTop<topography[n] &&
+//        {
+//          if(PitTop!=-9999 && PitTop<topography[n] &&
 // std::nextafter(c.score,std::numeric_limits<double>::infinity())>=topography[n])
-// 	          ++false_pit_cells;
+//            ++false_pit_cells;
 
-// 	        ++pitc;
-// 	        //
+//          ++pitc;
+//          //
 // topography[n]=std::nextafter(c.score,std::numeric_limits<double>::infinity());
-// 	        topography[n] = c.score + distr(gen);
-// 	        pit.emplace(n,topography[n]);
-// 	      } else
-// 	        open.emplace(n,topography[n]);
-// 	    }
-// 	  }
+//          topography[n] = c.score + distr(gen);
+//          pit.emplace(n,topography[n]);
+//        } else
+//          open.emplace(n,topography[n]);
+//      }
+//    }
 
-// 	  return topography;
-// 	}
+//    return topography;
+//  }
 
-// 	template<class topo_t>
-// 	void InitPriorityQue(
-// 	  topo_t& topography,
-// 	  std::vector<bool>& flag,
-// 	  PQ_i_d& priorityQueue
-// 	)
-// 	{
+//  template<class topo_t>
+//  void InitPriorityQue(
+//    topo_t& topography,
+//    std::vector<bool>& flag,
+//    PQ_i_d& priorityQueue
+//  )
+//  {
 
-// 	  std::queue<PQ_helper<int,double> > depressionQue;
+//    std::queue<PQ_helper<int,double> > depressionQue;
 
-// 	  // push border cells into the PQ
-// 	  auto neighbours = this->get_empty_neighbour();
-// 	  for(int i=0; i < this->nnodes; ++i)
-// 	  {
-// 	    if (flag[i]) continue;
+//    // push border cells into the PQ
+//    auto neighbours = this->get_empty_neighbour();
+//    for(int i=0; i < this->nnodes; ++i)
+//    {
+//      if (flag[i]) continue;
 
-// 	    if (this->can_flow_even_go_there(i) == false)
-// 	    {
-// 	      flag[i] = true;
-// 	      int nn = this->get_neighbour_idx(i,neighbours);
+//      if (this->can_flow_even_go_there(i) == false)
+//      {
+//        flag[i] = true;
+//        int nn = this->get_neighbour_idx(i,neighbours);
 
-// 	      for (int tnn =0; tnn < nn; ++tnn)
-// 	      {
+//        for (int tnn =0; tnn < nn; ++tnn)
+//        {
 
-// 	      	int n = neighbours[tnn];
+//          int n = neighbours[tnn];
 
-// 	        if (flag[n])
-// 	          continue;
-// 	        if (this->can_flow_even_go_there(n))
-// 	        {
-// 	          priorityQueue.emplace(n,topography[n]);
-// 	          flag[n]=true;
-// 	        }
-// 	      }
-// 	    }
-// 	    else if(this->can_flow_out_there(i))
-// 	    {
-// 	      //on the DEM border
-// 	      priorityQueue.emplace(i,topography[i]);
-// 	      flag[i]=true;
-// 	    }
-// 	  }
-// 	}
+//          if (flag[n])
+//            continue;
+//          if (this->can_flow_even_go_there(n))
+//          {
+//            priorityQueue.emplace(n,topography[n]);
+//            flag[n]=true;
+//          }
+//        }
+//      }
+//      else if(this->can_flow_out_there(i))
+//      {
+//        //on the DEM border
+//        priorityQueue.emplace(i,topography[i]);
+//        flag[i]=true;
+//      }
+//    }
+//  }
 
-// 	template<class topo_t>
-// 	void ProcessTraceQue(
-// 	  topo_t& topography,
-// 	  std::vector<bool>& flag,
-// 	  std::queue<PQ_helper<int,double> >& traceQueue,
-// 	  PQ_i_d& priorityQueue
-// 	)
-// 	{
-// 	  std::queue<PQ_helper<int,double>  > potentialQueue;
-// 	  int indexThreshold=2;  //index threshold, default to 2
-// 	  auto neighbours = this->get_empty_neighbour();
-// 	  while (!traceQueue.empty())
-// 	  {
-// 	    const auto node = traceQueue.front();
-// 	    traceQueue.pop();
+//  template<class topo_t>
+//  void ProcessTraceQue(
+//    topo_t& topography,
+//    std::vector<bool>& flag,
+//    std::queue<PQ_helper<int,double> >& traceQueue,
+//    PQ_i_d& priorityQueue
+//  )
+//  {
+//    std::queue<PQ_helper<int,double>  > potentialQueue;
+//    int indexThreshold=2;  //index threshold, default to 2
+//    auto neighbours = this->get_empty_neighbour();
+//    while (!traceQueue.empty())
+//    {
+//      const auto node = traceQueue.front();
+//      traceQueue.pop();
 
-// 	    bool Mask[5][5]={{false},{false},{false},{false},{false}};
+//      bool Mask[5][5]={{false},{false},{false},{false},{false}};
 
-// 	    int nn = this->get_neighbour_idx(node.node, neighbours);
+//      int nn = this->get_neighbour_idx(node.node, neighbours);
 
-// 	    for (int tnn=0; tnn<nn; ++tnn)
-// 	    {
-// 	    	int n = neighbours[tnn];
+//      for (int tnn=0; tnn<nn; ++tnn)
+//      {
+//          int n = neighbours[tnn];
 
-// 	      if(flag[n])
-// 	        continue;
+//        if(flag[n])
+//          continue;
 
-// 	      if (topography[n] > node.score)
-// 	      {
-// 	        traceQueue.emplace(n, topography[n]);
-// 	        flag[n]=true;
-// 	      }
-// 	      else
-// 	      {
-// 	        //initialize all masks as false
-// 	        bool have_spill_path_or_lower_spill_outlet=false; //whether cell
+//        if (topography[n] > node.score)
+//        {
+//          traceQueue.emplace(n, topography[n]);
+//          flag[n]=true;
+//        }
+//        else
+//        {
+//          //initialize all masks as false
+//          bool have_spill_path_or_lower_spill_outlet=false; //whether cell
 // n has a spill path or a lower spill outlet than node if n is a depression
-// cell 	        auto nneighs = this->get_neighbours_idx_richdemlike(n);
+// cell             auto nneighs = this->get_neighbours_idx_richdemlike(n);
 // int row,col; this->rowcol_from_node_id(node.node,row,col); int nrow,ncol;
-// this->rowcol_from_node_id(n,nrow,ncol); 	        int incr=0; for(auto
+// this->rowcol_from_node_id(n,nrow,ncol);          int incr=0; for(auto
 // nn:nneighs)
-// 	        {
-// 	        	++incr;
-// 	        	// Checking node validity
-// 	        	if(nn<0 || nn>= this->nnodes)
-// 	        		continue;
+//          {
+//              ++incr;
+//              // Checking node validity
+//              if(nn<0 || nn>= this->nnodes)
+//                  continue;
 
-// 	        	int nnrow,nncol;
-// 	        	this->rowcol_from_node_id(nn,nnrow,nncol);
-// 	          if( (Mask[nnrow-row+2][nncol-col+2]) || (flag[nn] &&
+//              int nnrow,nncol;
+//              this->rowcol_from_node_id(nn,nnrow,nncol);
+//            if( (Mask[nnrow-row+2][nncol-col+2]) || (flag[nn] &&
 // topography[nn] < node.score) )
-// 	          {
-// 	            Mask[nrow-row+2][ncol-col+2]=true;
-// 	            have_spill_path_or_lower_spill_outlet=true;
-// 	            break;
-// 	          }
-// 	        }
+//            {
+//              Mask[nrow-row+2][ncol-col+2]=true;
+//              have_spill_path_or_lower_spill_outlet=true;
+//              break;
+//            }
+//          }
 
-// 	        if(!have_spill_path_or_lower_spill_outlet)
-// 	        {
-// 	          if (incr<indexThreshold) potentialQueue.push(node);
-// 	          else
-// 	            priorityQueue.push(node);
-// 	          break; // make sure node is not pushed twice into PQ
-// 	        }
-// 	      }
-// 	    }//end of for loop
-// 	  }
+//          if(!have_spill_path_or_lower_spill_outlet)
+//          {
+//            if (incr<indexThreshold) potentialQueue.push(node);
+//            else
+//              priorityQueue.push(node);
+//            break; // make sure node is not pushed twice into PQ
+//          }
+//        }
+//      }//end of for loop
+//    }
 
-// 	  while (!potentialQueue.empty())
-// 	  {
-// 	    const auto node = potentialQueue.front();
-// 	    potentialQueue.pop();
+//    while (!potentialQueue.empty())
+//    {
+//      const auto node = potentialQueue.front();
+//      potentialQueue.pop();
 
-// 	    //first case
-// 	    auto neigh = this->get_neighbours_idx_richdemlike(node.node);
-// 	    int incr = 0;
-// 	    for (auto n:neigh)
-// 	    {
-// 	    	++incr;
+//      //first case
+//      auto neigh = this->get_neighbours_idx_richdemlike(node.node);
+//      int incr = 0;
+//      for (auto n:neigh)
+//      {
+//          ++incr;
 
-// 	      if(flag[n])
-// 	        continue;
+//        if(flag[n])
+//          continue;
 
-// 	      priorityQueue.push(node);
-// 	      break;
-// 	    }
-// 	  }
-// 	}
+//        priorityQueue.push(node);
+//        break;
+//      }
+//    }
+//  }
 
-// 	template<class topo_t>
-// 	void ProcessPit(
-// 	  topo_t& topography,
-// 	  std::vector<bool>& flag,
-// 	  std::queue<PQ_helper<int,double> >& depressionQue,
-// 	  std::queue<PQ_helper<int,double> >& traceQueue
-// 	)
-// 	{
-// 		auto neighbours = this->get_empty_neighbour();
-// 	  while (!depressionQue.empty())
-// 	  {
-// 	    auto node = depressionQue.front();
-// 	    depressionQue.pop();
-// 	    int nn = this->get_neighbour_idx(node.node, neighbours);
-// 	    for (int tnn = 0; tnn<nn;++tnn)
-// 	    {
-// 	    	int n = neighbours[tnn];
-// 	      if (flag[n])
-// 	        continue;
+//  template<class topo_t>
+//  void ProcessPit(
+//    topo_t& topography,
+//    std::vector<bool>& flag,
+//    std::queue<PQ_helper<int,double> >& depressionQue,
+//    std::queue<PQ_helper<int,double> >& traceQueue
+//  )
+//  {
+//      auto neighbours = this->get_empty_neighbour();
+//    while (!depressionQue.empty())
+//    {
+//      auto node = depressionQue.front();
+//      depressionQue.pop();
+//      int nn = this->get_neighbour_idx(node.node, neighbours);
+//      for (int tnn = 0; tnn<nn;++tnn)
+//      {
+//          int n = neighbours[tnn];
+//        if (flag[n])
+//          continue;
 
-// 	      const auto iSpill = topography[n];
-// 	      if (iSpill > node.score)
-// 	      { // Dlope cell
-// 	        flag[n]=true;
-// 	        traceQueue.emplace(n,iSpill);
-// 	        continue;
-// 	      }
-// 	      // Depression cell
-// 	      flag[n] = true;
-// 	      topography[n] = node.score + 1e-6 * this->randu->get();
-// 	      depressionQue.emplace(n,topography[n]);
-// 	    }
-// 	  }
-// 	}
+//        const auto iSpill = topography[n];
+//        if (iSpill > node.score)
+//        { // Dlope cell
+//          flag[n]=true;
+//          traceQueue.emplace(n,iSpill);
+//          continue;
+//        }
+//        // Depression cell
+//        flag[n] = true;
+//        topography[n] = node.score + 1e-6 * this->randu->get();
+//        depressionQue.emplace(n,topography[n]);
+//      }
+//    }
+//  }
 
-// 	template<class topo_t>
-// 	std::vector<double> PriorityFlood_Wei2018(topo_t &ttopography)
-// 	{
-// 	  std::queue<PQ_helper<int,double> > traceQueue;
-// 	  std::queue<PQ_helper<int,double> > depressionQue;
+//  template<class topo_t>
+//  std::vector<double> PriorityFlood_Wei2018(topo_t &ttopography)
+//  {
+//    std::queue<PQ_helper<int,double> > traceQueue;
+//    std::queue<PQ_helper<int,double> > depressionQue;
 
-// 	  std::vector<bool> flag(this->nnodes,false);
-// 	  std::vector<double> topography = to_vec(ttopography);
+//    std::vector<bool> flag(this->nnodes,false);
+//    std::vector<double> topography = to_vec(ttopography);
 
-// 	  PQ_i_d priorityQueue;
+//    PQ_i_d priorityQueue;
 
-// 	  this->InitPriorityQue(topography,flag,priorityQueue);
+//    this->InitPriorityQue(topography,flag,priorityQueue);
 
-// 	  auto neighbours = this->get_empty_neighbour();
+//    auto neighbours = this->get_empty_neighbour();
 
-// 	  while (!priorityQueue.empty())
-// 	  {
-// 	    const auto tmpNode = priorityQueue.top();
-// 	    priorityQueue.pop();
+//    while (!priorityQueue.empty())
+//    {
+//      const auto tmpNode = priorityQueue.top();
+//      priorityQueue.pop();
 
-// 	    int nn = this->get_neighbour_idx(tmpNode.node, neighbours);
+//      int nn = this->get_neighbour_idx(tmpNode.node, neighbours);
 
-// 	    for(int tnn=0; tnn< nn; ++tnn)
-// 	    {
-// 	    	int n = neighbours[tnn];
-// 	      if(flag[n])
-// 	        continue;
+//      for(int tnn=0; tnn< nn; ++tnn)
+//      {
+//          int n = neighbours[tnn];
+//        if(flag[n])
+//          continue;
 
-// 	      auto iSpill = topography[n];
+//        auto iSpill = topography[n];
 
-// 	      if (iSpill <= tmpNode.score)
-// 	      {
-// 	        //depression cell
-// 	        topography[n] = tmpNode.score + 1e-3 + 1e-6 *
-// this->randu->get(); 	        flag[n] = true;
+//        if (iSpill <= tmpNode.score)
+//        {
+//          //depression cell
+//          topography[n] = tmpNode.score + 1e-3 + 1e-6 *
+// this->randu->get();          flag[n] = true;
 // depressionQue.emplace(n,topography[n]);
-// 	        this->ProcessPit(topography,flag,depressionQue,traceQueue);
-// 	      }
-// 	      else
-// 	      {
-// 	        //slope cell
-// 	        flag[n] = true;
-// 	        traceQueue.emplace(n,iSpill);
-// 	      }
-// 	      ProcessTraceQue(topography,flag,traceQueue,priorityQueue);
-// 	    }
-// 	  }
+//          this->ProcessPit(topography,flag,depressionQue,traceQueue);
+//        }
+//        else
+//        {
+//          //slope cell
+//          flag[n] = true;
+//          traceQueue.emplace(n,iSpill);
+//        }
+//        ProcessTraceQue(topography,flag,traceQueue,priorityQueue);
+//      }
+//    }
 
-// 	  return topography;
-// 	}
+//    return topography;
+//  }
 
 // end of namespace
 }; // namespace DAGGER

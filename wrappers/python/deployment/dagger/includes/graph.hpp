@@ -1134,13 +1134,29 @@ graph, links, nodes and local minima The core of the code in other words.
       out[this->connector->_Sreceivers[node]] += out[node];
     }
 
-    // if(abs(bal) > 1e-3)
-    // 	std::cout << "DEBUG BALANCE = " << bal << std::endl;
-    // std::cout << "DEBUG TOTOUT " << tot << std::endl;
     return out;
   }
 
-  // std::vector<int> _get_flow_acc
+  std::vector<fT> _accumulate_constant_downstream_area_SFD(fT var) {
+
+    std::vector<fT> out(this->nnodes, 0);
+
+    for (int i = this->nnodes - 1; i >= 0; --i) {
+      int node = this->Sstack[i];
+      if (this->connector->boundaries.no_data(node))
+        continue;
+
+      out[node] += var + this->connector->get_area_at_node(node);
+
+      if (this->connector->flow_out_or_pit(node)) {
+        continue;
+      }
+
+      out[this->connector->_Sreceivers[node]] += out[node];
+    }
+
+    return out;
+  }
 
   template <class out_t, class topo_t>
   out_t accumulate_variable_downstream_SFD(topo_t &tvar) {
@@ -1159,6 +1175,26 @@ graph, links, nodes and local minima The core of the code in other words.
         continue;
 
       out[node] += var[node];
+
+      if (this->connector->flow_out_or_pit(node))
+        continue;
+
+      out[this->connector->_Sreceivers[node]] += out[node];
+    }
+
+    return out;
+  }
+
+  template <class topo_t>
+  std::vector<fT> _accumulate_variable_downstream_area_SFD(topo_t &var) {
+    std::vector<fT> out(this->nnodes, 0);
+    for (int i = this->nnodes - 1; i >= 0; --i) {
+      int node = this->Sstack[i];
+
+      if (this->connector->boundaries.no_data(node))
+        continue;
+
+      out[node] += var[node] + this->connector->get_area_at_node(node);
 
       if (this->connector->flow_out_or_pit(node))
         continue;
@@ -1205,6 +1241,35 @@ graph, links, nodes and local minima The core of the code in other words.
     return out;
   }
 
+  template <class topo_t>
+  std::vector<fT> _accumulate_constant_downstream_area_MFD(topo_t &weights,
+                                                           fT var) {
+    std::vector<fT> out(this->nnodes, 0);
+    auto reclinks = this->connector->get_empty_neighbour();
+    for (int i = this->nnodes - 1; i >= 0; --i) {
+
+      int node = this->stack[i];
+      if (this->connector->boundaries.no_data(node))
+        continue;
+
+      out[node] += var + this->connector->get_area_at_node(node);
+
+      if (this->connector->flow_out_or_pit(node))
+        continue;
+
+      int nn = this->connector->get_receivers_idx_links(node, reclinks);
+      for (int ttl = 0; ttl < nn; ++ttl) {
+        int ti = reclinks[ttl];
+        if (this->connector->is_link_valid(ti)) {
+          int rec = this->connector->get_to_links(ti);
+          out[rec] += out[node] * weights[ti];
+        }
+      }
+    }
+
+    return out;
+  }
+
   template <class topo_t, class out_t>
   out_t accumulate_variable_downstream_MFD(topo_t &tweights, topo_t &tvar) {
     auto weights = format_input<topo_t>(tweights);
@@ -1225,6 +1290,33 @@ graph, links, nodes and local minima The core of the code in other words.
         continue;
 
       out[node] += var[node];
+
+      if (this->connector->flow_out_or_pit(node))
+        continue;
+
+      int nn = this->connector->get_receivers_idx_links(node, reclinks);
+      for (int tr = 0; tr < nn; ++tr) {
+        int ti = reclinks[tr];
+        int rec = this->connector->get_to_links(ti);
+        if (connector->is_in_bound(rec))
+          out[rec] += out[node] * weights[ti];
+      }
+    }
+
+    return out;
+  }
+
+  template <class topo_t>
+  std::vector<fT> _accumulate_variable_downstream_area_MFD(topo_t &weights,
+                                                           topo_t &var) {
+    std::vector<fT> out(this->nnodes, 0);
+    auto reclinks = this->connector->get_empty_neighbour();
+    for (int i = this->nnodes - 1; i >= 0; --i) {
+      int node = this->stack[i];
+      if (this->connector->boundaries.no_data(node))
+        continue;
+
+      out[node] += var[node] + this->connector->get_area_at_node(node);
 
       if (this->connector->flow_out_or_pit(node))
         continue;

@@ -36,10 +36,17 @@ template <class Connector_t, class fT, class CONTAINER_NEIGHBOURS_INT,
           class CONTAINER_NEIGHBOURS_fT, class VECLIKE>
 void check_connector_template_generic(Connector_t &con) {
 
-  // Generic init function
-  // Return nothing, initialise the data structure.
-  // Argument: the number of nodes in the connector (includes no data)
-  void (Connector_t::*init)(int) = &Connector_t::init;
+  // Removed the init function from the checker: these are connector specific
+
+  // General accessors:
+  // return the number of nodes in the grid
+  int (Connector_t::*nxy)() = &Connector_t::nxy;
+
+  // return the empty container of n neighbour max  size
+  CONTAINER_NEIGHBOURS_INT(Connector_t::*emptyNeighbour)
+  () = &Connector_t::template emptyNeighbour<int>;
+  CONTAINER_NEIGHBOURS_fT (Connector_t::*emptyNeighbour)() =
+      &Connector_t::template emptyNeighbour<fT>;
 
   // Generic function precomputing elements in the graph.
   // Its interpretation is free and really depends on the type of

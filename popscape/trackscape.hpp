@@ -214,11 +214,11 @@ public:
 
   bool add_extra_Qs_fluvial = false;
   std::vector<int> extra_Qsf_nodes;
-  std::vector<double> extra_Qsf;
+  std::vector<fT> extra_Qsf;
 
   bool add_extra_Qw_fluvial = false;
   std::vector<int> extra_Qwf_nodes;
-  std::vector<double> extra_Qwf;
+  std::vector<fT> extra_Qwf;
 
   bool full_stochastic = false;
   void set_full_stochastic(bool val) { this->full_stochastic = val; }
@@ -288,7 +288,7 @@ public:
     this->z_surf = std::vector<fT>(nxy, 0.);
 
     // init connector
-    this->connector = _create_connector(nx, ny, dx, dy, 0., 0.);
+    this->connector = _create_connector<fT>(nx, ny, dx, dy, 0., 0.);
 
     // boundary conditions:
     this->connector.set_default_boundaries(boundary_conditions);
@@ -298,9 +298,10 @@ public:
     // this->graph.init_graph(this->connector);
 
     // init random noise
-    DAGGER::add_noise_to_vector(this->z_surf, 0., noise_magnitude);
+    DAGGER::add_noise_to_vector(this->z_surf, static_cast<fT>(0.),
+                                noise_magnitude);
 
-    this->h_sed = std::vector<fT>(this->graph.nnodes, 0.);
+    this->h_sed = std::vector<fT>(this->graph.nnodes, static_cast<fT>(0.));
 
     for (int i = 0; i < this->connector.nnodes; ++i) {
       if (this->connector.boundaries.can_out(i))
@@ -323,7 +324,7 @@ public:
     // init the topo to 0
 
     // init connector
-    this->connector = _create_connector(nx, ny, dx, dy, 0., 0.);
+    this->connector = _create_connector<fT>(nx, ny, dx, dy, 0., 0.);
 
     // boundary conditions:
     this->connector.set_default_boundaries(boundary_conditions);
@@ -339,7 +340,8 @@ public:
 
     // init random noise
     if (noise_on_top)
-      DAGGER::add_noise_to_vector(this->z_surf, 0., noise_magnitude);
+      DAGGER::add_noise_to_vector<std::vector<fT>, fT>(this->z_surf, 0.,
+                                                       noise_magnitude);
 
     this->h_sed = std::vector<fT>(this->graph.nnodes, 0.);
 
@@ -853,8 +855,8 @@ public:
         this->tdy = this->connector.get_travers_dy_from_dx(this->tdx);
         this->tZ = this->z_surf[this->tnode];
         // this->tSS = this->connector.SS[this->tnode];
-        this->tSS =
-            std::max(1e-9, (tZ - this->z_surf[this->tSrec]) / this->tdx);
+        this->tSS = std::max(static_cast<fT>(1e-6),
+                             (tZ - this->z_surf[this->tSrec]) / this->tdx);
         this->ths = this->h_sed[this->tnode];
 
         if (need_mfrecs)
@@ -1033,7 +1035,7 @@ public:
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                        . - ~ ~ ~ - .
+                                                                                          . - ~ ~ ~ - .
 ..     _      .-~               ~-.
 //|     \ `..~                      `.
 || |      }  }              /       \  \
@@ -1041,8 +1043,8 @@ public:
 \`.-~  o      /       }       |        /    \
 (__          |       /        |       /      `.
 `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-        |     /          |     /     ~-.     ~- _
-        |_____|          |_____|         ~ - . _ _~_-_
+                          |     /          |     /     ~-.     ~- _
+                          |_____|          |_____|         ~ - . _ _~_-_
 
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -1059,8 +1061,9 @@ public:
       return;
 
     // Erosion
-    fT stream_power = std::pow(this->Qw[this->tnode], this->mexp) *
-                      std::pow(std::max(1e-9, this->tSS), this->nexp);
+    fT stream_power =
+        std::pow(this->Qw[this->tnode], this->mexp) *
+        std::pow(std::max(static_cast<fT>(1e-6), this->tSS), this->nexp);
 
     fT propused = 0;
 
@@ -1118,7 +1121,7 @@ public:
     fT tolerance = 1e-4;
     while (abs(elevation_k - elevation_prev) > tolerance) {
       elevation_prev = elevation_k;
-      fT slope = std::max(elevation_k - irec_elevation, 1e-9);
+      fT slope = std::max(elevation_k - irec_elevation, static_cast<fT>(1e-6));
       fT diff =
           (elevation_k - ielevation + factor * std::pow(slope, this->nexp)) /
           (1. + factor * this->nexp * std::pow(slope, this->nexp - 1));
@@ -1132,7 +1135,7 @@ public:
     fT propused = 0;
 
     // If the slope is bellow the critical values
-    if (this->tSS <= Sc(this->tnode) - 1e-9) {
+    if (this->tSS <= Sc(this->tnode) - 1e-6) {
       // If I have sediments
       this->thEs = kappa_s(this->tnode) * this->tSS;
       fT remains = 0.;
@@ -1194,7 +1197,7 @@ public:
 
     fT min_dep = 0.01;
 
-    fT ttss = std::max(this->tSS, 1e-2);
+    fT ttss = std::max(this->tSS, static_cast<fT>(1e-2));
 
     // If I have sediments
     this->thEs = kappa_s(this->tnode) * ttss;
@@ -1215,7 +1218,7 @@ public:
     this->add_to_dbedrockdt(this->tnode, -this->thEr * this->tdt);
 
     // If the slope is bellow the critical values
-    if (ttss <= Sc(this->tnode) - 1e-9) {
+    if (ttss <= Sc(this->tnode) - 1e-6) {
       fT L = this->connector.get_area_at_node(this->tnode) /
              (1 - std::pow(ttss / Sc(this->tnode), 2));
       this->thDs = std::max(this->Qs_hs[this->tnode] / L,
@@ -1249,7 +1252,7 @@ public:
     // If the slope is bellow the critical values
 
     if (this->tSS <= internal_friction(this->tnode) -
-                         1e-9) // using the internal friction as this section is
+                         1e-6) // using the internal friction as this section is
                                // used in hylands
     {
 
@@ -1447,7 +1450,7 @@ public:
     fT sumsum = 0.;
     for (int j = 0; j < this->trn; ++j) {
       this->tslopes[j] = std::max(
-          1e-9,
+          static_cast<fT>(1e-6),
           (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
               this->connector.get_dx_from_links_idx(this->treceivers_links[j]));
 
@@ -1483,7 +1486,7 @@ public:
     fT sumsum = 0.;
     for (int j = 0; j < this->trn; ++j) {
       this->tslopes[j] = std::max(
-          1e-9,
+          static_cast<fT>(1e-6),
           (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
               this->connector.get_dx_from_links_idx(this->treceivers_links[j]));
 
@@ -1506,7 +1509,7 @@ public:
     fT sumsum = 0.;
     for (int j = 0; j < this->trn; ++j) {
       this->tslopes[j] = std::max(
-          1e-9,
+          static_cast<fT>(1e-6),
           (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
               this->connector.get_dx_from_links_idx(this->treceivers_links[j]));
 
@@ -1540,9 +1543,10 @@ public:
     fT sumsum = 0.;
     for (int j = 0; j < this->trn; ++j) {
       this->tslopes[j] =
-          std::max(1e-9, (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
-                             this->connector.get_dx_from_links_idx(
-                                 this->treceivers_links[j])) *
+          std::max(static_cast<fT>(1e-6),
+                   (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
+                       this->connector.get_dx_from_links_idx(
+                           this->treceivers_links[j])) *
           this->connector.randu->get();
 
       sumsum += this->tslopes[j];
@@ -1564,9 +1568,10 @@ public:
     fT sumsum = 0.;
     for (int j = 0; j < this->trn; ++j) {
       this->tslopes[j] =
-          std::max(1e-9, (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
-                             this->connector.get_dx_from_links_idx(
-                                 this->treceivers_links[j])) *
+          std::max(static_cast<fT>(1e-6),
+                   (this->tZ - this->z_surf[this->treceivers_nodes[j]]) /
+                       this->connector.get_dx_from_links_idx(
+                           this->treceivers_links[j])) *
           this->connector.randu->get();
 
       sumsum += this->tslopes[j];
@@ -1606,7 +1611,7 @@ public:
     fT propused = 0;
 
     // If the slope is bellow the critical values
-    if (this->tSS <= Sc_M(this->tnode) - 1e-9) {
+    if (this->tSS <= Sc_M(this->tnode) - 1e-6) {
       // If I have sediments
       this->thEs = this->Ke(this->tnode) * this->tSS;
       fT remains = 0.;
@@ -1671,7 +1676,7 @@ public:
     // lasjdfljasdl;fja;slkjdfka;sjdlfjasldkjf
 
     // // If the slope is bellow the critical values
-    // if(S <= Sc_M(this->tnode) - 1e-9)
+    // if(S <= Sc_M(this->tnode) - 1e-6)
     // {
     // 	// If I have sediments
     // 	if(this->h_sed[this->tnode] > 0)
@@ -1741,25 +1746,27 @@ public:
   }
 
   /*
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                . - ~ ~ ~ - .
-        ..     _      .-~               ~-.
-       //|     \ `..~                      `.
-      || |      }  }              /       \  \
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                          . - ~ ~ ~ - .
+                          ..     _      .-~               ~-.
+                   //|     \ `..~                      `.
+                  || |      }  }              /       \  \
   (\   \\ \~^..'                 |         }  \
    \`.-~  o      /       }       |        /    \
    (__          |       /        |       /      `.
-    `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-                |     /          |     /     ~-.     ~- _
-                |_____|          |_____|         ~ - . _ _~_-_
+          `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+                                                          |     /          | /
+  ~-.     ~- _
+                                                          |_____| |_____| ~ - .
+  _ _~_-_
 
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          prefuncs functions
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  prefuncs functions
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   */
 
   void hillslopes_hylands_trigger() {
@@ -1895,25 +1902,27 @@ public:
   }
 
   /*
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                                . - ~ ~ ~ - .
-        ..     _      .-~               ~-.
-       //|     \ `..~                      `.
-      || |      }  }              /       \  \
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                                          . - ~ ~ ~ - .
+                          ..     _      .-~               ~-.
+                   //|     \ `..~                      `.
+                  || |      }  }              /       \  \
   (\   \\ \~^..'                 |         }  \
    \`.-~  o      /       }       |        /    \
    (__          |       /        |       /      `.
-    `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-                |     /          |     /     ~-.     ~- _
-                |_____|          |_____|         ~ - . _ _~_-_
+          `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+                                                          |     /          | /
+  ~-.     ~- _
+                                                          |_____| |_____| ~ - .
+  _ _~_-_
 
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          Helper functions
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-          =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  Helper functions
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   */
 
   // add to the vertical changes in sediment height and return true if something
@@ -1948,7 +1957,7 @@ public:
   }
 
   void remove_shear_height_at_once(int i, fT dZ) {
-    this->h_sed[i] = std::max(0., this->h_sed[i] - dZ);
+    this->h_sed[i] = std::max(static_cast<fT>(0.), this->h_sed[i] - dZ);
     this->z_surf[i] -= dZ;
   }
 
@@ -1961,19 +1970,22 @@ public:
     this->tZ = this->z_surf[this->tnode];
     // this->tSS = this->connector.SS[this->tnode];
     if (this->marine == TSC_MARINE::NONE)
-      this->tSS = std::max(1e-9, (tZ - this->z_surf[this->tSrec]) / this->tdx);
+      this->tSS = std::max(static_cast<fT>(1e-6),
+                           (tZ - this->z_surf[this->tSrec]) / this->tdx);
     else if (this->z_surf[this->tnode] > this->sea_level(this->tnode) &&
              this->z_surf[this->tSrec] > this->sea_level(this->tSrec))
-      this->tSS = std::max(1e-9, (tZ - this->z_surf[this->tSrec]) / this->tdx);
+      this->tSS = std::max(static_cast<fT>(1e-6),
+                           (tZ - this->z_surf[this->tSrec]) / this->tdx);
     else if (this->z_surf[this->tnode] < this->sea_level(this->tnode) &&
              this->z_surf[this->tSrec] < this->sea_level(this->tSrec))
-      this->tSS = std::max(1e-9, (tZ - this->z_surf[this->tSrec]) / this->tdx);
+      this->tSS = std::max(static_cast<fT>(1e-6),
+                           (tZ - this->z_surf[this->tSrec]) / this->tdx);
     else if (this->z_surf[this->tnode] > this->sea_level(this->tnode) &&
              this->z_surf[this->tSrec] < this->sea_level(this->tSrec))
-      this->tSS =
-          std::max(1e-9, (tZ - this->sea_level(this->tnode)) / this->tdx);
+      this->tSS = std::max(static_cast<fT>(1e-6),
+                           (tZ - this->sea_level(this->tnode)) / this->tdx);
     else
-      this->tSS = 1e-9;
+      this->tSS = static_cast<fT>(1e-6);
 
     this->ths = this->h_sed[this->tnode];
 
@@ -2003,7 +2015,7 @@ public:
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                        . - ~ ~ ~ - .
+                                                                                          . - ~ ~ ~ - .
 ..     _      .-~               ~-.
 //|     \ `..~                      `.
 || |      }  }              /       \  \
@@ -2011,8 +2023,8 @@ public:
 \`.-~  o      /       }       |        /    \
 (__          |       /        |       /      `.
 `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-        |     /          |     /     ~-.     ~- _
-        |_____|          |_____|         ~ - . _ _~_-_
+                          |     /          |     /     ~-.     ~- _
+                          |_____|          |_____|         ~ - . _ _~_-_
 
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -2099,7 +2111,7 @@ public:
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-                        . - ~ ~ ~ - .
+                                                                                          . - ~ ~ ~ - .
 ..     _      .-~               ~-.
 //|     \ `..~                      `.
 || |      }  }              /       \  \
@@ -2107,8 +2119,8 @@ public:
 \`.-~  o      /       }       |        /    \
 (__          |       /        |       /      `.
 `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
-        |     /          |     /     ~-.     ~- _
-        |_____|          |_____|         ~ - . _ _~_-_
+                          |     /          |     /     ~-.     ~- _
+                          |_____|          |_____|         ~ - . _ _~_-_
 
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
   =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
@@ -2146,7 +2158,8 @@ public:
       // # cell area
       fT cellarea = this->connector.get_area_at_node(node);
       // # local gradient
-      fT S = std::max((this->z_surf[node] - this->z_surf[rec]) / dx, 1e-9);
+      fT S = std::max((this->z_surf[node] - this->z_surf[rec]) / dx,
+                      static_cast<fT>(1e-6));
 
       // Hydrology
       // # local addition
@@ -2188,7 +2201,7 @@ public:
     fT propused = 0;
 
     // If the slope is bellow the critical values
-    if (S <= Sc(node) - 1e-9) {
+    if (S <= Sc(node) - 1e-6) {
       // If I have sediments
       if (this->h_sed[node] > 0) {
 
@@ -2325,7 +2338,8 @@ public:
 
       while (abs(elevation_k - elevation_prev) > tolerance) {
         elevation_prev = elevation_k;
-        fT slope = std::max(elevation_k - irec_elevation, 1e-9);
+        fT slope =
+            std::max(elevation_k - irec_elevation, static_cast<fT>(1e-6));
         fT diff =
             (elevation_k - ielevation + factor * std::pow(slope, this->nexp)) /
             (1. + factor * this->nexp * std::pow(slope, this->nexp - 1));
@@ -2346,7 +2360,7 @@ public:
     this->Qs_hs[node] += this->Qs_fluvial[node];
 
     // If the slope is bellow the critical values
-    if (S <= Sc_M(node) - 1e-9) {
+    if (S <= Sc_M(node) - 1e-6) {
       // If I have sediments
       if (this->h_sed[node] > 0) {
 
@@ -2743,6 +2757,83 @@ public:
     }
 
     return DAGGER::format_output<std::vector<fT>, out_t>(transect);
+  }
+
+  /*
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+                                                                                                  . - ~ ~ ~ - .
+  ..     _      .-~               ~-.
+  //|     \ `..~                      `.
+  || |      }  }              /       \  \
+  (\   \\ \~^..'                 |         }  \
+  \`.-~  o      /       }       |        /    \
+  (__          |       /        |       /      `.
+  `- - ~ ~ -._|      /_ - ~ ~ ^|      /- _      `.
+                                  |     /          |     /     ~-.     ~- _
+                                  |_____|          |_____|         ~ - . _ _~_-_
+
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  Standalone functions
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  =~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+  */
+
+  void standalone_implicit_SPL() {
+    // Do I need to calculate MFD recs at all?
+    bool need_mfrecs = this->do_I_need_MFD();
+
+    // pointer to the function getting the next node
+    auto stackgetter =
+        (this->flowtopo == TSC_FLOW_TOPOLOGY::SFD)
+            ? &trackscape<fT, Graph_t, Connector_t>::get_istack_node_SFD
+            : &trackscape<fT, Graph_t, Connector_t>::get_istack_node_MFD;
+
+    // Computing the graph
+    std::vector<fT> faketopo(this->z_surf);
+    this->graph._compute_graph(faketopo, !need_mfrecs, false);
+
+    if (this->flowtopo == TSC_FLOW_TOPOLOGY::SFD) {
+      if (this->variable_precipitations) {
+        this->Qw = this->graph._accumulate_variable_downstream_area_SFD(
+            this->_precipitations);
+      } else {
+        this->Qw = this->graph._accumulate_constant_downstream_area_SFD(
+            this->_precipitations[0]);
+      }
+    } else {
+      auto gradient = this->connector._get_links_gradient(this->z_surf, 1e-6);
+      auto weights = this->connector._get_link_weights(gradient, 1);
+      if (this->variable_precipitations) {
+        this->Qw = this->graph._accumulate_variable_downstream_area_MFD(
+            weights, this->_precipitations);
+      } else {
+        this->Qw = this->graph._accumulate_constant_downstream_area_MFD(
+            weights, this->_precipitations[0]);
+      }
+    }
+
+    for (int i = 0; i < this->connector.nxy(); ++i) {
+
+      // Getting the next node in line
+      this->tnode = (this->*stackgetter)(i);
+
+      this->_ready_node_state();
+
+      // Check if no data
+      if (this->connector.boundaries.no_data(this->tnode))
+        continue;
+
+      // Check if base level
+      if (this->connector.flow_out_or_pit(this->tnode)) {
+        // manage the base level evolution here
+        continue;
+      }
+
+      this->fluvial_fastscape_SFD();
+    }
   }
 
   // ##################################################

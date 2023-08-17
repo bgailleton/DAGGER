@@ -772,6 +772,11 @@ void declare_trackscape(py::module &m, std::string typestr) {
                               CONNECTOR_T>::run)
       .def("run_SFD", &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
                                   CONNECTOR_T>::run_SFD)
+
+      .def("standalone_implicit_SPL",
+           &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
+                       CONNECTOR_T>::standalone_implicit_SPL)
+
       .def("block_uplift",
            &trackscape<double, DAGGER::graph<double, CONNECTOR_T>,
                        CONNECTOR_T>::block_uplift)
