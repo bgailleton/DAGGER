@@ -22,6 +22,7 @@
 // local includes
 // -> General routines and data structures
 #include "utils.hpp"
+#include "veclike_holder.hpp"
 // -> Depression solvers
 #include "cordonnier_versatile_2019.hpp"
 
@@ -44,7 +45,8 @@ int fast_mod(const int input, const int ceil) {
   // NB: the assumption here is that the numbers are positive
 }
 
-template <class T, class uI_t = std::uint8_t> class D8connector {
+template <class T, class uI_t = std::uint8_t, class VECLIKE = veclike<double>>
+class D8connector {
 public:
   // General informations about the graph
   // #-> number of nodes (integer and unsized int for loops or list innit).
@@ -144,6 +146,8 @@ public:
 
   bool default_permissive = false;
 
+  VECLIKE topography;
+
   // Coordinate stuff
   // Xs and Ys are vectors of nx and ny size converting row to y and col to X
   // Extents holds the cxmin,xmax,ymin,ymax (extent is an option in matplotlib
@@ -200,6 +204,9 @@ public:
     }
     return size;
   }
+
+  // template<class topo_t>
+  void connect_topography(VECLIKE &topo) { this->topography = topography; }
 
   template <class topo_t> void update_links_from_topo(topo_t &ttopo) {
     auto topo = format_input(ttopo);
