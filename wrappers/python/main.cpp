@@ -20,11 +20,14 @@ using namespace DAGGER;
 
 #define FLOATING_POINT_DAGGER double
 
-template <typename CONNECTOR_T>
-void declare_graph(py::module &m, std::string typestr) {
+template<typename CONNECTOR_T>
+void
+declare_graph(py::module& m, std::string typestr)
+{
 
-  py::class_<graph<FLOATING_POINT_DAGGER, CONNECTOR_T>>(m, typestr.c_str(),
-                                                        R"pdoc(
+	py::class_<graph<FLOATING_POINT_DAGGER, CONNECTOR_T>>(m,
+																												typestr.c_str(),
+																												R"pdoc(
 Full Graph module, to plug on a connector to unlock non-local topological operations.
 
 Description:
@@ -39,20 +42,24 @@ Authors:
 --------
 B.G.)pdoc")
 
-      .def(py::init<CONNECTOR_T &>())
-      .def(
-          "init_graph", &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::init_graph,
-          R"pdoc(Initialise the data structure and allocate memory (mostly used internally).)pdoc")
-      .def(
-          "set_opt_stst_rerouting",
-          &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_opt_stst_rerouting,
-          py::arg("onoff"),
-          R"pdoc(Activate (true) or deactivate (false) an optimiser. Most of the time does not make a difference but can _eventually_ approximate a few link a bit more precisely when rerouting local minimas.)pdoc")
-      .def("compute_graph",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::template compute_graph<
-               py::array_t<FLOATING_POINT_DAGGER, 1>, py::array>,
-           py::arg("topography"), py::arg("no_MFD"), py::arg("quicksort_on"),
-           R"pdoc(
+		.def(py::init<CONNECTOR_T&>())
+		.def(
+			"init_graph",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::init_graph,
+			R"pdoc(Initialise the data structure and allocate memory (mostly used internally).)pdoc")
+		.def(
+			"set_opt_stst_rerouting",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_opt_stst_rerouting,
+			py::arg("onoff"),
+			R"pdoc(Activate (true) or deactivate (false) an optimiser. Most of the time does not make a difference but can _eventually_ approximate a few link a bit more precisely when rerouting local minimas.)pdoc")
+		.def("compute_graph",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::template compute_graph<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array>,
+				 py::arg("topography"),
+				 py::arg("no_MFD"),
+				 py::arg("quicksort_on"),
+				 R"pdoc(
 Full computation of the graph (connector updates of links included).
 
 Description
@@ -87,19 +94,20 @@ B.G.
 
 )pdoc"
 
-           )
-      .def("is_Sstack_full",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::is_Sstack_full,
-           R"pdoc(Debugging function, to ignore)pdoc")
-      .def("activate_opti_sparse_border_cordonnier",
-           &graph<FLOATING_POINT_DAGGER,
-                  CONNECTOR_T>::activate_opti_sparse_border_cordonnier,
-           R"pdoc(Debugging function, to ignore)pdoc")
-      .def("get_all_nodes_upstream_of",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_all_nodes_upstream_of<py::array_t<int, 1>>,
-           py::arg("node"), py::arg("only_SFD"),
-           R"pdoc(
+				 )
+		.def("is_Sstack_full",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::is_Sstack_full,
+				 R"pdoc(Debugging function, to ignore)pdoc")
+		.def("activate_opti_sparse_border_cordonnier",
+				 &graph<FLOATING_POINT_DAGGER,
+								CONNECTOR_T>::activate_opti_sparse_border_cordonnier,
+				 R"pdoc(Debugging function, to ignore)pdoc")
+		.def("get_all_nodes_upstream_of",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_all_nodes_upstream_of<py::array_t<int, 1>>,
+				 py::arg("node"),
+				 py::arg("only_SFD"),
+				 R"pdoc(
 Fecth all the nodes upstream of a given one.
 
 Description
@@ -128,11 +136,12 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_all_nodes_downstream_of",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_all_nodes_downstream_of<py::array_t<int, 1>>,
-           py::arg("node"), py::arg("only_SFD"),
-           R"pdoc(
+		.def("get_all_nodes_downstream_of",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_all_nodes_downstream_of<py::array_t<int, 1>>,
+				 py::arg("node"),
+				 py::arg("only_SFD"),
+				 R"pdoc(
 Fecth all the nodes downstream of a given one.
 
 Description
@@ -161,10 +170,10 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_SFD_stack",
-           &graph<FLOATING_POINT_DAGGER,
-                  CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t, 1>>,
-           R"pdoc(
+		.def("get_SFD_stack",
+				 &graph<FLOATING_POINT_DAGGER,
+								CONNECTOR_T>::template get_SFD_stack<py::array_t<size_t, 1>>,
+				 R"pdoc(
 Returns the single flow stack (Braun and Willett. 2013) in "stack order".
 
 Description
@@ -190,10 +199,10 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_MFD_stack",
-           &graph<FLOATING_POINT_DAGGER,
-                  CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t, 1>>,
-           R"pdoc(
+		.def("get_MFD_stack",
+				 &graph<FLOATING_POINT_DAGGER,
+								CONNECTOR_T>::template get_MFD_stack<py::array_t<size_t, 1>>,
+				 R"pdoc(
 Returns the Multiple flow stack in "stack order".
 
 Description
@@ -223,12 +232,12 @@ B.G.
 
 )pdoc")
 
-      .def("accumulate_constant_downstream_SFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template accumulate_constant_downstream_SFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("constant_value"),
-           R"pdoc(
+		.def("accumulate_constant_downstream_SFD",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template accumulate_constant_downstream_SFD<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("constant_value"),
+				 R"pdoc(
 Accumulates (integrate) a constant downstream in the SFD direction.
 
 Description
@@ -254,13 +263,13 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("accumulate_variable_downstream_SFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template accumulate_variable_downstream_SFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("values"),
-           R"pdoc(
+		.def("accumulate_variable_downstream_SFD",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template accumulate_variable_downstream_SFD<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("values"),
+				 R"pdoc(
 Accumulates (integrate) a variable downstream in the SFD direction.
 
 Description
@@ -288,13 +297,14 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("accumulate_constant_downstream_MFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template accumulate_constant_downstream_MFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("weights"), py::arg("constant_value"),
-           R"pdoc(
+		.def("accumulate_constant_downstream_MFD",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template accumulate_constant_downstream_MFD<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("weights"),
+				 py::arg("constant_value"),
+				 R"pdoc(
 Accumulates (integrate) a constant downstream in the MFD direction.
 
 Description
@@ -326,13 +336,14 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("accumulate_variable_downstream_MFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template accumulate_variable_downstream_MFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("weights"), py::arg("values"),
-           R"pdoc(
+		.def("accumulate_variable_downstream_MFD",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template accumulate_variable_downstream_MFD<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("weights"),
+				 py::arg("values"),
+				 R"pdoc(
 Accumulates (integrate) a variable downstream in the MFD direction.
 
 Description
@@ -366,10 +377,10 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("set_LMR_method",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_LMR_method,
-           py::arg("LMR_method"),
-           R"pdoc(
+		.def("set_LMR_method",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_LMR_method,
+				 py::arg("LMR_method"),
+				 R"pdoc(
 Sets the Local Minima Resolver method.
 
 Description
@@ -400,24 +411,23 @@ Authors:
 B.G.
 
 )pdoc")
-      .def(
-          "set_minimum_slope_for_LMR",
-          &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_minimum_slope_for_LMR,
-          py::arg("slope"),
-          R"pdoc(LMR solvers impose a numerical topographic gradient to avoid 0 slopes. Default is 1e-5.)pdoc")
-      .def(
-          "set_slope_randomness_for_LMR",
-          &graph<FLOATING_POINT_DAGGER,
-                 CONNECTOR_T>::set_slope_randomness_for_LMR,
-          py::arg("magnitude"),
-          R"pdoc(Avoid falt surfaces by imposing a very small randomness when processing local minimas. Must be an order of magitude smaller than the  minimal slope.)pdoc")
+		.def(
+			"set_minimum_slope_for_LMR",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_minimum_slope_for_LMR,
+			py::arg("slope"),
+			R"pdoc(LMR solvers impose a numerical topographic gradient to avoid 0 slopes. Default is 1e-5.)pdoc")
+		.def(
+			"set_slope_randomness_for_LMR",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::set_slope_randomness_for_LMR,
+			py::arg("magnitude"),
+			R"pdoc(Avoid falt surfaces by imposing a very small randomness when processing local minimas. Must be an order of magitude smaller than the  minimal slope.)pdoc")
 
-      // Distance functions
-      .def("get_SFD_distance_from_outlets",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_SFD_distance_from_outlets<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		// Distance functions
+		.def("get_SFD_distance_from_outlets",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_SFD_distance_from_outlets<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the distance from the outlets following the SFD.
 
 Description
@@ -437,12 +447,12 @@ B.G.
 
 )pdoc"
 
-           )
-      .def("get_SFD_min_distance_from_sources",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_SFD_min_distance_from_sources<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+				 )
+		.def("get_SFD_min_distance_from_sources",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_SFD_min_distance_from_sources<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the minimum distance from the sources following the SFD.
 
 Description
@@ -462,11 +472,11 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_SFD_max_distance_from_sources",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_SFD_max_distance_from_sources<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_SFD_max_distance_from_sources",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_SFD_max_distance_from_sources<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the maximum distance from the sources following the SFD.
 
 Description
@@ -486,11 +496,11 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_MFD_max_distance_from_sources",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_MFD_max_distance_from_sources<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_MFD_max_distance_from_sources",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_MFD_max_distance_from_sources<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the maximum distance from the sources following the MFD.
 
 Description
@@ -510,11 +520,11 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_MFD_min_distance_from_sources",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_MFD_min_distance_from_sources<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_MFD_min_distance_from_sources",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_MFD_min_distance_from_sources<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the minimum distance from the sources following the MFD.
 
 Description
@@ -534,11 +544,11 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_MFD_max_distance_from_outlets",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_MFD_max_distance_from_outlets<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_MFD_max_distance_from_outlets",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_MFD_max_distance_from_outlets<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the maximum distance from the outlet following the MFD.
 
 Description
@@ -558,11 +568,11 @@ Authors:
 B.G.
 
 )pdoc")
-      .def("get_MFD_min_distance_from_outlets",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_MFD_min_distance_from_outlets<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_MFD_min_distance_from_outlets",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+					 template get_MFD_min_distance_from_outlets<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 Calculates the minimum distance from the outlet following the MFD.
 
 Description
@@ -583,11 +593,12 @@ B.G.
 
 )pdoc")
 
-      // Watershed labelling
-      .def("get_SFD_basin_labels",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_SFD_basin_labels<py::array_t<int, 1>>,
-           R"pdoc(
+		// Watershed labelling
+		.def(
+			"get_SFD_basin_labels",
+			&graph<FLOATING_POINT_DAGGER,
+						 CONNECTOR_T>::template get_SFD_basin_labels<py::array_t<int, 1>>,
+			R"pdoc(
 Labels SFD watersheds with unique ID.
 
 Description
@@ -606,11 +617,11 @@ B.G.
 
 )pdoc")
 
-      .def("get_drainage_area_SFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_drainage_area_SFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def(
+			"get_drainage_area_SFD",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+				template get_drainage_area_SFD<py::array_t<FLOATING_POINT_DAGGER, 1>>,
+			R"pdoc(
 Labels SFD watersheds with unique ID.
 
 Description
@@ -629,12 +640,12 @@ B.G.
 
 )pdoc")
 
-      .def("get_drainage_area_MFD",
-           &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
-               template get_drainage_area_MFD<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def(
+			"get_drainage_area_MFD",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::
+				template get_drainage_area_MFD<py::array_t<FLOATING_POINT_DAGGER, 1>,
+																			 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+			R"pdoc(
 Labels MFD watersheds with unique ID.
 
 Description
@@ -653,492 +664,493 @@ B.G.
 
 )pdoc")
 
-      .def("get_n_pits", &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_n_pits,
-           R"pdoc(Return the number of internal pits (prior solving).)pdoc")
+		.def("get_n_pits",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_n_pits,
+				 R"pdoc(Return the number of internal pits (prior solving).)pdoc")
 
-      .def(
-          "get_debug_mask",
-          &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_debug_mask,
-          R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc")
+		.def(
+			"get_debug_mask",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_debug_mask,
+			R"pdoc(Ignore. Internal debugging mask process. Changes purpose and is mostly deactivated.)pdoc")
 
-      .def(
-          "get_debug_int",
-          &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_debug_int,
-          R"pdoc(Ignore. Internal debugging int process. Changes purpose and is mostly deactivated.)pdoc")
+		.def(
+			"get_debug_int",
+			&graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_debug_int,
+			R"pdoc(Ignore. Internal debugging int process. Changes purpose and is mostly deactivated.)pdoc")
 
-      ;
+		;
 }
 
-template <typename CONNECTOR_T>
-void declare_popscape_old(py::module &m, std::string typestr) {
-  py::class_<popscape_old<FLOATING_POINT_DAGGER,
-                          DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                          CONNECTOR_T>>(m, typestr.c_str())
-      .def(py::init<RANDNOISE, int, int, FLOATING_POINT_DAGGER,
-                    FLOATING_POINT_DAGGER>())
-      // .def_readwrite("graph",  &popscape_old<FLOATING_POINT_DAGGER,
-      // DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
-      // >::graph) .def_readwrite("connector",
-      // &popscape_old<FLOATING_POINT_DAGGER,
-      // DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
-      // >::connector)
-      .def("solve_generic",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::solve_generic)
-      .def("get_topo",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::template get_topo<py::array>)
-      .def("get_QA",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::template get_QA<py::array>)
-      .def("compute_graph",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::compute_graph)
-      .def("compute_DA_SFD",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::compute_DA_SFD)
-      .def("apply_uplift",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::apply_uplift)
-      .def("apply_variable_uplift",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::
-               template apply_variable_uplift<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("solve_SFD_SPL_imp",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::solve_SFD_SPL_imp)
-      .def("hydraulic_erosion_v0",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::hydraulic_erosion_v0)
-      .def("normalise_topography",
-           &popscape_old<FLOATING_POINT_DAGGER,
-                         DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                         CONNECTOR_T>::normalise_topography)
-      // .def("run_SFD_exp_latmag", &popscape_old<FLOATING_POINT_DAGGER,
-      // DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
-      // >::run_SFD_exp_latmag)
+template<typename CONNECTOR_T>
+void
+declare_popscape_old(py::module& m, std::string typestr)
+{
+	py::class_<popscape_old<FLOATING_POINT_DAGGER,
+													DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+													CONNECTOR_T>>(m, typestr.c_str())
+		.def(py::init<RANDNOISE,
+									int,
+									int,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER>())
+		// .def_readwrite("graph",  &popscape_old<FLOATING_POINT_DAGGER,
+		// DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
+		// >::graph) .def_readwrite("connector",
+		// &popscape_old<FLOATING_POINT_DAGGER,
+		// DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
+		// >::connector)
+		.def("solve_generic",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::solve_generic)
+		.def("get_topo",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::template get_topo<py::array>)
+		.def("get_QA",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::template get_QA<py::array>)
+		.def("compute_graph",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::compute_graph)
+		.def("compute_DA_SFD",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::compute_DA_SFD)
+		.def("apply_uplift",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::apply_uplift)
+		.def(
+			"apply_variable_uplift",
+			&popscape_old<FLOATING_POINT_DAGGER,
+										DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										CONNECTOR_T>::
+				template apply_variable_uplift<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("solve_SFD_SPL_imp",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::solve_SFD_SPL_imp)
+		.def("hydraulic_erosion_v0",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::hydraulic_erosion_v0)
+		.def("normalise_topography",
+				 &popscape_old<FLOATING_POINT_DAGGER,
+											 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											 CONNECTOR_T>::normalise_topography)
+		// .def("run_SFD_exp_latmag", &popscape_old<FLOATING_POINT_DAGGER,
+		// DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T
+		// >::run_SFD_exp_latmag)
 
-      ;
+		;
 }
 
-template <typename CONNECTOR_T>
-void declare_popscape(py::module &m, std::string typestr) {
-  py::class_<
-      popscape<FLOATING_POINT_DAGGER,
-               DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>, CONNECTOR_T>>(
-      m, typestr.c_str())
-      .def(py::init<DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T> &,
-                    CONNECTOR_T &>())
-      .def("StSt", &popscape<FLOATING_POINT_DAGGER,
-                             DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                             CONNECTOR_T>::StSt)
-      .def("restriction",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::restriction)
-      .def("interpolation",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::interpolation)
-      .def("smooth",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::smooth)
-      .def("set_topo",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::
-               template set_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_topo",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::
-               template get_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_QA",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::
-               template get_QA<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_chistar",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::
-               template get_chistar<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("simple_Kfchi",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::simple_Kfchi)
-      .def("simple_Kfz",
-           &popscape<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                     CONNECTOR_T>::simple_Kfz);
+template<typename CONNECTOR_T>
+void
+declare_popscape(py::module& m, std::string typestr)
+{
+	py::class_<popscape<FLOATING_POINT_DAGGER,
+											DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+											CONNECTOR_T>>(m, typestr.c_str())
+		.def(py::init<DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>&,
+									CONNECTOR_T&>())
+		.def("StSt",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::StSt)
+		.def("restriction",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::restriction)
+		.def("interpolation",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::interpolation)
+		.def("smooth",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::smooth)
+		.def(
+			"set_topo",
+			&popscape<
+				FLOATING_POINT_DAGGER,
+				DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+				CONNECTOR_T>::template set_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def(
+			"get_topo",
+			&popscape<
+				FLOATING_POINT_DAGGER,
+				DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+				CONNECTOR_T>::template get_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_QA",
+				 &popscape<
+					 FLOATING_POINT_DAGGER,
+					 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+					 CONNECTOR_T>::template get_QA<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_chistar",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::
+					 template get_chistar<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("simple_Kfchi",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::simple_Kfchi)
+		.def("simple_Kfz",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::simple_Kfz);
 }
 
-template <typename CONNECTOR_T>
-void declare_trackscape(py::module &m, std::string typestr) {
-  py::class_<trackscape<FLOATING_POINT_DAGGER,
-                        DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                        CONNECTOR_T>>(m, typestr.c_str())
-      .def(py::init<>())
-      .def_readwrite(
-          "graph",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::graph)
-      .def_readwrite(
-          "connector",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::connector)
-      .def("init_random",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::init_random)
-      .def("init_perlin",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::init_perlin)
-      .def("get_topo",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_topo<py::array>)
-      .def("get_hillshade",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_hillshade<py::array>)
-      .def("get_h_sed",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_h_sed<py::array>)
-      .def("get_Qw",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_Qw<py::array>)
-      .def("get_Qs_fluvial",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_Qs_fluvial<py::array>)
-      .def("get_Qs_hillslopes",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_Qs_hillslopes<py::array>)
-      .def("get_precipitations",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::template get_precipitations<py::array>)
-      .def("set_full_stochastic",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_full_stochastic)
-      .def("run", &trackscape<FLOATING_POINT_DAGGER,
-                              DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                              CONNECTOR_T>::run)
-      .def("run_SFD",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::run_SFD)
+template<typename CONNECTOR_T>
+void
+declare_trackscape(py::module& m, std::string typestr)
+{
+	py::class_<trackscape<FLOATING_POINT_DAGGER,
+												DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+												CONNECTOR_T>>(m, typestr.c_str())
+		.def(py::init<>())
+		.def_readwrite(
+			"graph",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::graph)
+		.def_readwrite(
+			"connector",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::connector)
+		.def("init_random",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::init_random)
+		.def("init_perlin",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::init_perlin)
+		.def("get_topo",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_topo<py::array>)
+		.def("get_hillshade",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_hillshade<py::array>)
+		.def("get_h_sed",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_h_sed<py::array>)
+		.def("get_Qw",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_Qw<py::array>)
+		.def("get_Qs_fluvial",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_Qs_fluvial<py::array>)
+		.def("get_Qs_hillslopes",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_Qs_hillslopes<py::array>)
+		.def("get_precipitations",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_precipitations<py::array>)
+		.def("set_full_stochastic",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_full_stochastic)
+		.def("run",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::run)
+		.def("run_SFD",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::run_SFD)
 
-      .def("standalone_implicit_SPL",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::standalone_implicit_SPL)
+		.def("standalone_implicit_SPL",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::standalone_implicit_SPL)
 
-      .def("block_uplift",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::block_uplift)
-      .def(
-          "external_uplift",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template external_uplift<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "init_TSP_module",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template init_TSP_module<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("update_TSP_source",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template update_TSP_source<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "sample_carrot_TSP",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template sample_carrot_TSP<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("sample_carrot_Ch_MTSI",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template sample_carrot_Ch_MTSI<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_transect_Ch_MTSI",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template get_transect_Ch_MTSI<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_transect_TSP",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template get_transect_TSP<py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("set_dt",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_dt)
-      .def("set_transfer_rate_Qs_hs2fl",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_transfer_rate_Qs_hs2fl)
-      .def("set_single_Ks",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Ks)
-      .def("set_single_Kr",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Kr)
-      .def("set_single_Ke",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Ke)
-      .def("set_single_Kle",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Kle)
-      .def("set_single_Kld",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Kld)
-      .def("set_single_depcoeff",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_depcoeff)
-      .def("set_single_precipitations",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_precipitations)
-      .def("set_single_kappa_s",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_kappa_s)
-      .def("set_single_kappa_r",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_kappa_r)
-      .def("set_single_Sc",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Sc)
-      .def("set_single_Sc_M",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_Sc_M)
-      .def("set_single_lambda",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_lambda)
-      .def("set_single_sea_level",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_sea_level)
-      .def("set_single_internal_friction",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_internal_friction)
-      .def("set_single_tls",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_single_tls)
-      .def("set_hillslopes_mode",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_hillslopes_mode)
-      .def("set_fluvial_mode",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_fluvial_mode)
-      .def("set_secondary_fluvial_mode",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_secondary_fluvial_mode)
-      .def("set_flowtopo_mode",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_flowtopo_mode)
-      .def("set_marine_mode",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_marine_mode)
-      .def("fill_up",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::fill_up)
-      .def("init_Ch_MTSI",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::init_Ch_MTSI)
-      .def("rise_boundary_by",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::rise_boundary_by)
-      .def("get_TSP_surface_concentrations",
-           &trackscape<
-               FLOATING_POINT_DAGGER,
-               DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-               CONNECTOR_T>::template get_TSP_surface_concentrations<py::array>)
-      .def(
-          "get_Ch_MTIS_surface_age",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::template get_Ch_MTIS_surface_age<py::array>)
-      .def("set_variable_precipitations",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_precipitations<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "set_variable_Kr",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template set_variable_Kr<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "set_variable_Ks",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template set_variable_Ks<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_depcoeff",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_depcoeff<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_kappa_s",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_kappa_s<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_kappa_r",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_kappa_r<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "set_variable_Sc",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template set_variable_Sc<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_Sc_M",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_Sc_M<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def(
-          "set_variable_Ke",
-          &trackscape<FLOATING_POINT_DAGGER,
-                      DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                      CONNECTOR_T>::
-              template set_variable_Ke<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_lambda",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_lambda<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_variable_sea_level",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_variable_sea_level<
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("feed_topo",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template feed_topo<py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_extra_Qs_fluvial",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_extra_Qs_fluvial<
-                   py::array_t<int, 1> &,
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("set_extra_Qw_fluvial",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::
-               template set_extra_Qw_fluvial<
-                   py::array_t<int, 1> &,
-                   py::array_t<FLOATING_POINT_DAGGER, 1> &>)
-      .def("disable_Qs_fluvial",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::disable_Qs_fluvial)
-      .def("disable_Qw_fluvial",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::disable_Qw_fluvial)
+		.def("block_uplift",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::block_uplift)
+		.def("external_uplift",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template external_uplift<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("init_TSP_module",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template init_TSP_module<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("update_TSP_source",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template update_TSP_source<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("sample_carrot_TSP",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template sample_carrot_TSP<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def(
+			"sample_carrot_Ch_MTSI",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template sample_carrot_Ch_MTSI<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_transect_Ch_MTSI",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template get_transect_Ch_MTSI<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_transect_TSP",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template get_transect_TSP<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_dt",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_dt)
+		.def("set_transfer_rate_Qs_hs2fl",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_transfer_rate_Qs_hs2fl)
+		.def("set_single_Ks",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Ks)
+		.def("set_single_Kr",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Kr)
+		.def("set_single_Ke",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Ke)
+		.def("set_single_Kle",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Kle)
+		.def("set_single_Kld",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Kld)
+		.def("set_single_depcoeff",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_depcoeff)
+		.def("set_single_precipitations",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_precipitations)
+		.def("set_single_kappa_s",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_kappa_s)
+		.def("set_single_kappa_r",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_kappa_r)
+		.def("set_single_Sc",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Sc)
+		.def("set_single_Sc_M",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_Sc_M)
+		.def("set_single_lambda",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_lambda)
+		.def("set_single_sea_level",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_sea_level)
+		.def("set_single_internal_friction",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_internal_friction)
+		.def("set_single_tls",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_tls)
+		.def("set_hillslopes_mode",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_hillslopes_mode)
+		.def("set_fluvial_mode",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_fluvial_mode)
+		.def("set_secondary_fluvial_mode",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_secondary_fluvial_mode)
+		.def("set_flowtopo_mode",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_flowtopo_mode)
+		.def("set_marine_mode",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_marine_mode)
+		.def("fill_up",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::fill_up)
+		.def("init_Ch_MTSI",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::init_Ch_MTSI)
+		.def("rise_boundary_by",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::rise_boundary_by)
+		.def("get_TSP_surface_concentrations",
+				 &trackscape<
+					 FLOATING_POINT_DAGGER,
+					 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+					 CONNECTOR_T>::template get_TSP_surface_concentrations<py::array>)
+		.def("get_Ch_MTIS_surface_age",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::template get_Ch_MTIS_surface_age<py::array>)
+		.def("set_variable_precipitations",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_precipitations<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_Kr",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_Kr<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_Ks",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_Ks<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_variable_depcoeff",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_variable_depcoeff<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_variable_kappa_s",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_variable_kappa_s<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_variable_kappa_r",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_variable_kappa_r<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_Sc",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_Sc<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_Sc_M",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_Sc_M<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_Ke",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_Ke<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("set_variable_lambda",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template set_variable_lambda<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_variable_sea_level",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_variable_sea_level<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("feed_topo",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::
+					 template feed_topo<py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_extra_Qs_fluvial",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_extra_Qs_fluvial<py::array_t<int, 1>&,
+																			py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def(
+			"set_extra_Qw_fluvial",
+			&trackscape<FLOATING_POINT_DAGGER,
+									DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									CONNECTOR_T>::
+				template set_extra_Qw_fluvial<py::array_t<int, 1>&,
+																			py::array_t<FLOATING_POINT_DAGGER, 1>&>)
+		.def("disable_Qs_fluvial",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::disable_Qs_fluvial)
+		.def("disable_Qw_fluvial",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::disable_Qw_fluvial)
 
-      .def("set_m",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_m)
-      .def("set_n",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_n)
-      .def("set_N_boundary_to",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::set_N_boundary_to)
+		.def("set_m",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_m)
+		.def("set_n",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_n)
+		.def("set_N_boundary_to",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_N_boundary_to)
 
-      .def("run_SFD_implicit",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::run_SFD_implicit)
-      .def("lithify",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::lithify)
-      .def("strip_sediment",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::strip_sediment)
+		.def("run_SFD_implicit",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::run_SFD_implicit)
+		.def("lithify",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::lithify)
+		.def("strip_sediment",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::strip_sediment)
 
-      // SEt of standalone functions
-      .def("Standalone_hyland_landslides",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::Standalone_hyland_landslides)
-      .def("Standalone_hylands_single_landslide",
-           &trackscape<FLOATING_POINT_DAGGER,
-                       DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
-                       CONNECTOR_T>::Standalone_hylands_single_landslide)
+		// SEt of standalone functions
+		.def("Standalone_hyland_landslides",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::Standalone_hyland_landslides)
+		.def("Standalone_hylands_single_landslide",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::Standalone_hylands_single_landslide)
 
-      ;
+		;
 }
 
 // template<typename CONNECTOR_T>
@@ -1320,249 +1332,258 @@ void declare_trackscape(py::module &m, std::string typestr) {
 //   ;
 // }
 
-template <typename fT, typename GRAPH_T, typename CONNECTOR_T>
-void declare_graphflood(py::module &m, std::string typestr) {
-  py::class_<graphflood<fT, GRAPH_T, CONNECTOR_T>>(m, typestr.c_str())
-      .def(py::init<GRAPH_T &, CONNECTOR_T &>())
-      .def(
-          "run", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "set_topo",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_topo<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "set_hw",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_hw<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
+template<typename fT, typename GRAPH_T, typename CONNECTOR_T>
+void
+declare_graphflood(py::module& m, std::string typestr)
+{
+	py::class_<graphflood<fT, GRAPH_T, CONNECTOR_T>>(m, typestr.c_str())
+		.def(py::init<GRAPH_T&, CONNECTOR_T&>())
+		.def("run",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("set_topo",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_topo<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("set_hw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_hw<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
 
-      .def(
-          "get_hw",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_hw<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "get_surface_topo",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_surface_topo<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "get_bedrock_topo",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "get_Qwin",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwin<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "get_SSTACKDEBUG",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG<
-              py::array_t<size_t, 1>>,
-          R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_hw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_hw<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_surface_topo",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_surface_topo<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_bedrock_topo",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_bedrock_topo<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_Qwin",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwin<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_SSTACKDEBUG",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG<
+					 py::array_t<size_t, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
 
-      .def(
-          "enable_MFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_MFD,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def(
-          "enable_SFD", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_SFD,
-          R"pdoc(Main function running the model from all the input params)pdoc")
-      .def("set_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
-      .def("fill_minima", &graphflood<fT, GRAPH_T, CONNECTOR_T>::fill_minima)
-      .def("reroute_minima",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::reroute_minima)
-      .def("ignore_minima",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::ignore_minima)
-      .def("enable_morpho",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_morpho)
-      .def("disable_morpho",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_morpho)
-      .def("set_dt_morpho_multiplier",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
+		.def("enable_MFD",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_MFD,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("enable_SFD",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_SFD,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("set_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_hydro)
+		.def("fill_minima", &graphflood<fT, GRAPH_T, CONNECTOR_T>::fill_minima)
+		.def("reroute_minima",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::reroute_minima)
+		.def("ignore_minima", &graphflood<fT, GRAPH_T, CONNECTOR_T>::ignore_minima)
+		.def("enable_morpho", &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_morpho)
+		.def("disable_morpho",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_morpho)
+		.def("set_dt_morpho_multiplier",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho_multiplier)
 
-      .def("set_dt_morpho",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho)
-      .def("set_single_aexp",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_aexp)
-      .def("set_single_ke",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke)
-      .def("set_single_ke_lateral",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke_lateral)
-      .def("set_single_kd",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd)
-      .def("set_single_kd_lateral",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
-      .def("set_single_tau_c",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
-      .def("set_variable_ke",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_variable_ke<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("set_mannings", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_mannings)
+		.def("set_dt_morpho", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_dt_morpho)
+		.def("set_single_aexp",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_aexp)
+		.def("set_single_ke", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke)
+		.def("set_single_ke_lateral",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_ke_lateral)
+		.def("set_single_kd", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd)
+		.def("set_single_kd_lateral",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
+		.def("set_single_tau_c",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_single_kd_lateral)
+		.def("set_variable_ke",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_variable_ke<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_mannings", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_mannings)
 
-      .def("init_convergence_checker",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::init_convergence_checker)
-      .def("get_conv_nodes",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_nodes<
-               py::array_t<int, 1>>)
-      .def("get_conv_ini_Qw",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_ini_Qw<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_conv_mean_Qr",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_Qr<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("get_conv_mean_dhw",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_dhw<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("init_convergence_checker",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::init_convergence_checker)
+		.def("get_conv_nodes",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_nodes<
+					 py::array_t<int, 1>>)
+		.def("get_conv_ini_Qw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_ini_Qw<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_conv_mean_Qr",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_Qr<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_conv_mean_dhw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_conv_mean_dhw<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("compute_tuqQ",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_tuqQ<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def("compute_elemental_transfer",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
-               template compute_elemental_transfer<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("compute_tuqQ",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_tuqQ<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("set_water_input_by_entry_points",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
-               template set_water_input_by_entry_points<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>, py::array_t<int, 1>>)
-      .def("set_water_input_by_constant_precipitation_rate",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
-               set_water_input_by_constant_precipitation_rate)
-      .def("set_water_input_by_variable_precipitation_rate",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
-               template set_water_input_by_variable_precipitation_rate<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("compute_AD8",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_AD8<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("set_sed_input_by_entry_points",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::
-               template set_sed_input_by_entry_points<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>, py::array_t<int, 1>>)
+		.def("compute_AD8_maxQw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_AD8_maxQw<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_Qwout_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
-      .def("disable_Qwout_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
-      .def("get_Qwout_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def(
+			"compute_AD8_stochastic_Qw",
+			&graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_AD8_stochastic_Qw<
+				py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_Sw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
-      .def("disable_Sw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
-      .def("get_Sw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def(
+			"compute_AD8_stochastic_Sw",
+			&graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_AD8_stochastic_Sw<
+				py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_dhw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
-      .def("disable_dhw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
-      .def("get_dhw_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("compute_elemental_transfer",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+					 template compute_elemental_transfer<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_filling_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
-      .def("disable_filling_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
-      .def(
-          "get_filling_recording",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_filling_recording<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_water_input_by_entry_points",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+					 template set_water_input_by_entry_points<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<int, 1>>)
+		.def("set_water_input_by_constant_precipitation_rate",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+					 set_water_input_by_constant_precipitation_rate)
+		.def("set_water_input_by_variable_precipitation_rate",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+					 template set_water_input_by_variable_precipitation_rate<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_edot_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
-      .def("disable_edot_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
-      .def("get_edot_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_edot_recording<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_sed_input_by_entry_points",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::
+					 template set_sed_input_by_entry_points<
+						 py::array_t<FLOATING_POINT_DAGGER, 1>,
+						 py::array_t<int, 1>>)
 
-      .def("enable_flowvec_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
-      .def("disable_flowvec_recording",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
-      .def(
-          "get_flowvec_recording",
-          &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<
-              py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("enable_Qwout_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Qwout_recording)
+		.def("disable_Qwout_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Qwout_recording)
+		.def("get_Qwout_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwout_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("get_tot_Qw_input",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
-      .def("get_tot_Qw_output",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
-      .def("get_tot_Qwin_output",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
-      .def("get_tot_Qs_output",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
+		.def("enable_Sw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_Sw_recording)
+		.def("disable_Sw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_Sw_recording)
+		.def("get_Sw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Sw_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("set_stochaslope",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_stochaslope)
-      .def("disable_stochaslope",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
-      .def("set_fixed_hw_at_boundaries",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
-      .def("set_fixed_slope_at_boundaries",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
-      .def("get_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
+		.def("enable_dhw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_dhw_recording)
+		.def("disable_dhw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_dhw_recording)
+		.def("get_dhw_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_dhw_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("set_partition_method",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_partition_method)
-      .def("set_topological_number",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_topological_number)
-      .def("get_topological_number",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_topological_number)
+		.def("enable_filling_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_filling_recording)
+		.def("disable_filling_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_filling_recording)
+		.def("get_filling_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_filling_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("get_courant_dt_hydro",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
-      .def("set_courant_number",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_number)
-      .def("set_max_courant_dt_hydro",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
-      .def("set_min_courant_dt_hydro",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_min_courant_dt_hydro)
-      .def("enable_courant_dt_hydro",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
-      .def("disable_courant_dt_hydro",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_courant_dt_hydro)
-      .def("set_Qwin_crit",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_Qwin_crit)
-      .def("get_nT", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_nT)
+		.def("enable_edot_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_edot_recording)
+		.def("disable_edot_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_edot_recording)
+		.def("get_edot_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_edot_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("enable_hydrostationary",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationary)
-      .def("disable_hydrostationary",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationary)
+		.def("enable_flowvec_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_flowvec_recording)
+		.def("disable_flowvec_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_flowvec_recording)
+		.def("get_flowvec_recording",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_flowvec_recording<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
-      .def("block_uplift", &graphflood<fT, GRAPH_T, CONNECTOR_T>::block_uplift)
-      .def("variable_uplift",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::template variable_uplift<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("get_tot_Qw_input",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_input)
+		.def("get_tot_Qw_output",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qw_output)
+		.def("get_tot_Qwin_output",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qwin_output)
+		.def("get_tot_Qs_output",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_tot_Qs_output)
 
-      .def("run_precipitions",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions)
-      .def("run_precipitions_exp",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions_exp)
-      .def("run_graphipiton",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_graphipiton)
-      .def("run_exp", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_exp)
-      .def("run_hydro_only",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_hydro_only)
+		.def("set_stochaslope",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_stochaslope)
+		.def("disable_stochaslope",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_stochaslope)
+		.def("set_fixed_hw_at_boundaries",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_hw_at_boundaries)
+		.def("set_fixed_slope_at_boundaries",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_fixed_slope_at_boundaries)
+		.def("get_dt_hydro", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_dt_hydro)
 
-      .def("define_precipitations_Ath",
-           &graphflood<fT, GRAPH_T, CONNECTOR_T>::define_precipitations_Ath)
+		.def("set_partition_method",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_partition_method)
+		.def("set_topological_number",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_topological_number)
+		.def("get_topological_number",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_topological_number)
 
-      ;
+		.def("get_courant_dt_hydro",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_courant_dt_hydro)
+		.def("set_courant_number",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_courant_number)
+		.def("set_max_courant_dt_hydro",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_max_courant_dt_hydro)
+		.def("set_min_courant_dt_hydro",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_min_courant_dt_hydro)
+		.def("enable_courant_dt_hydro",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_courant_dt_hydro)
+		.def("disable_courant_dt_hydro",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_courant_dt_hydro)
+		.def("set_Qwin_crit", &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_Qwin_crit)
+		.def("get_nT", &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_nT)
+
+		.def("enable_hydrostationary",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::enable_hydrostationary)
+		.def("disable_hydrostationary",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::disable_hydrostationary)
+
+		.def("block_uplift", &graphflood<fT, GRAPH_T, CONNECTOR_T>::block_uplift)
+		.def("variable_uplift",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template variable_uplift<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
+
+		.def("run_precipitions",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions)
+		.def("run_precipitions_exp",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_precipitions_exp)
+		.def("run_graphipiton",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_graphipiton)
+		.def("run_exp", &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_exp)
+		.def("run_hydro_only",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run_hydro_only)
+
+		.def("define_precipitations_Ath",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::define_precipitations_Ath)
+
+		;
 }
 
-PYBIND11_MODULE(dagger, m) {
-  m.doc() = R"pbdoc(
+PYBIND11_MODULE(dagger, m)
+{
+	m.doc() = R"pbdoc(
 		DAGGER - python API
 		===================
 
@@ -1648,52 +1669,52 @@ PYBIND11_MODULE(dagger, m) {
 
 	)pbdoc";
 
-  py::enum_<DEPRES>(m, "LMR")
-      .value("cordonnier_fill", DEPRES::cordonnier_fill)
-      .value("cordonnier_carve", DEPRES::cordonnier_carve)
-      .value("cordonnier_simple", DEPRES::cordonnier_simple)
-      .value("priority_flood", DEPRES::priority_flood)
-      .value("priority_flood_opti", DEPRES::priority_flood_opti)
-      .value("priority_full_MFD", DEPRES::priority_full_MFD)
+	py::enum_<DEPRES>(m, "LMR")
+		.value("cordonnier_fill", DEPRES::cordonnier_fill)
+		.value("cordonnier_carve", DEPRES::cordonnier_carve)
+		.value("cordonnier_simple", DEPRES::cordonnier_simple)
+		.value("priority_flood", DEPRES::priority_flood)
+		.value("priority_flood_opti", DEPRES::priority_flood_opti)
+		.value("priority_full_MFD", DEPRES::priority_full_MFD)
 
-      .value("none", DEPRES::none)
-      .value("dagger_carve", DEPRES::dagger_carve)
-      .value("dagger_fill", DEPRES::dagger_fill);
+		.value("none", DEPRES::none)
+		.value("dagger_carve", DEPRES::dagger_carve)
+		.value("dagger_fill", DEPRES::dagger_fill);
 
-  py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
-      .value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
-      .value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
-      .value("PROPOREC", MFD_PARTITIONNING::PROPOREC);
+	py::enum_<MFD_PARTITIONNING>(m, "MFD_PARTITIONNING")
+		.value("PROPOSLOPE", MFD_PARTITIONNING::PROPOSLOPE)
+		.value("SQRTSLOPE", MFD_PARTITIONNING::SQRTSLOPE)
+		.value("PROPOREC", MFD_PARTITIONNING::PROPOREC);
 
-  py::enum_<TSC_HILLSLOPE>(m, "TSC_HILLSLOPE")
-      .value("NONE", TSC_HILLSLOPE::NONE)
-      .value("LINEAR", TSC_HILLSLOPE::LINEAR)
-      .value("CIDRE", TSC_HILLSLOPE::CIDRE)
-      .value("CIDRE_NOCRIT", TSC_HILLSLOPE::CIDRE_NOCRIT)
-      .value("HYLANDS", TSC_HILLSLOPE::HYLANDS);
+	py::enum_<TSC_HILLSLOPE>(m, "TSC_HILLSLOPE")
+		.value("NONE", TSC_HILLSLOPE::NONE)
+		.value("LINEAR", TSC_HILLSLOPE::LINEAR)
+		.value("CIDRE", TSC_HILLSLOPE::CIDRE)
+		.value("CIDRE_NOCRIT", TSC_HILLSLOPE::CIDRE_NOCRIT)
+		.value("HYLANDS", TSC_HILLSLOPE::HYLANDS);
 
-  py::enum_<TSC_FLUVIAL>(m, "TSC_FLUVIAL")
-      .value("NONE", TSC_FLUVIAL::NONE)
-      .value("DAVY2009", TSC_FLUVIAL::DAVY2009)
-      .value("LATERALDAVY", TSC_FLUVIAL::LATERALDAVY)
-      .value("LATERALSPL", TSC_FLUVIAL::LATERALSPL)
-      .value("FASTSCAPE", TSC_FLUVIAL::FASTSCAPE);
+	py::enum_<TSC_FLUVIAL>(m, "TSC_FLUVIAL")
+		.value("NONE", TSC_FLUVIAL::NONE)
+		.value("DAVY2009", TSC_FLUVIAL::DAVY2009)
+		.value("LATERALDAVY", TSC_FLUVIAL::LATERALDAVY)
+		.value("LATERALSPL", TSC_FLUVIAL::LATERALSPL)
+		.value("FASTSCAPE", TSC_FLUVIAL::FASTSCAPE);
 
-  py::enum_<TSC_MARINE>(m, "TSC_MARINE")
-      .value("NONE", TSC_MARINE::NONE)
-      .value("CHARLIE", TSC_MARINE::CHARLIE);
+	py::enum_<TSC_MARINE>(m, "TSC_MARINE")
+		.value("NONE", TSC_MARINE::NONE)
+		.value("CHARLIE", TSC_MARINE::CHARLIE);
 
-  py::enum_<TSC_FLOW_TOPOLOGY>(m, "TSC_FLOW_TOPOLOGY")
-      .value("SFD", TSC_FLOW_TOPOLOGY::SFD)
-      .value("MFD", TSC_FLOW_TOPOLOGY::MFD);
+	py::enum_<TSC_FLOW_TOPOLOGY>(m, "TSC_FLOW_TOPOLOGY")
+		.value("SFD", TSC_FLOW_TOPOLOGY::SFD)
+		.value("MFD", TSC_FLOW_TOPOLOGY::MFD);
 
-  py::enum_<CONVERGENCE>(m, "GRAPHFLOOD_CONVERGENCE")
-      .value("NONE", CONVERGENCE::NONE)
-      .value("DHW", CONVERGENCE::DHW)
-      .value("QWR", CONVERGENCE::QWR)
-      .value("ALL", CONVERGENCE::ALL);
+	py::enum_<CONVERGENCE>(m, "GRAPHFLOOD_CONVERGENCE")
+		.value("NONE", CONVERGENCE::NONE)
+		.value("DHW", CONVERGENCE::DHW)
+		.value("QWR", CONVERGENCE::QWR)
+		.value("ALL", CONVERGENCE::ALL);
 
-  py::class_<D8connector<FLOATING_POINT_DAGGER>>(m, "D8N", R"pbdoc(
+	py::class_<D8connector<FLOATING_POINT_DAGGER>>(m, "D8N", R"pbdoc(
 D8 regular grid connector D8N
 
 Description:
@@ -1723,11 +1744,19 @@ B.G.
 
 )pbdoc")
 
-      .def(py::init<int, int, FLOATING_POINT_DAGGER, FLOATING_POINT_DAGGER,
-                    FLOATING_POINT_DAGGER, FLOATING_POINT_DAGGER>(),
-           py::arg("nx"), py::arg("ny"), py::arg("dx"), py::arg("dy"),
-           py::arg("x_min"), py::arg("x_max"),
-           R"pbdoc(
+		.def(py::init<int,
+									int,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER>(),
+				 py::arg("nx"),
+				 py::arg("ny"),
+				 py::arg("dx"),
+				 py::arg("dy"),
+				 py::arg("x_min"),
+				 py::arg("x_max"),
+				 R"pbdoc(
 D8 regular grid connector D8N
 
 Description:
@@ -1756,10 +1785,10 @@ Authors:
 B.G.
 
 )pbdoc")
-      .def("set_default_boundaries",
-           &D8connector<FLOATING_POINT_DAGGER>::set_default_boundaries,
-           py::arg("boundary_preset"),
-           R"pbdoc(
+		.def("set_default_boundaries",
+				 &D8connector<FLOATING_POINT_DAGGER>::set_default_boundaries,
+				 py::arg("boundary_preset"),
+				 R"pbdoc(
 
 Automatically sets the default boundary system based on predefined presets.
 
@@ -1784,11 +1813,11 @@ B.G.
 
 )pbdoc")
 
-      .def("set_custom_boundaries",
-           &D8connector<FLOATING_POINT_DAGGER>::set_custom_boundaries<
-               py::array_t<int, 1>>,
-           py::arg("boundary_codes"),
-           R"pbdoc(
+		.def("set_custom_boundaries",
+				 &D8connector<FLOATING_POINT_DAGGER>::set_custom_boundaries<
+					 py::array_t<int, 1>>,
+				 py::arg("boundary_codes"),
+				 R"pbdoc(
 
 Manually sets the boundary codes as uint8 1D array (see doc for options).
 
@@ -1814,23 +1843,25 @@ B.G.
 
 )pbdoc"
 
-           )
-      .def("print_dim", &D8connector<FLOATING_POINT_DAGGER>::print_dim,
-           R"pdoc(Debugging function)pdoc")
-      .def(
-          "get_HS",
-          &D8connector<FLOATING_POINT_DAGGER>::get_HS<
-              std::vector<FLOATING_POINT_DAGGER>, py::array>,
-          R"pdoc(Deprecated, kept for legacy (see hillshade function outside of ``connector``))pdoc")
-      .def("get_mask_array",
-           &D8connector<FLOATING_POINT_DAGGER>::get_mask_array,
-           R"pdoc(Returns a 1D array of bool where false are nodata)pdoc")
+				 )
+		.def("print_dim",
+				 &D8connector<FLOATING_POINT_DAGGER>::print_dim,
+				 R"pdoc(Debugging function)pdoc")
+		.def(
+			"get_HS",
+			&D8connector<FLOATING_POINT_DAGGER>::
+				get_HS<std::vector<FLOATING_POINT_DAGGER>, py::array>,
+			R"pdoc(Deprecated, kept for legacy (see hillshade function outside of ``connector``))pdoc")
+		.def("get_mask_array",
+				 &D8connector<FLOATING_POINT_DAGGER>::get_mask_array,
+				 R"pdoc(Returns a 1D array of bool where false are nodata)pdoc")
 
-      .def("set_values_at_boundaries",
-           &D8connector<FLOATING_POINT_DAGGER>::set_values_at_boundaries<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("array_to_modify"), py::arg("value"),
-           R"pdoc(
+		.def("set_values_at_boundaries",
+				 &D8connector<FLOATING_POINT_DAGGER>::set_values_at_boundaries<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("array_to_modify"),
+				 py::arg("value"),
+				 R"pdoc(
 Modify an array in place with given value where connector can out flux
 
 Description:
@@ -1855,10 +1886,9 @@ B.G.
 
 )pdoc")
 
-      .def(
-          "set_out_boundaries_to_permissive",
-          &D8connector<FLOATING_POINT_DAGGER>::set_out_boundaries_to_permissive,
-          R"pdoc(
+		.def("set_out_boundaries_to_permissive",
+				 &D8connector<FLOATING_POINT_DAGGER>::set_out_boundaries_to_permissive,
+				 R"pdoc(
 Converts OUT boundaries to CAN_OUT.
 
 Description:
@@ -1873,33 +1903,35 @@ B.G.
 
 )pdoc")
 
-      .def("get_boundary_at_node",
-           &D8connector<FLOATING_POINT_DAGGER>::get_boundary_at_node,
-           py::arg("node_idx"),
-           R"pdoc(Returns the boundary code at node index)pdoc")
+		.def("get_boundary_at_node",
+				 &D8connector<FLOATING_POINT_DAGGER>::get_boundary_at_node,
+				 py::arg("node_idx"),
+				 R"pdoc(Returns the boundary code at node index)pdoc")
 
-      .def(
-          "get_rowcol_Sreceivers",
-          &D8connector<FLOATING_POINT_DAGGER>::get_rowcol_Sreceivers,
-          py::arg("row_index"), py::arg("col_index"),
-          R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
+		.def(
+			"get_rowcol_Sreceivers",
+			&D8connector<FLOATING_POINT_DAGGER>::get_rowcol_Sreceivers,
+			py::arg("row_index"),
+			py::arg("col_index"),
+			R"pdoc(Debug function to get the receiver (node) indices of a node from its row and column index)pdoc")
 
-      .def(
-          "print_receivers",
-          &D8connector<FLOATING_POINT_DAGGER>::template print_receivers<
-              std::vector<FLOATING_POINT_DAGGER>>,
-          py::arg("node_index"), py::arg("topography"),
-          R"pdoc(Debuggin function printing to the terminal the receivers of a node index and their topography (post graph computation! so the topographic field may not be the one used for the receivers/LM computations))pdoc")
+		.def(
+			"print_receivers",
+			&D8connector<FLOATING_POINT_DAGGER>::template print_receivers<
+				std::vector<FLOATING_POINT_DAGGER>>,
+			py::arg("node_index"),
+			py::arg("topography"),
+			R"pdoc(Debuggin function printing to the terminal the receivers of a node index and their topography (post graph computation! so the topographic field may not be the one used for the receivers/LM computations))pdoc")
 
-      .def("get_rec_array_size",
-           &D8connector<FLOATING_POINT_DAGGER>::get_rec_array_size,
-           R"pdoc(Debug function - ignore)pdoc")
+		.def("get_rec_array_size",
+				 &D8connector<FLOATING_POINT_DAGGER>::get_rec_array_size,
+				 R"pdoc(Debug function - ignore)pdoc")
 
-      .def("update_links_MFD_only",
-           &D8connector<FLOATING_POINT_DAGGER>::template update_links_MFD_only<
-               std::vector<FLOATING_POINT_DAGGER>>,
-           py::arg("topography"),
-           R"pdoc(
+		.def("update_links_MFD_only",
+				 &D8connector<FLOATING_POINT_DAGGER>::template update_links_MFD_only<
+					 std::vector<FLOATING_POINT_DAGGER>>,
+				 py::arg("topography"),
+				 R"pdoc(
 Updates all the link directionalities - but not the SFD receiver/donors.
 
 Description:
@@ -1922,11 +1954,11 @@ B.G.
 
 )pdoc")
 
-      .def("update_links_from_topo",
-           &D8connector<FLOATING_POINT_DAGGER>::template update_links_from_topo<
-               std::vector<FLOATING_POINT_DAGGER>>,
-           py::arg("topography"),
-           R"pdoc(
+		.def("update_links_from_topo",
+				 &D8connector<FLOATING_POINT_DAGGER>::template update_links_from_topo<
+					 std::vector<FLOATING_POINT_DAGGER>>,
+				 py::arg("topography"),
+				 R"pdoc(
 Updates all the link directionalities - but not the SFD receiver/donors.
 
 Description:
@@ -1947,11 +1979,13 @@ B.G.
 
 )pdoc")
 
-      .def("sum_at_outlets",
-           &D8connector<FLOATING_POINT_DAGGER>::template sum_at_outlets<
-               py::array_t<FLOATING_POINT_DAGGER, 1>, FLOATING_POINT_DAGGER>,
-           py::arg("array"), py::arg("include_pits"),
-           R"pdoc(
+		.def("sum_at_outlets",
+				 &D8connector<FLOATING_POINT_DAGGER>::template sum_at_outlets<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 FLOATING_POINT_DAGGER>,
+				 py::arg("array"),
+				 py::arg("include_pits"),
+				 R"pdoc(
 Sum the values contains in the input array where flux out the model.
 
 Description:
@@ -1981,11 +2015,13 @@ B.G.
 
 )pdoc")
 
-      .def("keep_only_at_outlets",
-           &D8connector<FLOATING_POINT_DAGGER>::template keep_only_at_outlets<
-               py::array_t<FLOATING_POINT_DAGGER, 1>, py::array>,
-           py::arg("array"), py::arg("include_pits"),
-           R"pdoc(
+		.def("keep_only_at_outlets",
+				 &D8connector<FLOATING_POINT_DAGGER>::template keep_only_at_outlets<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array>,
+				 py::arg("array"),
+				 py::arg("include_pits"),
+				 R"pdoc(
 return a copy of the input array where all the non-outting nodes are set to 0.
 
 Description:
@@ -2015,10 +2051,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_SFD_receivers",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_receivers<
-               py::array_t<int, 1>>,
-           R"pdoc(
+		.def("get_SFD_receivers",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_receivers<
+					 py::array_t<int, 1>>,
+				 R"pdoc(
 returns the array of SFD receivers.
 
 Description:
@@ -2039,10 +2075,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_SFD_dx",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_dx<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           R"pdoc(
+		.def("get_SFD_dx",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_dx<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(
 returns the array of SFD distance to receivers.
 
 Description:
@@ -2063,10 +2099,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_SFD_ndonors",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_ndonors<
-               py::array_t<int, 1>>,
-           R"pdoc(
+		.def("get_SFD_ndonors",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_ndonors<
+					 py::array_t<int, 1>>,
+				 R"pdoc(
 returns the array of SFD number of donors.
 
 Description:
@@ -2085,10 +2121,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_SFD_donors_flat",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_flat<
-               py::array_t<int, 1>>,
-           R"pdoc(
+		.def("get_SFD_donors_flat",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_flat<
+					 py::array_t<int, 1>>,
+				 R"pdoc(
 returns a flat array of SFD donors(read description for indexing!).
 
 Description:
@@ -2109,10 +2145,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_SFD_donors_list",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_list<
-               std::vector<std::vector<int>>>,
-           R"pdoc(
+		.def("get_SFD_donors_list",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_list<
+					 std::vector<std::vector<int>>>,
+				 R"pdoc(
 returns a list (not an array!) of irregular size with donor indices.
 
 Description:
@@ -2133,10 +2169,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_links",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_links<
-               std::vector<std::uint8_t>>,
-           R"pdoc(
+		.def("get_links",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_links<
+					 std::vector<std::uint8_t>>,
+				 R"pdoc(
 returns an array of link size with link type.
 
 Description:
@@ -2159,10 +2195,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_linknodes_flat",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_linknodes_flat<
-               py::array_t<int, 1>>,
-           R"pdoc(
+		.def("get_linknodes_flat",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_linknodes_flat<
+					 py::array_t<int, 1>>,
+				 R"pdoc(
 returns a flat array of linknodes (node indices pair for each links).
 
 Description:
@@ -2183,10 +2219,10 @@ B.G.
 
 )pdoc")
 
-      .def("get_linknodes_list",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_linknodes_list<
-               std::vector<std::vector<int>>>,
-           R"pdoc(
+		.def("get_linknodes_list",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_linknodes_list<
+					 std::vector<std::vector<int>>>,
+				 R"pdoc(
 returns a list (not an array!) of link nodes.
 
 Description:
@@ -2206,11 +2242,11 @@ B.G.
 
 )pdoc")
 
-      .def("get_linknodes_list_oriented",
-           &D8connector<FLOATING_POINT_DAGGER>::
-               template get_linknodes_list_oriented<
-                   std::vector<std::vector<int>>>,
-           R"pdoc(
+		.def(
+			"get_linknodes_list_oriented",
+			&D8connector<FLOATING_POINT_DAGGER>::template get_linknodes_list_oriented<
+				std::vector<std::vector<int>>>,
+			R"pdoc(
 returns a list (not an array!) of link nodes, donor first, rec second.
 
 Description:
@@ -2231,32 +2267,32 @@ B.G.
 
 )pdoc")
 
-      .def(
-          "get_SFD_receivers_at_node",
-          &D8connector<FLOATING_POINT_DAGGER>::get_SFD_receivers_at_node,
-          R"pdoc(Returns the node index of the SFD receivers for a given node index)pdoc")
+		.def(
+			"get_SFD_receivers_at_node",
+			&D8connector<FLOATING_POINT_DAGGER>::get_SFD_receivers_at_node,
+			R"pdoc(Returns the node index of the SFD receivers for a given node index)pdoc")
 
-      .def(
-          "get_SFD_dx_at_node",
-          &D8connector<FLOATING_POINT_DAGGER>::get_SFD_dx_at_node,
-          R"pdoc(Returns the distance to the SFD receivers for a given node index)pdoc")
+		.def(
+			"get_SFD_dx_at_node",
+			&D8connector<FLOATING_POINT_DAGGER>::get_SFD_dx_at_node,
+			R"pdoc(Returns the distance to the SFD receivers for a given node index)pdoc")
 
-      .def("get_SFD_ndonors_at_node",
-           &D8connector<FLOATING_POINT_DAGGER>::get_SFD_ndonors_at_node
+		.def("get_SFD_ndonors_at_node",
+				 &D8connector<FLOATING_POINT_DAGGER>::get_SFD_ndonors_at_node
 
-           )
+				 )
 
-      .def("get_SFD_donors_at_node",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_at_node<
-               std::vector<int>>,
-           R"pdoc(Returns a list of SFD donors for a given node index)pdoc")
+		.def("get_SFD_donors_at_node",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_donors_at_node<
+					 std::vector<int>>,
+				 R"pdoc(Returns a list of SFD donors for a given node index)pdoc")
 
-      .def("get_SFD_gradient",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_gradient<
-               py::array_t<FLOATING_POINT_DAGGER, 1>,
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("topography"),
-           R"pdoc(
+		.def("get_SFD_gradient",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_SFD_gradient<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("topography"),
+				 R"pdoc(
 returns an array of node size with the topographic gradient
 
 Description:
@@ -2283,12 +2319,13 @@ B.G.
 
 )pdoc")
 
-      .def("get_links_gradient",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_links_gradient<
-               py::array_t<FLOATING_POINT_DAGGER, 1>,
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("topography"), py::arg("minimum_slope"),
-           R"pdoc(
+		.def("get_links_gradient",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_links_gradient<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("topography"),
+				 py::arg("minimum_slope"),
+				 R"pdoc(
 returns an array of link size with the topographic gradient for each of them.
 
 Description:
@@ -2315,12 +2352,12 @@ B.G.
 
 )pdoc")
 
-      .def("get_MFD_mean_gradient",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_MFD_mean_gradient<
-               py::array_t<FLOATING_POINT_DAGGER, 1>,
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("topography"),
-           R"pdoc(
+		.def("get_MFD_mean_gradient",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_MFD_mean_gradient<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("topography"),
+				 R"pdoc(
 returns an array of node size with the mean topographic gradient for each nodes.
 
 Description:
@@ -2346,15 +2383,16 @@ B.G.
 
 )pdoc"
 
-           )
+				 )
 
-      .def("get_MFD_weighted_gradient",
-           &D8connector<FLOATING_POINT_DAGGER>::
-               template get_MFD_weighted_gradient<
-                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                   py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("topography"), py::arg("weights"),
-           R"pdoc(
+		.def(
+			"get_MFD_weighted_gradient",
+			&D8connector<FLOATING_POINT_DAGGER>::template get_MFD_weighted_gradient<
+				py::array_t<FLOATING_POINT_DAGGER, 1>,
+				py::array_t<FLOATING_POINT_DAGGER, 1>>,
+			py::arg("topography"),
+			py::arg("weights"),
+			R"pdoc(
 returns an array of node size with the weighted mean gradient for each nodes.
 
 Description:
@@ -2382,12 +2420,13 @@ B.G.
 
 )pdoc")
 
-      .def("get_link_weights",
-           &D8connector<FLOATING_POINT_DAGGER>::template get_link_weights<
-               py::array_t<FLOATING_POINT_DAGGER, 1>,
-               py::array_t<FLOATING_POINT_DAGGER, 1>>,
-           py::arg("gradients"), py::arg("exponent"),
-           R"pdoc(
+		.def("get_link_weights",
+				 &D8connector<FLOATING_POINT_DAGGER>::template get_link_weights<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>,
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 py::arg("gradients"),
+				 py::arg("exponent"),
+				 R"pdoc(
 Computes partition weights for each link function of rec slopes per node basis.
 
 Description:
@@ -2418,61 +2457,66 @@ Authors:
 --------
 B.G.)pdoc")
 
-      .def(
-          "set_stochaticiy_for_SFD",
-          &D8connector<FLOATING_POINT_DAGGER>::set_stochaticiy_for_SFD,
-          py::arg("magnitude"),
-          R"pdoc(EXPERIMENTAL: adds stochasticity to the SFD receivers calculation. Best to ignore.)pdoc");
+		.def(
+			"set_stochaticiy_for_SFD",
+			&D8connector<FLOATING_POINT_DAGGER>::set_stochaticiy_for_SFD,
+			py::arg("magnitude"),
+			R"pdoc(EXPERIMENTAL: adds stochasticity to the SFD receivers calculation. Best to ignore.)pdoc");
 
-  py::class_<D4connector<FLOATING_POINT_DAGGER>>(
-      m, "D4N",
-      R"pdoc(DEPRECATED - will be back at some points, keeping for legacy)pdoc")
-      .def(py::init<int, int, FLOATING_POINT_DAGGER, FLOATING_POINT_DAGGER,
-                    FLOATING_POINT_DAGGER, FLOATING_POINT_DAGGER>())
-      .def("set_default_boundaries",
-           &D4connector<FLOATING_POINT_DAGGER>::set_default_boundaries)
-      .def("set_custom_boundaries",
-           &D4connector<FLOATING_POINT_DAGGER>::set_custom_boundaries<
-               py::array_t<int, 1>>)
-      .def("print_dim", &D4connector<FLOATING_POINT_DAGGER>::print_dim)
-      .def("get_HS", &D4connector<FLOATING_POINT_DAGGER>::get_HS<
-                         std::vector<FLOATING_POINT_DAGGER>, py::array>)
-      // .def("fill_barne_2014",
-      // &D4connector<FLOATING_POINT_DAGGER>::fill_barne_2014<std::vector<FLOATING_POINT_DAGGER>
-      // >)
-      .def("get_mask_array",
-           &D4connector<FLOATING_POINT_DAGGER>::get_mask_array)
-      .def("set_values_at_boundaries",
-           &D4connector<FLOATING_POINT_DAGGER>::set_values_at_boundaries<
-               py::array_t<FLOATING_POINT_DAGGER, 1>>)
-      .def(
-          "set_out_boundaries_to_permissive",
-          &D4connector<FLOATING_POINT_DAGGER>::set_out_boundaries_to_permissive)
-      .def("get_boundary_at_node",
-           &D4connector<FLOATING_POINT_DAGGER>::get_boundary_at_node);
+	py::class_<D4connector<FLOATING_POINT_DAGGER>>(
+		m,
+		"D4N",
+		R"pdoc(DEPRECATED - will be back at some points, keeping for legacy)pdoc")
+		.def(py::init<int,
+									int,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER,
+									FLOATING_POINT_DAGGER>())
+		.def("set_default_boundaries",
+				 &D4connector<FLOATING_POINT_DAGGER>::set_default_boundaries)
+		.def("set_custom_boundaries",
+				 &D4connector<FLOATING_POINT_DAGGER>::set_custom_boundaries<
+					 py::array_t<int, 1>>)
+		.def("print_dim", &D4connector<FLOATING_POINT_DAGGER>::print_dim)
+		.def("get_HS",
+				 &D4connector<FLOATING_POINT_DAGGER>::
+					 get_HS<std::vector<FLOATING_POINT_DAGGER>, py::array>)
+		// .def("fill_barne_2014",
+		// &D4connector<FLOATING_POINT_DAGGER>::fill_barne_2014<std::vector<FLOATING_POINT_DAGGER>
+		// >)
+		.def("get_mask_array", &D4connector<FLOATING_POINT_DAGGER>::get_mask_array)
+		.def("set_values_at_boundaries",
+				 &D4connector<FLOATING_POINT_DAGGER>::set_values_at_boundaries<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_out_boundaries_to_permissive",
+				 &D4connector<FLOATING_POINT_DAGGER>::set_out_boundaries_to_permissive)
+		.def("get_boundary_at_node",
+				 &D4connector<FLOATING_POINT_DAGGER>::get_boundary_at_node);
 
-  py::class_<numvec<FLOATING_POINT_DAGGER>>(m, "numvecf64")
-      .def(py::init<py::array_t<FLOATING_POINT_DAGGER, 1> &>())
-      .def("get", &numvec<FLOATING_POINT_DAGGER>::get)
-      .def("set", &numvec<FLOATING_POINT_DAGGER>::set);
+	py::class_<numvec<FLOATING_POINT_DAGGER>>(m, "numvecf64")
+		.def(py::init<py::array_t<FLOATING_POINT_DAGGER, 1>&>())
+		.def("get", &numvec<FLOATING_POINT_DAGGER>::get)
+		.def("set", &numvec<FLOATING_POINT_DAGGER>::set);
 
-  declare_graph<D8connector<FLOATING_POINT_DAGGER>>(m, "graph");
-  // declare_graph<D4connector<FLOATING_POINT_DAGGER> >(m,"graphD4");
+	declare_graph<D8connector<FLOATING_POINT_DAGGER>>(m, "graph");
+	// declare_graph<D4connector<FLOATING_POINT_DAGGER> >(m,"graphD4");
 
-  //=============================================================================================
-  //=============================================================================================
-  //===================== Standalone Algorithms
-  //=================================================
-  //=============================================================================================
-  //=============================================================================================
+	//=============================================================================================
+	//=============================================================================================
+	//===================== Standalone Algorithms
+	//=================================================
+	//=============================================================================================
+	//=============================================================================================
 
-  m.def(
-      "hillshade",
-      &hillshade<D8connector<FLOATING_POINT_DAGGER>,
-                 py::array_t<FLOATING_POINT_DAGGER, 1>,
-                 py::array_t<FLOATING_POINT_DAGGER, 1>, FLOATING_POINT_DAGGER>,
-      py::arg("connector"), py::arg("topography"),
-      R"pbdoc(
+	m.def("hillshade",
+				&hillshade<D8connector<FLOATING_POINT_DAGGER>,
+									 py::array_t<FLOATING_POINT_DAGGER, 1>,
+									 py::array_t<FLOATING_POINT_DAGGER, 1>,
+									 FLOATING_POINT_DAGGER>,
+				py::arg("connector"),
+				py::arg("topography"),
+				R"pbdoc(
 Hillshading function for visualisation
 
 Description:
@@ -2497,90 +2541,96 @@ B.G.
 
 )pbdoc");
 
-  m.def(
-      "rayshade",
-      &rayshade<DAGGER::graph<FLOATING_POINT_DAGGER,
-                              DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
-                D8connector<FLOATING_POINT_DAGGER>,
-                py::array_t<FLOATING_POINT_DAGGER, 1>,
-                py::array_t<FLOATING_POINT_DAGGER, 1>, FLOATING_POINT_DAGGER>);
+	m.def("rayshade",
+				&rayshade<DAGGER::graph<FLOATING_POINT_DAGGER,
+																DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
+									D8connector<FLOATING_POINT_DAGGER>,
+									py::array_t<FLOATING_POINT_DAGGER, 1>,
+									py::array_t<FLOATING_POINT_DAGGER, 1>,
+									FLOATING_POINT_DAGGER>);
 
-  m.def("set_BC_to_remove_seas",
-        &set_BC_to_remove_seas<D8connector<FLOATING_POINT_DAGGER>,
-                               py::array_t<FLOATING_POINT_DAGGER, 1>,
-                               FLOATING_POINT_DAGGER>);
+	m.def("set_BC_to_remove_seas",
+				&set_BC_to_remove_seas<D8connector<FLOATING_POINT_DAGGER>,
+															 py::array_t<FLOATING_POINT_DAGGER, 1>,
+															 FLOATING_POINT_DAGGER>);
 
-  m.def("label_depressions_PQ",
-        &label_depressions_PQ<py::array_t<FLOATING_POINT_DAGGER, 1>,
-                              py::array_t<int, 1>,
-                              D8connector<FLOATING_POINT_DAGGER>>);
+	m.def("label_depressions_PQ",
+				&label_depressions_PQ<py::array_t<FLOATING_POINT_DAGGER, 1>,
+															py::array_t<int, 1>,
+															D8connector<FLOATING_POINT_DAGGER>>);
 
-  m.def("label_ocean",
-        &label_ocean<py::array_t<FLOATING_POINT_DAGGER, 1>, py::array_t<int, 1>,
-                     D8connector<FLOATING_POINT_DAGGER>>);
+	m.def("label_ocean",
+				&label_ocean<py::array_t<FLOATING_POINT_DAGGER, 1>,
+										 py::array_t<int, 1>,
+										 D8connector<FLOATING_POINT_DAGGER>>);
 
-  m.def("standalone_priority_flood",
-        &standalone_priority_flood<D8connector<FLOATING_POINT_DAGGER>,
-                                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                                   py::array_t<FLOATING_POINT_DAGGER, 1>,
-                                   FLOATING_POINT_DAGGER>,
-        py::arg("topography"), py::arg("connector"));
+	m.def("standalone_priority_flood",
+				&standalone_priority_flood<D8connector<FLOATING_POINT_DAGGER>,
+																	 py::array_t<FLOATING_POINT_DAGGER, 1>,
+																	 py::array_t<FLOATING_POINT_DAGGER, 1>,
+																	 FLOATING_POINT_DAGGER>,
+				py::arg("topography"),
+				py::arg("connector"));
 
-  m.def("standalone_priority_flood_opti",
-        &standalone_priority_flood_opti<
-            D8connector<FLOATING_POINT_DAGGER>,
-            DAGGER::graph<FLOATING_POINT_DAGGER,
-                          DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
-            py::array_t<FLOATING_POINT_DAGGER, 1>,
-            py::array_t<FLOATING_POINT_DAGGER, 1>, FLOATING_POINT_DAGGER>,
-        py::arg("topography"), py::arg("connector"), py::arg("graph"));
+	m.def("standalone_priority_flood_opti",
+				&standalone_priority_flood_opti<
+					D8connector<FLOATING_POINT_DAGGER>,
+					DAGGER::graph<FLOATING_POINT_DAGGER,
+												DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
+					py::array_t<FLOATING_POINT_DAGGER, 1>,
+					py::array_t<FLOATING_POINT_DAGGER, 1>,
+					FLOATING_POINT_DAGGER>,
+				py::arg("topography"),
+				py::arg("connector"),
+				py::arg("graph"));
 
-  m.def(
-      "RiverNetwork",
-      RiverNetwork<FLOATING_POINT_DAGGER,
-                   DAGGER::D8connector<FLOATING_POINT_DAGGER>,
-                   DAGGER::graph<FLOATING_POINT_DAGGER,
-                                 DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
-  m.def("DrainageDivides",
-        DrainageDivides<
-            FLOATING_POINT_DAGGER, DAGGER::D8connector<FLOATING_POINT_DAGGER>,
-            DAGGER::graph<FLOATING_POINT_DAGGER,
-                          DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
+	m.def(
+		"RiverNetwork",
+		RiverNetwork<FLOATING_POINT_DAGGER,
+								 DAGGER::D8connector<FLOATING_POINT_DAGGER>,
+								 DAGGER::graph<FLOATING_POINT_DAGGER,
+															 DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
+	m.def(
+		"DrainageDivides",
+		DrainageDivides<FLOATING_POINT_DAGGER,
+										DAGGER::D8connector<FLOATING_POINT_DAGGER>,
+										DAGGER::graph<FLOATING_POINT_DAGGER,
+																	DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
 
-  // m.def(
-  //   "check_connector_template",
-  //   &check_connector_template< D8connector<FLOATING_POINT_DAGGER>,
-  //   FLOATING_POINT_DAGGER >
-  // );
+	// m.def(
+	//   "check_connector_template",
+	//   &check_connector_template< D8connector<FLOATING_POINT_DAGGER>,
+	//   FLOATING_POINT_DAGGER >
+	// );
 
-  declare_popscape_old<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(
-      m, "popscape_old");
-  declare_popscape<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m, "popscape");
-  // // declare_popscape_old<DAGGER::D4connector<FLOATING_POINT_DAGGER>
-  // >(m,"popscape_oldD4");
-  declare_trackscape<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
-                                                                 "trackscape");
-  // // declare_trackscape<DAGGER::D4connector<FLOATING_POINT_DAGGER>
-  // >(m,"trackscapeD4");
+	declare_popscape_old<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(
+		m, "popscape_old");
+	declare_popscape<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m, "popscape");
+	// // declare_popscape_old<DAGGER::D4connector<FLOATING_POINT_DAGGER>
+	// >(m,"popscape_oldD4");
+	declare_trackscape<DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
+																																 "trackscape");
+	// // declare_trackscape<DAGGER::D4connector<FLOATING_POINT_DAGGER>
+	// >(m,"trackscapeD4");
 
-  py::enum_<RANDNOISE>(m, "NOISE")
-      .value("WHITE", RANDNOISE::WHITE)
-      .value("RED", RANDNOISE::RED)
-      .value("PERLIN", RANDNOISE::PERLIN);
+	py::enum_<RANDNOISE>(m, "NOISE")
+		.value("WHITE", RANDNOISE::WHITE)
+		.value("RED", RANDNOISE::RED)
+		.value("PERLIN", RANDNOISE::PERLIN);
 
-  declare_graphflood<FLOATING_POINT_DAGGER,
-                     DAGGER::graph<FLOATING_POINT_DAGGER,
-                                   DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
-                     DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
-                                                                 "graphflood");
+	declare_graphflood<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER,
+																	 DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
+										 DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
+																																 "graphflood");
 
-  m.def("generate_perlin_noise_2D",
-        &generate_perlin_noise_2D<py::array_t<FLOATING_POINT_DAGGER, 1>,
-                                  FLOATING_POINT_DAGGER,
-                                  D8connector<FLOATING_POINT_DAGGER>>);
+	m.def("generate_perlin_noise_2D",
+				&generate_perlin_noise_2D<py::array_t<FLOATING_POINT_DAGGER, 1>,
+																	FLOATING_POINT_DAGGER,
+																	D8connector<FLOATING_POINT_DAGGER>>);
 
-  m.def("quick_fluvial_topo",
-        &quick_fluvial_topo<float, py::array_t<float, 1>>);
+	m.def("quick_fluvial_topo",
+				&quick_fluvial_topo<float, py::array_t<float, 1>>);
 };
 ;
 
