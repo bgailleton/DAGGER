@@ -95,6 +95,13 @@ B.G.
 )pdoc"
 
 				 )
+		.def("gen_rdid",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::gen_rdid,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_rdid",
+				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::get_rdid,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def("is_Sstack_full",
 				 &graph<FLOATING_POINT_DAGGER, CONNECTOR_T>::is_Sstack_full,
 				 R"pdoc(Debugging function, to ignore)pdoc")
@@ -876,6 +883,23 @@ declare_trackscape(py::module& m, std::string typestr)
 				 &trackscape<FLOATING_POINT_DAGGER,
 										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 										 CONNECTOR_T>::standalone_implicit_SPL)
+		.def("standalone_cidre_hillslopes",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::standalone_cidre_hillslopes)
+		.def("standalone_cidre",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::standalone_cidre)
+		.def("standalone_davy2009",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::standalone_davy2009)
+
+		.def("exp_std_cidre_sepA",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::exp_std_cidre_sepA)
 
 		.def("block_uplift",
 				 &trackscape<FLOATING_POINT_DAGGER,
@@ -965,6 +989,11 @@ declare_trackscape(py::module& m, std::string typestr)
 				 &trackscape<FLOATING_POINT_DAGGER,
 										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 										 CONNECTOR_T>::set_single_Sc)
+		.def("set_single_longdep",
+				 &trackscape<FLOATING_POINT_DAGGER,
+										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+										 CONNECTOR_T>::set_single_longdep)
+
 		.def("set_single_Sc_M",
 				 &trackscape<FLOATING_POINT_DAGGER,
 										 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
@@ -1341,6 +1370,15 @@ declare_graphflood(py::module& m, std::string typestr)
 		.def("run",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::run,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("dynarun",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::dynarun,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
+		.def(
+			"setup_entry_points_dynagraph_farea",
+			&graphflood<fT, GRAPH_T, CONNECTOR_T>::setup_entry_points_dynagraph_farea,
+			R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def("set_topo",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template set_topo<
 					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
@@ -1369,6 +1407,12 @@ declare_graphflood(py::module& m, std::string typestr)
 		.def("get_SSTACKDEBUG",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG<
 					 py::array_t<size_t, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("gen_rdid",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::gen_rdid,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_rdid",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_rdid,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
 
 		.def("enable_MFD",

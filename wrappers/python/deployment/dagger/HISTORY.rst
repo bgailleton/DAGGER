@@ -2,6 +2,19 @@
 History
 =======
 
+0.0.8 (01/08/2023)
+------------------
+
+* Fixing bugs in the connectors
+* Adding tools for hydrogeomorphometrics in graphflood
+* Adding some standalone models to trackscape
+
+0.0.7 (01/08/2023)
+------------------
+
+* Hotfixes
+
+
 0.0.6 (01/08/2023)
 ------------------
 

@@ -188,8 +188,8 @@ public:
 
 	int Neighbours(int i, std::array<int, 8>& tin)
 	{
-		int size = 0;
 
+		int size = 0;
 		for (int j = 0; j < 4; ++j) {
 			int li = i * 4 + j;
 			if (this->is_link_valid(li)) {
@@ -197,7 +197,7 @@ public:
 				++size;
 			}
 			// else
-			//    std::cout << "nope:" << li << "|";
+			//  std::cout << "nope:" << li << "|";
 
 			int oli = (i + this->reruobhgien[this->ridknil[li]]) * 4 + j;
 			if (this->is_link_valid(oli)) {
@@ -206,7 +206,34 @@ public:
 				++size;
 			}
 			// else
-			//    std::cout << "epon:" << li << "|";
+			//  std::cout << "epon:" << li << "|";
+		}
+		return size;
+	}
+
+	int Neighbours(int i, std::array<int, 8>& tin, std::array<T, 8>& tindx)
+	{
+
+		int size = 0;
+		for (int j = 0; j < 4; ++j) {
+			int li = i * 4 + j;
+			if (this->is_link_valid(li)) {
+				tin[size] = i + this->neighbourer[this->linkdir[li]];
+				tindx[size] = this->get_dx_from_links_idx(li);
+				++size;
+			}
+			// else
+			//  std::cout << "nope:" << li << "|";
+
+			int oli = (i + this->reruobhgien[this->ridknil[li]]) * 4 + j;
+			if (this->is_link_valid(oli)) {
+				tin[size] = i + this->reruobhgien[this->ridknil[li]];
+				tindx[size] = this->get_dx_from_links_idx(li);
+				;
+				++size;
+			}
+			// else
+			//  std::cout << "epon:" << li << "|";
 		}
 		return size;
 	}
@@ -2599,9 +2626,9 @@ public:
 	}
 
 	/*
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 																																																																																																																									. - ~ ~ ~ - .
 																									..     _      .-~ ~-.
 																	 //| \ `..~ `.
@@ -2616,12 +2643,12 @@ public:
 																																																									|_____| |_____| ~ - .
 	_ _~_-_
 
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-																																	Functions
-	computing gradients
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
-																																	=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+Functions
+computing gradients
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
+=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~=~
 	*/
 
 	template<class out_t, class topo_t>
