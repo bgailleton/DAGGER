@@ -1374,6 +1374,13 @@ declare_graphflood(py::module& m, std::string typestr)
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::dynarun,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
 
+		.def("set_glob_dynatime",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_glob_dynatime,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+		.def("get_glob_dynatime",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::get_glob_dynatime,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def(
 			"setup_entry_points_dynagraph_farea",
 			&graphflood<fT, GRAPH_T, CONNECTOR_T>::setup_entry_points_dynagraph_farea,
