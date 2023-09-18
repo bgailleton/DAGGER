@@ -1374,6 +1374,12 @@ declare_graphflood(py::module& m, std::string typestr)
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::dynarun,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
 
+		.def("set_out_QS_as_input_QS",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_out_QS_as_input_QS)
+
+		.def("set_out_QS_as_input_QS_min",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_out_QS_as_input_QS_min)
+
 		.def("set_glob_dynatime",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_glob_dynatime,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
@@ -1411,10 +1417,17 @@ declare_graphflood(py::module& m, std::string typestr)
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qwin<
 					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
+
+		.def("get_Qs",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_Qs<
+					 py::array_t<FLOATING_POINT_DAGGER, 1>>,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def("get_SSTACKDEBUG",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::template get_SSTACKDEBUG<
 					 py::array_t<size_t, 1>>,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def("gen_rdid",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::gen_rdid,
 				 R"pdoc(Main function running the model from all the input params)pdoc")

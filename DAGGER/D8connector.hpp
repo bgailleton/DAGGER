@@ -3628,7 +3628,7 @@ _ _~_-_
 	}
 
 	template<class i_t, class ii_t>
-	std::pair<T, T> get_dxdy_from_links_idx(i_t li)
+	std::pair<T, T>(i_t li)
 	{
 		if (fast_mod(li, 4) == 0)
 			return std::make_pair(this->dx, 0.);
