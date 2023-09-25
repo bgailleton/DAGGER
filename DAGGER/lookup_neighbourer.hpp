@@ -2,6 +2,8 @@
 
 #include "utils.hpp"
 
+namespace DAGGER {
+
 constexpr std::uint8_t TopLeftMask8 = 0b10000000;
 constexpr std::uint8_t TopMask8 = 0b01000000;
 constexpr std::uint8_t TopRightMask8 = 0b00100000;
@@ -12,6 +14,11 @@ constexpr std::uint8_t BottomMask8 = 0b00000010;
 constexpr std::uint8_t BottomRightMask8 = 0b00000001;
 constexpr std::uint8_t NopeMask8 = 0b00000000;
 constexpr std::uint8_t AllMask8 = 0b11111111;
+
+constexpr std::array<std::uint8_t, 8> NeighbourerMask8 = {
+	TopLeftMask8, TopMask8,				 TopRightMask8, LeftMask8,
+	RightMask8,		BottomLeftMask8, BottomMask8,		BottomRightMask8
+};
 
 template<class i_t, class f_t>
 class lookup8
@@ -73,4 +80,7 @@ public:
 			}
 		}
 	}
-};
+
+}; // end of class lookup8
+
+} // end of namespace

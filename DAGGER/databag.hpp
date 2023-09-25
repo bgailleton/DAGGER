@@ -1,6 +1,33 @@
 #pragma once
 
+#include "boundary_conditions.hpp"
+#include "enumutils.hpp"
+#include "lookup_neighbourer.hpp"
 #include "utils.hpp"
 
+namespace DAGGER {
+
 template<class i_t, class f_t>
-class
+class Hermes
+{
+public:
+	Hermes(){};
+
+	// Storing lookup tables
+	lookup8<i_t, f_t> LK8;
+
+	// Storing Connector-related stuffies
+	std::vector<uint8_t> _neighbours;
+	std::vector<uint8_t> _Sreceivers;
+	std::vector<uint8_t> _Sdonors;
+	std::vector<uint8_t> _receivers;
+	std::vector<uint8_t> _donors;
+	std::vector<BC> _boundaries;
+
+	// Storing Graph-related stuffies
+	std::vector<i_t> _stack;
+	std::vector<i_t> _Sstack;
+
+}; // end of class Hermes
+
+} //  end of namespace
