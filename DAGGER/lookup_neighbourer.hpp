@@ -31,9 +31,9 @@ public:
 
 	std::array<i_t, 256> NeighbourerD8;
 	std::array<f_t, 256> NeighbourerD8dx;
-	std::array<i_t, 256> NeighbourerNN;
-	std::array<std::array<i_t>, 256> Neighbourer;
-	std::array<std::array<f_t>, 256> Neighbourerdx;
+	std::array<std::uint8_t, 256> NeighbourerNN;
+	std::array<std::array<i_t,8>, 256> Neighbourer;
+	std::array<std::array<f_t,8>, 256> Neighbourerdx;
 
 	lookup8() { ; };
 	lookup8(i_t nx, i_t ny, f_t dx, f_t dy)
@@ -42,7 +42,7 @@ public:
 		f_t dxy = std::sqrt(std::pow(dx, 2) + std::pow(dy, 2));
 		this->nx = nx;
 		this->adder = { -this->nx - 1, -this->nx, -this->nx + 1, -1, 1,
-										this->nx - 1,	 this->nx,	this->nx + 1,	 0. };
+										this->nx - 1,	 this->nx,	this->nx + 1,0 };
 		this->dxer = { dxy, dy, dxy, dx, dx, dxy, dy, dxy, 0. };
 
 		this->_compute_lookup_tables();
@@ -67,19 +67,93 @@ public:
 
 	void _compute_lookup_tables()
 	{
-		for (int i = 0; i < LOOKUPSIZE; ++i) {
+		for (int i = 0; i < 256; ++i) {
 			uint8_t ti = static_cast<uint8_t>(i);
 			this->NeighbourerNN[ti] = 0;
 			this->NeighbourerD8[ti] = 0;
 			for (auto& v : this->Neighbourer[ti])
 				v = 0;
-			this->_local_lookup(ti, this->Neighbourer[ti], this->NeighbourerNN[ti]);
+			this->_local_lookup(ti, this->Neighbourer[ti],this->Neighbourerdx[ti], this->NeighbourerNN[ti]);
 			if (this->NeighbourerNN[ti] == 1) {
 				this->NeighbourerD8[ti] = this->Neighbourer[ti][0];
 				this->NeighbourerD8dx[ti] = this->Neighbourerdx[ti][0];
 			}
 		}
 	}
+
+	std::uint8_t TopLeft_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= RightMask8;
+		bound |= BottomMask8;
+		bound |= BottomRightMask8;
+		return bound;
+	}
+
+	std::uint8_t TopRight_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= LeftMask8;
+		bound |= BottomMask8;
+		bound |= BottomLeftMask8;
+		return bound;
+	}
+
+	std::uint8_t Top_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= LeftMask8;
+		bound |= RightMask8;
+		bound |= BottomMask8;
+		bound |= BottomLeftMask8;
+		bound |= BottomRightMask8;
+		return bound;
+	}
+
+	std::uint8_t BottomLeft_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= RightMask8;
+		bound |= TopMask8;
+		bound |= TopRightMask8;
+		return bound;
+	}
+
+	std::uint8_t BottomRight_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= LeftMask8;
+		bound |= TopMask8;
+		bound |= TopLeftMask8;
+		return bound;
+	}
+
+	std::uint8_t Bottom_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= LeftMask8;
+		bound |= RightMask8;
+		bound |= TopMask8;
+		bound |= TopLeftMask8;
+		bound |= TopRightMask8;
+		return bound;
+	}
+
+	std::uint8_t Left_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= RightMask8;
+		bound |= TopMask8;
+		bound |= BottomMask8;
+		bound |= TopRightMask8;
+		bound |= BottomRightMask8;
+		return bound;
+	}
+
+	std::uint8_t Right_normal_boundary() const {
+		std::uint8_t bound = 0;
+		bound |= LeftMask8;
+		bound |= TopMask8;
+		bound |= BottomMask8;
+		bound |= TopLeftMask8;
+		bound |= BottomLeftMask8;
+		return bound;
+	}
+
+
 
 }; // end of class lookup8
 

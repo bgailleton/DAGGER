@@ -12,7 +12,7 @@ enum class CONFLOWTOPO : std::uint8_t
 
 enum class CONBOU : std::uint8_t
 {
-	EDGE,
+	EDGES,
 	PEW,
 	PNS,
 	CUSTOM
