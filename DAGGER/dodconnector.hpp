@@ -28,10 +28,13 @@ public:
 	f_t _dy = 1.;
 	// # Spacing in the diagonal dimension
 	f_t _dxy = std::sqrt(2.);
+	f_t _area = 1.;
 	// # Total Length in the x dimension
 	f_t _lx = 0.;
 	// # Total Length in the y dimension
 	f_t _ly = 0.;
+
+	f_t area(i_t i) const { return this->_area; }
 
 	// Data storer
 	Hermes<i_t, f_t>* data;
@@ -57,6 +60,7 @@ public:
 		this->_lx = (nx + 1) * dx;
 		this->_ly = (ny + 1) * dy;
 		this->data = &data;
+		this->_area = this->_dx * this->_dy;
 
 		// Initialisatio of the lookup table
 		this->data->LK8 =
@@ -82,7 +86,21 @@ public:
 				this->data->_boundaries[i * this->_nx + this->_nx - 1] = BC::OUT;
 			}
 
-		} else
+		} else if (this->boutype == CONBOU::PEW) {
+			this->data->_boundaries = std::vector<BC>(this->nxy(), BC::FLOW);
+			for (int i = 0; i < this->_ny; ++i) {
+				this->data->_boundaries[i * this->_nx] = BC::PERIODIC_BORDER;
+				this->data->_boundaries[i * this->_nx + this->_nx - 1] =
+					BC::PERIODIC_BORDER;
+			}
+			for (int i = 0; i < this->_nx; ++i)
+				this->data->_boundaries[i] = BC::OUT;
+			for (int i = this->_nxy - this->_nx; i < this->_nxy; ++i)
+				this->data->_boundaries[i] = BC::OUT;
+
+		}
+
+		else
 			throw std::runtime_error("boutype NOT IMPLOEMENTED YET");
 
 		// Computing the neighbour code
@@ -194,6 +212,8 @@ public:
 		if (boundaries[0] != BC::NO_FLOW) {
 			if (boundaries[0] != BC::PERIODIC_BORDER) {
 				neighbours[0] = LK8.TopLeft_normal_boundary();
+			} else {
+				neighbours[0] = AllMask8;
 			}
 		}
 
@@ -204,6 +224,8 @@ public:
 		if (boundaries[this->_nx - 1] != BC::NO_FLOW) {
 			if (boundaries[this->_nx - 1] != BC::PERIODIC_BORDER) {
 				neighbours[this->_nx - 1] = LK8.TopRight_normal_boundary();
+			} else {
+				neighbours[this->_nx - 1] = AllMask8;
 			}
 		}
 
@@ -214,6 +236,8 @@ public:
 		if (boundaries[this->nxy() - this->_nx] != BC::NO_FLOW) {
 			if (boundaries[this->nxy() - this->_nx] != BC::PERIODIC_BORDER) {
 				neighbours[this->nxy() - this->_nx] = LK8.BottomLeft_normal_boundary();
+			} else {
+				neighbours[this->nxy() - this->_nx] = AllMask8;
 			}
 		}
 
@@ -224,6 +248,8 @@ public:
 		if (boundaries[this->nxy() - 1] != BC::NO_FLOW) {
 			if (boundaries[this->nxy() - 1] != BC::PERIODIC_BORDER) {
 				neighbours[this->nxy() - 1] = LK8.BottomRight_normal_boundary();
+			} else {
+				neighbours[this->nxy() - 1] = AllMask8;
 			}
 		}
 
@@ -234,9 +260,11 @@ public:
 		for (int r = 1; r < this->_ny - 1; ++r) {
 			// Getting the node index
 			int node = r;
-			if (boundaries[node] != BC::NO_FLOW &&
-					boundaries[node] != BC::PERIODIC_BORDER)
-				neighbours[node] = LK8.Top_normal_boundary();
+			if (boundaries[node] != BC::NO_FLOW)
+				if (boundaries[node] != BC::PERIODIC_BORDER)
+					neighbours[node] = LK8.Top_normal_boundary();
+				else
+					neighbours[node] = AllMask8;
 		}
 
 		// Managing last row
@@ -246,9 +274,11 @@ public:
 		for (int r = this->nxy() - this->_nx + 1; r < this->nxy() - 1; ++r) {
 			// Getting the node index
 			int node = r;
-			if (boundaries[node] != BC::NO_FLOW &&
-					boundaries[node] != BC::PERIODIC_BORDER)
-				neighbours[node] = LK8.Bottom_normal_boundary();
+			if (boundaries[node] != BC::NO_FLOW)
+				if (boundaries[node] != BC::PERIODIC_BORDER)
+					neighbours[node] = LK8.Bottom_normal_boundary();
+				else
+					neighbours[node] = AllMask8;
 		}
 
 		// Managing Left and right columns
@@ -258,13 +288,19 @@ public:
 		for (int r = 1; r < this->_ny - 1; ++r) {
 			// Getting the node index
 			int n1 = r * this->_nx + 0;
-			if (boundaries[n1] != BC::NO_FLOW &&
-					boundaries[n1] != BC::PERIODIC_BORDER)
-				neighbours[n1] = LK8.Left_normal_boundary();
+			if (boundaries[n1] != BC::NO_FLOW) {
+				if (boundaries[n1] != BC::PERIODIC_BORDER)
+					neighbours[n1] = LK8.Left_normal_boundary();
+				else
+					neighbours[n1] = AllMask8;
+			}
 			n1 = r * this->_nx + this->_nx - 1;
-			if (boundaries[n1] != BC::NO_FLOW &&
-					boundaries[n1] != BC::PERIODIC_BORDER)
-				neighbours[n1] = LK8.Right_normal_boundary();
+			if (boundaries[n1] != BC::NO_FLOW) {
+				if (boundaries[n1] != BC::PERIODIC_BORDER)
+					neighbours[n1] = LK8.Right_normal_boundary();
+				else
+					neighbours[n1] = AllMask8;
+			}
 		}
 	}
 
@@ -278,7 +314,7 @@ public:
 		if (this->flowtopo == CONFLOWTOPO::ALL) {
 			this->_compute_all();
 		} else if (this->flowtopo == CONFLOWTOPO::MFD) {
-			// this->_compute_mfd_only();
+			this->_compute_mfd_only();
 		} else if (this->flowtopo == CONFLOWTOPO::SFD) {
 			// this->_compute_sfd_only();
 		}
@@ -328,6 +364,42 @@ public:
 			this->data->_receivers[ctx.node] = rcode;
 			this->data->_donors[ctx.node] = dcode;
 			this->data->_Sdonors[this->Sreceivers(ctx.node)] |= invBits(srecode);
+		}
+	}
+
+	void _compute_mfd_only()
+	{
+
+		// Just double checking
+		if (this->data->_surface.size() == 0) {
+			throw std::runtime_error("NoTopoError: no topography set in Hermes");
+		}
+
+		// Setting up context
+		CT_neighbourer_1<i_t, f_t> ctx;
+
+		// Setting up prefetchers
+
+		for (int i = 0; i < this->_nxy; ++i) {
+			ctx.update(i, *this);
+			std::uint8_t rcode = 0;
+			std::uint8_t dcode = 0;
+
+			for (int j = 0; j < ctx.nn; ++j) {
+				f_t dz = ctx.topo - ctx.neighboursTopo[j];
+
+				if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false)
+					continue;
+
+				// First asserting the connectivity
+				if (dz < 0)
+					dcode |= ctx.neighboursBits[j];
+				else if (dz > 0) {
+					rcode |= ctx.neighboursBits[j];
+				}
+			}
+			this->data->_receivers[ctx.node] = rcode;
+			this->data->_donors[ctx.node] = dcode;
 		}
 	}
 

@@ -1,6 +1,7 @@
 #include "D8connector.hpp"
 #include "databag.hpp"
 #include "dodconnector.hpp"
+#include "enumutils.hpp"
 #include "graph.hpp"
 #include "lookup_neighbourer.hpp"
 #include "popscape.hpp"
@@ -18,7 +19,7 @@ main(int argc, char const* argv[])
 	int ny = 1024;
 	double dx = 30.;
 	double dy = 30.;
-	std::string yolo{ "4edges" };
+	std::string yolo{ "periodic_EW" };
 	std::vector<double> topotest =
 		DAGGER::_quick_fluvial_topo<double>(6, yolo, 10);
 
@@ -37,17 +38,33 @@ main(int argc, char const* argv[])
 	Hermes<int, double> dbag;
 	dbag._surface = std::move(topotest);
 	Connector8<int, double> con(nx, ny, dx, dy, dbag);
+	con.boutype = CONBOU::PEW;
+	con.flowtopo = CONFLOWTOPO::MFD;
+
 	con.init();
 
 	timer.tik();
 	con.compute();
 	timer.tok("newcon took");
 
-	save_vec_to_2Dnpy("neighbours.npy", con._nx, con._ny, dbag._neighbours);
+	// save_vec_to_2Dnpy("neighbours.npy", con._nx, con._ny, dbag._neighbours);
 
-	timer.tik();
-	con._quickSstack();
-	timer.tok("newconSstack took");
+	// timer.tik();
+	// con._quickSstack();
+	// timer.tok("newconSstack took");
+
+	// std::vector<double> dA(con.nxy(), 0.);
+
+	// for(int i=con.nxy()-1;i >= 0; --i){
+	// 	int node = dbag._Sstack[i];
+	// 	int rec = con.Sreceivers(node);
+	// 	dA[node] += con.area(node);
+	// 	if(rec != node)
+	// 		dA[rec] += dA[node];
+
+	// }
+
+	// save_vec_to_2Dnpy("DA.npy", con._nx, con._ny, dA);
 
 	// Un comment to check the lookup
 

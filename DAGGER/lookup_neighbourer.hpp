@@ -352,7 +352,7 @@ public:
 			return 7;
 		else if (i % this->nx == 0)
 			return 4;
-		else if ((i + 1) % this->nx == 0)
+		else if (i % this->nx == this->nx - 1)
 			return 5;
 		return 0;
 	}
