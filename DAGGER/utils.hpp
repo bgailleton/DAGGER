@@ -580,7 +580,7 @@ minmax(std::vector<T>& vec, T& tmin, T& tmax)
 
 template<class T>
 void
-fillvec(std::vector<T>& vec, T& val)
+fillvec(std::vector<T>& vec, T val)
 {
 	for (size_t i = 0; i < vec.size(); ++i)
 		vec[i] = val;

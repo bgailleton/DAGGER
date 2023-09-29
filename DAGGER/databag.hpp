@@ -28,6 +28,9 @@ public:
 	std::vector<i_t> _stack;
 	std::vector<i_t> _Sstack;
 
+	// Universal data
+	std::vector<f_t> _surface;
+
 }; // end of class Hermes
 
 } //  end of namespace
