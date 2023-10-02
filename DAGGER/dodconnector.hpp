@@ -5,6 +5,7 @@
 #include "dodcontexts.hpp"
 #include "enumutils.hpp"
 #include "lookup_neighbourer.hpp"
+#include "priority_flood.hpp"
 #include "utils.hpp"
 
 namespace DAGGER {
@@ -161,6 +162,56 @@ public:
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_Sdonors[i]];
 	}
+
+	i_t Donors(i_t i, std::array<i_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] += i;
+		return nn;
+	}
+
+	i_t nDonors(i_t i) const
+	{
+		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+	}
+
+	i_t Receivers(i_t i, std::array<i_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] += i;
+		return nn;
+	}
+
+	i_t nReceivers(i_t i) const
+	{
+		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+	}
+
+	i_t Neighbours(i_t i, std::array<i_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] += i;
+		return nn;
+	}
+
+	i_t nNeighbours(i_t i) const
+	{
+		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+	}
+
+	// NEED TO ADD ALL THINGIES HERE
 
 	// one-off computing operation: it computes the neighbours code to loop
 	// through the different neighbours of each node
@@ -334,36 +385,399 @@ public:
 		// Setting up prefetchers
 
 		for (int i = 0; i < this->_nxy; ++i) {
-			ctx.update(i, *this);
-			f_t SS = 0;
-			std::uint8_t rcode = 0;
-			std::uint8_t srecode = 0;
-			std::uint8_t dcode = 0;
+			this->__compute_all_single_node(i, ctx);
+		}
+	}
 
-			for (int j = 0; j < ctx.nn; ++j) {
-				f_t dz = ctx.topo - ctx.neighboursTopo[j];
+	template<class CTX>
+	void __compute_all_single_node(i_t i, CTX& ctx)
+	{
+		ctx.update(i, *this);
+		f_t SS = 0;
+		std::uint8_t rcode = 0;
+		std::uint8_t srecode = 0;
+		std::uint8_t dcode = 0;
 
-				if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false)
-					continue;
+		for (int j = 0; j < ctx.nn; ++j) {
+			f_t dz = ctx.topo - ctx.neighboursTopo[j];
 
-				// First asserting the connectivity
-				if (dz < 0)
-					dcode |= ctx.neighboursBits[j];
+			if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false)
+				continue;
 
-				else if (dz > 0) {
-					rcode |= ctx.neighboursBits[j];
-					f_t tSS = dz / ctx.neighboursDx[j];
-					if (tSS > SS) {
-						SS = tSS;
-						srecode = ctx.neighboursBits[j];
+			// First asserting the connectivity
+			if (dz < 0)
+				dcode |= ctx.neighboursBits[j];
+
+			else if (dz > 0) {
+				rcode |= ctx.neighboursBits[j];
+				f_t tSS = dz / ctx.neighboursDx[j];
+				if (tSS > SS) {
+					SS = tSS;
+					srecode = ctx.neighboursBits[j];
+				}
+			}
+		}
+
+		this->data->_Sreceivers[ctx.node] = srecode;
+		this->data->_receivers[ctx.node] = rcode;
+		this->data->_donors[ctx.node] = dcode;
+		this->data->_Sdonors[this->Sreceivers(ctx.node)] |= invBits(srecode);
+	}
+
+#define PFSIZ 512
+
+	void _compute_all_exp1()
+	{
+
+		// Just double checking
+		if (this->data->_surface.size() == 0) {
+			throw std::runtime_error("NoTopoError: no topography set in Hermes");
+		}
+
+		std::array<f_t, PFSIZ + 2> topor1, topor2;
+		std::array<f_t, PFSIZ> SS1, SS2;
+		std::array<std::uint8_t, PFSIZ> rcodes1, rcodes2, dcodes1, dcodes2,
+			srcodes1, srcodes2;
+		int NN = 0;
+
+		for (int stcol = 1; stcol < this->_nx - 1; stcol += PFSIZ) {
+
+			// Prefetch first batch of data
+			int id1 = stcol;
+			// int id2 =  stcol + this->_nx;
+			for (int ii = -1; ii < PFSIZ + 1; ++ii) {
+				topor1[ii + 1] =
+					(stcol < this->_nx - 1) ? this->data->_surface[ii + id1] : 0;
+				// topor2[ii+1] = this->data->_surface[ii+id2];
+			}
+
+			// init the row/cols
+			for (int ii = 0; ii < PFSIZ; ++ii) {
+				SS1[ii] = 0;
+				SS2[ii] = 0;
+				rcodes1[ii] = 0;
+				rcodes2[ii] = 0;
+				dcodes1[ii] = 0;
+				dcodes2[ii] = 0;
+				srcodes1[ii] = 0;
+				srcodes2[ii] = 0;
+			}
+
+			std::vector<f_t>& surf = this->data->_surface;
+
+			for (int row = 1; row < this->_ny - 1; ++row) {
+				// prefecthing new line
+				int idst = row * this->_nx + stcol;
+
+				for (int ii = -1; ii < PFSIZ + 1; ++ii) {
+					topor2[ii + 1] = (stcol < this->_nx - 1) ? surf[ii + idst] : 0;
+				}
+
+				for (int i = 0; i < PFSIZ; ++i) {
+					// corrected index for topo arrays
+					int topi = i + 1;
+
+					// top left
+					f_t dz = (topor2[topi] - topor1[topi - 1]);
+					f_t tSS = dz / this->_dxy;
+					if (dz > 0) {
+						rcodes2[i] |= TopLeftMask8;
+						if (i > 0)
+							dcodes1[i - 1] |= BottomRightMask8;
+						if (tSS > SS2[i]) {
+							SS2[i] = tSS;
+							srcodes2[i] = TopLeftMask8;
+						}
+					} else if (dz < 0) {
+						tSS = std::abs(tSS);
+						dcodes2[i] |= TopLeftMask8;
+						if (i > 0) {
+							rcodes1[i - 1] |= BottomRightMask8;
+							if (tSS > SS1[i - 1]) {
+								SS1[i - 1] = tSS;
+								srcodes1[i - 1] = BottomRightMask8;
+							}
+						}
+					}
+
+					// top
+					dz = (topor2[topi] - topor1[topi]);
+					tSS = dz / this->_dy;
+					if (dz > 0) {
+						rcodes2[i] |= TopMask8;
+						dcodes1[i] |= BottomMask8;
+						if (tSS > SS2[i]) {
+							SS2[i] = tSS;
+							srcodes2[i] = TopMask8;
+						}
+					} else if (dz < 0) {
+						tSS = std::abs(tSS);
+						dcodes2[i] |= TopMask8;
+						rcodes1[i] |= BottomMask8;
+						if (tSS > SS1[i]) {
+							SS1[i] = tSS;
+							srcodes1[i] = BottomMask8;
+						}
+					}
+
+					// top right
+					dz = (topor2[topi] - topor1[topi + 1]);
+					tSS = dz / this->_dxy;
+					if (dz > 0) {
+						rcodes2[i] |= TopRightMask8;
+						if (i < PFSIZ - 1)
+							dcodes1[i + 1] |= BottomLeftMask8;
+						if (tSS > SS2[i]) {
+							SS2[i] = tSS;
+							srcodes2[i] = TopRightMask8;
+						}
+					} else if (dz < 0) {
+						tSS = std::abs(tSS);
+						dcodes2[i] |= TopRightMask8;
+						if (i < PFSIZ - 1) {
+							rcodes1[i + 1] |= BottomLeftMask8;
+							if (tSS > SS1[i + 1]) {
+								SS1[i + 1] = tSS;
+								srcodes1[i + 1] = BottomLeftMask8;
+							}
+						}
+					}
+
+					// left
+					dz = (topor2[topi] - topor2[topi - 1]);
+					tSS = dz / this->_dx;
+					if (dz > 0) {
+						rcodes2[i] |= LeftMask8;
+						if (i > 0)
+							dcodes2[i - 1] |= RightMask8;
+						if (tSS > SS2[i]) {
+							SS2[i] = tSS;
+							srcodes2[i] = LeftMask8;
+						}
+					} else if (dz < 0) {
+						tSS = std::abs(tSS);
+						dcodes2[i] |= LeftMask8;
+						if (i > 0) {
+							rcodes2[i - 1] |= RightMask8;
+							if (tSS > SS2[i]) {
+								SS2[i - 1] = tSS;
+								srcodes2[i - 1] = RightMask8;
+							}
+						}
+					}
+
+					// right
+					dz = (topor2[topi] - topor2[topi + 1]);
+					tSS = dz / this->_dx;
+					if (dz > 0) {
+						rcodes2[i] |= RightMask8;
+						if (i < PFSIZ - 1)
+							dcodes2[i + 1] |= LeftMask8;
+						if (tSS > SS2[i]) {
+							SS2[i] = tSS;
+							srcodes2[i] = RightMask8;
+						}
+					} else if (dz < 0) {
+						tSS = std::abs(tSS);
+						dcodes2[i] |= RightMask8;
+						if (i < PFSIZ - 1) {
+							rcodes2[i + 1] |= LeftMask8;
+							if (tSS > SS2[i]) {
+								SS2[i + 1] = tSS;
+								srcodes2[i + 1] = LeftMask8;
+							}
+						}
+					}
+				}
+
+				// propagates changes of line 1 (if not first row)
+				if (row > 1) {
+					for (int ii = 0; ii < PFSIZ; ++ii) {
+						if (ii > 0) {
+							this->data->_donors[ii + idst] = dcodes1[ii];
+							this->data->_receivers[ii + idst] = rcodes1[ii];
+							this->data->_Sreceivers[ii + idst] = srcodes1[ii];
+						}
+					}
+				}
+
+				// move row2 into row1
+				topor1 = std::move(topor2);
+				rcodes1 = std::move(rcodes2);
+				dcodes1 = std::move(dcodes2);
+				srcodes1 = std::move(srcodes2);
+				SS1 = std::move(SS2);
+
+				for (int ii = 0; ii < PFSIZ; ++ii) {
+					rcodes2[ii] = 0;
+					dcodes2[ii] = 0;
+					srcodes2[ii] = 0;
+					SS2[ii] = 0;
+				}
+			}
+		}
+
+		// Compute boundaries with normal function
+		CT_neighbourer_1<i_t, f_t> ctx;
+		for (int i = 0; i < this->_nx; ++i)
+			__compute_all_single_node(i, ctx);
+		for (int i = this->_nxy - this->_nx; i < this->_nxy; ++i)
+			__compute_all_single_node(i, ctx);
+		for (int row = 1; row < this->_ny - 1; ++row) {
+			int i = row * this->_nx;
+			__compute_all_single_node(i, ctx);
+			i = (row + 1) * this->_nx - 1;
+			__compute_all_single_node(i, ctx);
+		}
+
+		for (int i = 0; i < this->_nxy; ++i) {
+			int rec = this->Sreceivers(i);
+			this->data->_Sdonors[rec] |=
+				invBits(this->data->_Sreceivers[i]) * !(rec == i);
+		}
+	}
+
+	void _compute_all_exp2()
+	{
+
+		// Just double checking
+		if (this->data->_surface.size() == 0) {
+			throw std::runtime_error("NoTopoError: no topography set in Hermes");
+		}
+
+		std::vector<f_t> SS(this->_nxy, 0.);
+
+		for (int row = 1; row < this->_ny - 1; ++row) {
+			for (int col = 1; col < this->_nx; ++col) {
+
+				int idx = row * this->_nx + col;
+
+				// top left
+				int oidx = idx - this->_nx - 1;
+				f_t dz = (this->data->_surface[idx] - this->data->_surface[oidx]);
+				f_t tSS = dz / this->_dxy;
+				if (dz > 0) {
+					this->data->_receivers[idx] |= TopLeftMask8;
+					this->data->_donors[oidx] |= BottomRightMask8;
+					if (tSS > SS[idx]) {
+						SS[idx] = tSS;
+						this->data->_Sreceivers[idx] = TopLeftMask8;
+					}
+				} else if (dz < 0) {
+					tSS = std::abs(tSS);
+					this->data->_donors[idx] |= TopLeftMask8;
+
+					this->data->_receivers[oidx] |= BottomRightMask8;
+					if (tSS > SS[oidx]) {
+						SS[oidx] = tSS;
+						this->data->_Sreceivers[oidx] = BottomRightMask8;
+					}
+				}
+
+				// top
+				oidx += 1;
+				dz = (this->data->_surface[idx] - this->data->_surface[oidx]);
+				tSS = dz / this->_dy;
+				if (dz > 0) {
+					this->data->_receivers[idx] |= TopMask8;
+					this->data->_donors[oidx] |= BottomMask8;
+					if (tSS > SS[idx]) {
+						SS[idx] = tSS;
+						this->data->_Sreceivers[idx] = TopMask8;
+					}
+				} else if (dz < 0) {
+					tSS = std::abs(tSS);
+					this->data->_donors[idx] |= TopMask8;
+					this->data->_receivers[oidx] |= BottomMask8;
+					if (tSS > SS[oidx]) {
+						SS[oidx] = tSS;
+						this->data->_Sreceivers[oidx] = BottomMask8;
+					}
+				}
+
+				// top right
+				oidx += 1;
+				dz = (this->data->_surface[idx] - this->data->_surface[oidx]);
+				tSS = dz / this->_dxy;
+				if (dz > 0) {
+					this->data->_receivers[idx] |= TopRightMask8;
+					this->data->_donors[oidx] |= BottomLeftMask8;
+					if (tSS > SS[idx]) {
+						SS[idx] = tSS;
+						this->data->_Sreceivers[idx] = TopRightMask8;
+					}
+				} else if (dz < 0) {
+					tSS = std::abs(tSS);
+					this->data->_donors[idx] |= TopRightMask8;
+					this->data->_receivers[oidx] |= BottomLeftMask8;
+					if (tSS > SS[oidx]) {
+						SS[oidx] = tSS;
+						this->data->_Sreceivers[oidx] = BottomLeftMask8;
+					}
+				}
+
+				// left
+				oidx = idx - 1;
+				dz = (this->data->_surface[idx] - this->data->_surface[oidx]);
+				tSS = dz / this->_dx;
+				if (dz > 0) {
+					this->data->_receivers[idx] |= LeftMask8;
+					this->data->_donors[oidx] |= RightMask8;
+					if (tSS > SS[idx]) {
+						SS[idx] = tSS;
+						this->data->_Sreceivers[idx] = LeftMask8;
+					}
+				} else if (dz < 0) {
+					tSS = std::abs(tSS);
+					this->data->_donors[idx] |= LeftMask8;
+					this->data->_receivers[oidx] |= RightMask8;
+					if (tSS > SS[idx]) {
+						SS[oidx] = tSS;
+						this->data->_Sreceivers[oidx] = RightMask8;
+					}
+				}
+
+				// right
+				oidx = idx + 1;
+				dz = (this->data->_surface[idx] - this->data->_surface[oidx]);
+				tSS = dz / this->_dx;
+				if (dz > 0) {
+					this->data->_receivers[idx] |= RightMask8;
+					this->data->_donors[oidx] |= LeftMask8;
+					if (tSS > SS[idx]) {
+						SS[idx] = tSS;
+						this->data->_Sreceivers[idx] = RightMask8;
+					}
+				} else if (dz < 0) {
+					tSS = std::abs(tSS);
+					this->data->_donors[idx] |= RightMask8;
+
+					this->data->_receivers[oidx] |= LeftMask8;
+					if (tSS > SS[oidx]) {
+						SS[oidx] = tSS;
+						this->data->_Sreceivers[oidx] = LeftMask8;
 					}
 				}
 			}
+		}
 
-			this->data->_Sreceivers[ctx.node] = srecode;
-			this->data->_receivers[ctx.node] = rcode;
-			this->data->_donors[ctx.node] = dcode;
-			this->data->_Sdonors[this->Sreceivers(ctx.node)] |= invBits(srecode);
+		// Compute boundaries with normal function
+		CT_neighbourer_1<i_t, f_t> ctx;
+		for (int i = 0; i < this->_nx; ++i)
+			__compute_all_single_node(i, ctx);
+		for (int i = this->_nxy - this->_nx; i < this->_nxy; ++i)
+			__compute_all_single_node(i, ctx);
+		for (int row = 1; row < this->_ny - 1; ++row) {
+			int i = row * this->_nx;
+			__compute_all_single_node(i, ctx);
+			i = (row + 1) * this->_nx - 1;
+			__compute_all_single_node(i, ctx);
+		}
+
+		for (int i = 0; i < this->_nxy; ++i) {
+			int rec = this->Sreceivers(i);
+			this->data->_Sdonors[rec] |=
+				invBits(this->data->_Sreceivers[i]) * !(rec == i);
 		}
 	}
 
@@ -403,6 +817,46 @@ public:
 		}
 	}
 
+	// SLOWER, keep for legacy
+	void _compute_mfd_only_exp1()
+	{
+
+		// Just double checking
+		if (this->data->_surface.size() == 0) {
+			throw std::runtime_error("NoTopoError: no topography set in Hermes");
+		}
+
+		// Setting up context
+		CT_neighbourer_256<i_t, f_t> ctx;
+
+		// Setting up prefetchers
+
+		for (int i = 0; i < this->_nxy - 256; i += 256) {
+			ctx.update(i, *this);
+			for (int subi = 0; subi < 256; ++subi) {
+				std::uint8_t rcode = 0;
+				std::uint8_t dcode = 0;
+
+				for (int j = 0; j < ctx.nn[subi]; ++j) {
+					f_t dz = ctx.topo[subi] - ctx.neighboursTopo[subi][j];
+
+					if (Fcan_connect(ctx.boundary[subi], ctx.neighboursCode[subi][j]) ==
+							false)
+						continue;
+
+					// First asserting the connectivity
+					if (dz < 0)
+						dcode |= ctx.neighboursBits[subi][j];
+					else if (dz > 0) {
+						rcode |= ctx.neighboursBits[subi][j];
+					}
+				}
+				this->data->_receivers[ctx.node[subi]] = rcode;
+				this->data->_donors[ctx.node[subi]] = dcode;
+			}
+		}
+	}
+
 	void _quickSstack()
 	{
 		// The stack container helper
@@ -436,6 +890,116 @@ public:
 				}
 			}
 		}
+	}
+
+	void _quickLM()
+	{
+
+		// 0: not done
+		// 1: connected to the ocean
+		// 2: internal pit
+		std::vector<std::uint8_t> connected(this->_nxy, 0);
+
+		std::stack<i_t, std::vector<i_t>> helper;
+
+		for (int i = 0; i < this->_nxy; ++i) {
+			if (can_out(this->data->_boundaries[i])) {
+				helper.emplace(i);
+				connected[i] = 1;
+			}
+		}
+
+		std::array<i_t, 8> tdons;
+		while (helper.empty() == false) {
+			int next = helper.top();
+			helper.pop();
+			int nn = this->Donors(next, tdons);
+			for (int j = 0; j < nn; ++j) {
+				if (connected[tdons[j]] == 0) {
+					helper.emplace(tdons[j]);
+					connected[tdons[j]] = 1;
+				}
+			}
+		}
+
+		// ocean labelled
+		for (int i = 0; i < this->_nxy; ++i) {
+			if (connected[i] == 0)
+				continue;
+			int nn = this->Receivers(i, tdons);
+			for (int j = 0; j < nn; ++j) {
+				int reci = tdons[j];
+				if (connected[reci] == 0 && connected[i] == 1) {
+					helper.emplace(i);
+				}
+			}
+		}
+
+		while (helper.empty() == false) {
+			int next = helper.top();
+			helper.pop();
+			int nn = this->Receivers(next, tdons);
+			for (int j = 0; j < nn; ++j) {
+				int rec = tdons[j];
+				if (connected[rec] == 0) {
+					this->data->_surface[rec] =
+						this->data->_surface[next] + 1e-6 * this->data->randu->get();
+					connected[rec] = 1;
+					helper.emplace(rec);
+				}
+			}
+		}
+	}
+
+	void PFcompute_all()
+	{
+		PQFORPF open;
+		std::queue<PQH> pit;
+		this->data->_stack = std::vector<i_t>(this->_nxy, 0);
+
+		// Setting up context
+		CT_neighbourer_1<i_t, f_t> ctx;
+
+		std::vector<int8_t> closed(this->_nxy, false);
+
+		for (int i = 0; i < this->_nxy; ++i) {
+			if (can_out(this->data->_boundaries[i]) == false)
+				continue;
+
+			open.emplace(PQH(i, this->data->_surface[i]));
+			closed[i] = true;
+		}
+
+		std::array<int, 8> neighbours;
+		int istack = 0;
+		while (open.size() > 0 || pit.size() > 0) {
+			PQH c;
+			c = open.top();
+			open.pop();
+
+			// this->__compute_all_single_node(c.node, ctx);
+			int nn = this->Neighbours(c.node, neighbours);
+			this->data->_stack[istack] = c.node;
+			++istack;
+
+			f_t ttopo = this->data->_surface[c.node];
+
+			// for (int j = 0; j < ctx.nn; ++j) {
+			for (int j = 0; j < nn; ++j) {
+				// int n = ctx.neighbours[j];
+				int n = neighbours[j];
+
+				if (closed[n])
+					continue;
+
+				closed[n] = true;
+				ttopo += this->data->randu->get() * 1e-6 + 1e-8;
+				this->data->_surface[n] = std::max(ttopo, this->data->_surface[n]);
+				open.emplace(n, this->data->_surface[n]);
+			}
+			this->__compute_all_single_node(c.node, ctx);
+		}
+		this->_quickSstack();
 	}
 };
 

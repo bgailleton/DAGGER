@@ -31,6 +31,12 @@ public:
 	// Universal data
 	std::vector<f_t> _surface;
 
+	std::vector<std::vector<f_t>> fbag;
+	std::vector<std::vector<i_t>> ibag;
+	std::vector<std::vector<std::uint8_t>> u8bag;
+
+	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
+
 }; // end of class Hermes
 
 } //  end of namespace

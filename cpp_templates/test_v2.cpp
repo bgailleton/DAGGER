@@ -21,7 +21,11 @@ main(int argc, char const* argv[])
 	double dy = 30.;
 	std::string yolo{ "periodic_EW" };
 	std::vector<double> topotest =
-		DAGGER::_quick_fluvial_topo<double>(6, yolo, 10);
+		// DAGGER::_quick_fluvial_topo<double>(6, yolo, 10);
+		// load_npy<double>("topo1024.npy");
+		load_npy<double>("topo1024_rdnoise.npy");
+
+	// save_vec_to_1Dnpy("topo1024.npy",1024,1024, topotest);
 
 	D8connector<double> clacon(nx, ny, dx, dy, 0., 0.);
 
@@ -30,6 +34,11 @@ main(int argc, char const* argv[])
 	timer.tok("clacon took");
 
 	graph<double, D8connector<double>> gra(clacon);
+	gra.set_LMR_method(DEPRES::priority_flood);
+
+	timer.tik();
+	gra._compute_graph(topotest, false, false);
+	timer.tok("clagra took");
 
 	timer.tik();
 	gra.topological_sorting_SF();
@@ -39,32 +48,47 @@ main(int argc, char const* argv[])
 	dbag._surface = std::move(topotest);
 	Connector8<int, double> con(nx, ny, dx, dy, dbag);
 	con.boutype = CONBOU::PEW;
-	con.flowtopo = CONFLOWTOPO::MFD;
+	con.flowtopo = CONFLOWTOPO::ALL;
 
 	con.init();
 
 	timer.tik();
-	con.compute();
-	timer.tok("newcon took");
+	con.PFcompute_all();
+	timer.tok("PFcom took");
 
-	// save_vec_to_2Dnpy("neighbours.npy", con._nx, con._ny, dbag._neighbours);
+	// timer.tik();
+	// con.compute();
+	// timer.tok("newcon took");
+
+	// timer.tik();
+	// con._compute_all_exp1();
+	// timer.tok("newcon prefetch took");
+
+	// timer.tik();
+	// con._quickLM();
+	// timer.tok("labelling took");
+
+	// timer.tik();
+	// con._compute_all_exp2();
+	// timer.tok("newcon prefetch 2 took");
+
+	save_vec_to_2Dnpy("topt.npy", con._nx, con._ny, dbag._surface);
 
 	// timer.tik();
 	// con._quickSstack();
 	// timer.tok("newconSstack took");
 
-	// std::vector<double> dA(con.nxy(), 0.);
+	std::vector<double> dA(con.nxy(), 0.);
 
-	// for(int i=con.nxy()-1;i >= 0; --i){
-	// 	int node = dbag._Sstack[i];
-	// 	int rec = con.Sreceivers(node);
-	// 	dA[node] += con.area(node);
-	// 	if(rec != node)
-	// 		dA[rec] += dA[node];
+	for (int i = con.nxy() - 1; i >= 0; --i) {
+		int node = dbag._Sstack[i];
+		int rec = con.Sreceivers(node);
+		dA[node] += con.area(node);
+		if (rec != node)
+			dA[rec] += dA[node];
+	}
 
-	// }
-
-	// save_vec_to_2Dnpy("DA.npy", con._nx, con._ny, dA);
+	save_vec_to_2Dnpy("DA.npy", con._nx, con._ny, dA);
 
 	// Un comment to check the lookup
 

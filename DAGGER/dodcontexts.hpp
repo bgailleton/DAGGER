@@ -51,4 +51,59 @@ public:
 	}
 };
 
+template<class i_t, class f_t>
+class CT_neighbourer_256
+{
+
+public:
+	std::array<i_t, 256> node;
+	std::array<f_t, 256> topo;
+	std::array<BC, 256> boundary;
+
+	std::array<i_t, 256> nn;
+	std::array<std::uint8_t, 256> idAdder;
+	std::array<std::array<i_t, 8>, 256> neighbours;
+	std::array<std::array<std::uint8_t, 8>, 256> neighboursBits;
+	std::array<std::array<BC, 8>, 256> neighboursCode;
+	std::array<std::array<f_t, 8>, 256> neighboursDx;
+	std::array<std::array<f_t, 8>, 256> neighboursTopo;
+
+	template<class CONNECTOR_T>
+	void update(i_t node, CONNECTOR_T& con)
+	{
+		for (int incr = 0; incr < 256; ++incr) {
+			this->node[incr] = node + incr;
+
+			this->topo[incr] = con.data->_surface[this->node[incr]];
+			this->boundary[incr] = con.data->_boundaries[this->node[incr]];
+
+			std::uint8_t nid = con.data->_neighbours[this->node[incr]];
+
+			this->idAdder[incr] = con.data->LK8.BC2idAdder(
+				this->node[incr], con.data->_boundaries[this->node[incr]]);
+
+			this->nn[incr] = con.data->LK8.NeighbourerNN[this->idAdder[incr]][nid];
+
+			this->neighbours[incr] =
+				con.data->LK8.Neighbourer[this->idAdder[incr]][nid];
+
+			this->neighboursDx[incr] =
+				con.data->LK8.Neighbourerdx[this->idAdder[incr]][nid];
+			this->neighboursBits[incr] =
+				con.data->LK8.NeighbourerBits[this->idAdder[incr]][nid];
+
+			for (size_t i = 0; i < this->nn[incr]; ++i)
+				this->neighbours[incr][i] += this->node[incr];
+
+			for (size_t i = 0; i < nn[incr]; ++i)
+				this->neighboursTopo[incr][i] =
+					con.data->_surface[this->neighbours[incr][i]];
+
+			for (size_t i = 0; i < nn[incr]; ++i)
+				neighboursCode[incr][i] =
+					con.data->_boundaries[this->neighbours[incr][i]];
+		}
+	}
+};
+
 } // end of namespace

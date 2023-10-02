@@ -118,6 +118,12 @@ Fcan_connect(BC A, BC B)
 	return true;
 }
 
+bool
+can_out(BC A)
+{
+	return (A == BC::CAN_OUT || A == BC::OUT || A == BC::FORCE_OUT);
+}
+
 // Function testing if a boundary condition object is valid
 // template<class TBC>
 // void test_TBC(TBC)

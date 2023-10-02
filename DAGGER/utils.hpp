@@ -564,6 +564,26 @@ save_vec_to_2Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
 	npy::SaveArrayAsNumpy(fname, fortran_order, shape.size(), shape.data(), data);
 }
 
+template<class fT>
+void
+save_vec_to_1Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
+{
+	const std::vector<long unsigned> shape{ std::uint64_t(ny * nx) };
+	const bool fortran_order{ false };
+	npy::SaveArrayAsNumpy(fname, fortran_order, shape.size(), shape.data(), data);
+}
+
+template<class fT>
+std::vector<fT>
+load_npy(std::string path)
+{
+	npy::npy_data d = npy::read_npy<fT>(path);
+
+	std::vector<fT> data = d.data;
+
+	return data;
+}
+
 template<class T>
 void
 minmax(std::vector<T>& vec, T& tmin, T& tmax)
