@@ -3,6 +3,7 @@
 #include "dodconnector.hpp"
 #include "enumutils.hpp"
 #include "graph.hpp"
+#include "graphflood_v2.hpp"
 #include "lookup_neighbourer.hpp"
 #include "popscape.hpp"
 #include "utils.hpp"
@@ -17,13 +18,17 @@ main(int argc, char const* argv[])
 
 	int nx = 1024;
 	int ny = 1024;
-	double dx = 30.;
-	double dy = 30.;
+	double dx = 2.;
+	double dy = 2.;
 	std::string yolo{ "periodic_EW" };
+
 	std::vector<double> topotest =
 		// DAGGER::_quick_fluvial_topo<double>(6, yolo, 10);
-		// load_npy<double>("topo1024.npy");
-		load_npy<double>("topo1024_rdnoise.npy");
+		load_npy<double>("topo1024.npy");
+	// load_npy<double>("topo1024_rdnoise.npy");
+
+	for (auto& v : topotest)
+		v *= 0.1;
 
 	// save_vec_to_1Dnpy("topo1024.npy",1024,1024, topotest);
 
@@ -56,6 +61,25 @@ main(int argc, char const* argv[])
 	con.PFcompute_all();
 	timer.tok("PFcom took");
 
+	std::cout << "init gf2 " << std::endl;
+
+	Graphflood2<int, double, decltype(con), int, decltype(dbag)> gf(
+		con, nx, dbag);
+	gf.init();
+
+	std::cout << "init entry points" << std::endl;
+	gf.Prate = 1e-5;
+	gf._computeEntryPoints_prec(1);
+
+	std::cout << "done, I have " << gf.input_node_Qw.size()
+						<< " points, now running gf2" << std::endl;
+	gf.dt = 1e-3;
+	for (int i = 0; i < 1; ++i) {
+		std::cout << "run " << i << std::endl;
+		gf.run_subgraphflood();
+		// std::cout << "ran " << i << "\r";
+	}
+
 	// timer.tik();
 	// con.compute();
 	// timer.tok("newcon took");
@@ -73,6 +97,8 @@ main(int argc, char const* argv[])
 	// timer.tok("newcon prefetch 2 took");
 
 	save_vec_to_2Dnpy("topt.npy", con._nx, con._ny, dbag._surface);
+	save_vec_to_2Dnpy("hwtest.npy", con._nx, con._ny, dbag._hw);
+	save_vec_to_2Dnpy("Qwtest.npy", con._nx, con._ny, dbag._Qwin);
 
 	// timer.tik();
 	// con._quickSstack();

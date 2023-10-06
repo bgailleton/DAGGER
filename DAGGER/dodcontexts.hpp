@@ -106,4 +106,136 @@ public:
 	}
 };
 
+template<class i_t, class f_t>
+class CT_neighbourer_WaCell
+{
+
+public:
+	i_t node = 0;
+	BC boundary;
+	i_t nn = 0;
+	i_t nr = 0;
+	f_t surface = 0;
+
+	f_t sumslopesdw = 0.;
+	i_t SSj = 0;
+
+	std::array<i_t, 8> neighbours;
+	std::array<BC, 8> neighboursCode;
+	std::array<f_t, 8> neighboursDx;
+	std::array<f_t, 8> neighboursDy;
+
+	std::array<i_t, 8> receivers;
+	std::array<BC, 8> receiversCode;
+	std::array<f_t, 8> receiversDx;
+	std::array<f_t, 8> receiversDy;
+	std::array<f_t, 8> receiversSurfaces;
+	std::array<f_t, 8> receiversSlopes;
+	std::array<f_t, 8> receiversWeights;
+
+	bool allRecsDone = false;
+	bool allNeighsDone = false;
+
+	template<class CONNECTOR_T>
+	void update(i_t node, CONNECTOR_T& con)
+	{
+
+		// updating to the current node
+		this->node = node;
+		// fetching the current surface
+		this->surface = con.data->_surface[node];
+		// node boundary code
+		this->boundary = con.data->_boundaries[node];
+
+		// Fetching neighbour infos
+		this->nn = con.Neighbours(node, this->neighbours);
+		con.NeighboursDx(node, this->neighboursDx);
+		con.NeighboursDy(node, this->neighboursDy);
+
+		// Now dealing with receivers
+		this->nr = 0;
+		this->receiversSlopes[0] = 0.;
+		this->SSj = 0;
+
+		// Checks if all rec/ neighbours have been processed
+		this->allRecsDone = true;
+		this->allNeighsDone = true;
+		this->sumslopesdw = 0;
+
+		// Processing neighbours
+		for (size_t i = 0; i < this->nn; ++i) {
+			// Assing boundary code
+			this->neighboursCode[i] = con.data->_boundaries[this->neighbours[i]];
+
+			// checking if node is at the right timing or not
+			if (con.data->_timetracker[node] !=
+					con.data->_timetracker[this->neighbours[i]])
+				this->allNeighsDone = false;
+
+			// Checking if the receivers is done
+			if (con.data->_surface[this->neighbours[i]] < this->surface &&
+					can_receive(this->neighboursCode[i])) {
+				if (con.data->_timetracker[node] !=
+						con.data->_timetracker[this->neighbours[i]])
+					this->allRecsDone = false;
+			}
+		}
+
+		if (this->allRecsDone == false) {
+			for (size_t i = 0; i < this->nn; ++i) {
+				if (con.data->_surface[this->neighbours[i]] < this->surface &&
+						can_receive(this->neighboursCode[i]) &&
+						con.data->_timetracker[node] !=
+							con.data->_timetracker[this->neighbours[i]]) {
+					this->receivers[nr] = this->neighbours[i];
+					this->receiversCode[nr] = this->neighboursCode[i];
+					this->receiversDx[nr] = this->neighboursDx[i];
+					this->receiversDy[nr] = this->neighboursDy[i];
+					this->receiversSurfaces[nr] = con.data->_surface[this->neighbours[i]];
+					this->receiversSlopes[nr] =
+						(this->surface - this->receiversSurfaces[nr]) /
+						this->receiversDx[nr];
+					if (this->receiversSlopes[nr] > this->receiversSlopes[this->SSj]) {
+						this->SSj = nr;
+					}
+					this->receiversWeights[nr] =
+						this->receiversSlopes[nr] * this->receiversDy[nr];
+					this->sumslopesdw += this->receiversWeights[nr];
+
+					++nr;
+				}
+			}
+
+			for (size_t i = 0; i < this->nr; ++i)
+				this->receiversWeights[i] /= this->sumslopesdw;
+
+		} else {
+			for (size_t i = 0; i < this->nn; ++i) {
+				if (con.data->_surface[this->neighbours[i]] < this->surface &&
+						can_receive(this->neighboursCode[i])) {
+					this->receivers[nr] = i;
+					++nr;
+				}
+			}
+
+			if (nr == 0)
+				return;
+			// std::cout << nr << "|";
+
+			this->SSj = 0;
+			int tj = this->receivers[std::floor(con.data->randu->get() * this->nr)];
+			this->receivers[0] = this->neighbours[tj];
+			this->receiversCode[0] = this->neighboursCode[tj];
+			this->receiversDx[0] = this->neighboursDx[tj];
+			this->receiversDy[0] = this->neighboursDy[tj];
+			this->receiversSurfaces[0] = con.data->_surface[this->neighbours[tj]];
+			this->receiversSlopes[0] =
+				(this->surface - this->receiversSurfaces[0]) / this->neighboursDx[tj];
+			this->sumslopesdw = this->receiversSlopes[0] * this->neighboursDy[tj];
+			nr = 1;
+			this->receiversWeights[0] = 1.;
+		}
+	}
+};
+
 } // end of namespace

@@ -30,6 +30,12 @@ public:
 
 	// Universal data
 	std::vector<f_t> _surface;
+	std::vector<f_t> _hw;
+	std::vector<f_t> _timetracker;
+
+	// LEM using water data
+	std::vector<f_t> _vmot_hw;
+	std::vector<f_t> _Qwin;
 
 	std::vector<std::vector<f_t>> fbag;
 	std::vector<std::vector<i_t>> ibag;

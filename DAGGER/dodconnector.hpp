@@ -173,6 +173,16 @@ public:
 		return nn;
 	}
 
+	i_t DonorsBits(i_t i, std::array<i_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] += i;
+		return nn;
+	}
+
 	i_t nDonors(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
@@ -189,6 +199,14 @@ public:
 		return nn;
 	}
 
+	i_t ReceiversBits(i_t i, std::array<std::uint8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerBits[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
+		return nn;
+	}
+
 	i_t nReceivers(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
@@ -202,6 +220,34 @@ public:
 		i_t nn = this->nNeighbours(i);
 		for (int j = 0; j < nn; ++j)
 			arr[j] += i;
+		return nn;
+	}
+
+	i_t NeighboursDx(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
+		return nn;
+	}
+
+	i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] = (arr[j] == this->_dx)
+								 ? this->_dy
+								 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
+		return nn;
+	}
+
+	i_t NeighboursBits(i_t i, std::array<std::uint8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerBits[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
 		return nn;
 	}
 
@@ -392,6 +438,41 @@ public:
 	template<class CTX>
 	void __compute_all_single_node(i_t i, CTX& ctx)
 	{
+		ctx.update(i, *this);
+		f_t SS = 0;
+		std::uint8_t rcode = 0;
+		std::uint8_t srecode = 0;
+		std::uint8_t dcode = 0;
+
+		for (int j = 0; j < ctx.nn; ++j) {
+			f_t dz = ctx.topo - ctx.neighboursTopo[j];
+
+			if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false)
+				continue;
+
+			// First asserting the connectivity
+			if (dz < 0)
+				dcode |= ctx.neighboursBits[j];
+
+			else if (dz > 0) {
+				rcode |= ctx.neighboursBits[j];
+				f_t tSS = dz / ctx.neighboursDx[j];
+				if (tSS > SS) {
+					SS = tSS;
+					srecode = ctx.neighboursBits[j];
+				}
+			}
+		}
+
+		this->data->_Sreceivers[ctx.node] = srecode;
+		this->data->_receivers[ctx.node] = rcode;
+		this->data->_donors[ctx.node] = dcode;
+		this->data->_Sdonors[this->Sreceivers(ctx.node)] |= invBits(srecode);
+	}
+
+	void __compute_all_single_node(i_t i)
+	{
+		CT_neighbourer_1<i_t, f_t> ctx;
 		ctx.update(i, *this);
 		f_t SS = 0;
 		std::uint8_t rcode = 0;

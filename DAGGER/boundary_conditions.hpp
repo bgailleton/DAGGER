@@ -124,6 +124,19 @@ can_out(BC A)
 	return (A == BC::CAN_OUT || A == BC::OUT || A == BC::FORCE_OUT);
 }
 
+bool
+can_receive(BC A)
+{
+	return (A == BC::CAN_OUT || A == BC::OUT || A == BC::FORCE_OUT ||
+					A == BC::FLOW || A == BC::PERIODIC_BORDER);
+}
+
+bool
+nodata(BC A)
+{
+	return (A == BC::NO_FLOW);
+}
+
 // Function testing if a boundary condition object is valid
 // template<class TBC>
 // void test_TBC(TBC)
