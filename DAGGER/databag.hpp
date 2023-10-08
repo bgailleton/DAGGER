@@ -4,6 +4,7 @@
 #include "enumutils.hpp"
 #include "lookup_neighbourer.hpp"
 #include "utils.hpp"
+#include "wrap_helper.hpp"
 
 namespace DAGGER {
 
@@ -29,13 +30,66 @@ public:
 	std::vector<i_t> _Sstack;
 
 	// Universal data
+	// #Topographic surface
 	std::vector<f_t> _surface;
+	template<class arrin_t>
+	void set_surface(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_surface = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_surface()
+	{
+		return format_output<decltype(this->_surface), out_t>(this->_surface);
+	}
+
+	// #Water surface
 	std::vector<f_t> _hw;
+	template<class arrin_t>
+	void set_hw(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_hw = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_hw()
+	{
+		return format_output<decltype(this->_hw), out_t>(this->_hw);
+	}
+
+	// #Time tracker for graphflood
 	std::vector<f_t> _timetracker;
 
 	// LEM using water data
 	std::vector<f_t> _vmot_hw;
 	std::vector<f_t> _Qwin;
+	template<class arrin_t>
+	void set_Qwin(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_Qwin = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_Qwin()
+	{
+		return format_output<decltype(this->_Qwin), out_t>(this->_Qwin);
+	}
+
+	std::vector<f_t> _Qwout;
+	template<class arrin_t>
+	void set_Qwout(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_Qwout = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_Qwout()
+	{
+		return format_output<decltype(this->_Qwout), out_t>(this->_Qwout);
+	}
+
+	std::vector<f_t> _debug;
 
 	std::vector<std::vector<f_t>> fbag;
 	std::vector<std::vector<i_t>> ibag;

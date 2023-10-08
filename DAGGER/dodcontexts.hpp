@@ -135,6 +135,7 @@ public:
 
 	bool allRecsDone = false;
 	bool allNeighsDone = false;
+	bool canout = false;
 
 	template<class CONNECTOR_T>
 	void update(i_t node, CONNECTOR_T& con)
@@ -161,11 +162,15 @@ public:
 		this->allRecsDone = true;
 		this->allNeighsDone = true;
 		this->sumslopesdw = 0;
+		this->canout = false;
 
 		// Processing neighbours
 		for (size_t i = 0; i < this->nn; ++i) {
 			// Assing boundary code
 			this->neighboursCode[i] = con.data->_boundaries[this->neighbours[i]];
+
+			if (can_out(this->neighboursCode[i]))
+				this->canout = true;
 
 			// checking if node is at the right timing or not
 			if (con.data->_timetracker[node] !=
@@ -181,12 +186,15 @@ public:
 			}
 		}
 
-		if (this->allRecsDone == false) {
+		// if (this->allRecsDone == false) {
+		if (true) {
+			bool first = true;
 			for (size_t i = 0; i < this->nn; ++i) {
 				if (con.data->_surface[this->neighbours[i]] < this->surface &&
-						can_receive(this->neighboursCode[i]) &&
-						con.data->_timetracker[node] !=
-							con.data->_timetracker[this->neighbours[i]]) {
+						can_receive(
+							this->neighboursCode
+								[i])) { // &&con.data->_timetracker[node] !=
+												// con.data->_timetracker[this->neighbours[i]])
 					this->receivers[nr] = this->neighbours[i];
 					this->receiversCode[nr] = this->neighboursCode[i];
 					this->receiversDx[nr] = this->neighboursDx[i];
@@ -195,9 +203,12 @@ public:
 					this->receiversSlopes[nr] =
 						(this->surface - this->receiversSurfaces[nr]) /
 						this->receiversDx[nr];
-					if (this->receiversSlopes[nr] > this->receiversSlopes[this->SSj]) {
+					if (this->receiversSlopes[nr] > this->receiversSlopes[this->SSj] ||
+							first) {
 						this->SSj = nr;
+						first = false;
 					}
+
 					this->receiversWeights[nr] =
 						this->receiversSlopes[nr] * this->receiversDy[nr];
 					this->sumslopesdw += this->receiversWeights[nr];
@@ -207,7 +218,8 @@ public:
 			}
 
 			for (size_t i = 0; i < this->nr; ++i)
-				this->receiversWeights[i] /= this->sumslopesdw;
+				// this->receiversWeights[i] /= this->sumslopesdw;
+				this->receiversWeights[i] = 1. / static_cast<double>(nr);
 
 		} else {
 			for (size_t i = 0; i < this->nn; ++i) {

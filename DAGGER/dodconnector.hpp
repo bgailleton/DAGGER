@@ -43,8 +43,10 @@ public:
 	// Param sheet
 	// # Flow topology to compute
 	CONFLOWTOPO flowtopo = CONFLOWTOPO::ALL;
+	void set_flowtopo(CONFLOWTOPO tfe) { this->flowtopo = tfe; }
 	// # Boundary conditions
 	CONBOU boutype = CONBOU::EDGES;
+	void set_condou(CONBOU tfe) { this->boutype = tfe; }
 
 	// Default Constructor
 	Connector8() { ; }
@@ -52,16 +54,24 @@ public:
 	// Constructor
 	Connector8(int nx, int ny, f_t dx, f_t dy, Hermes<i_t, f_t>& data)
 	{
+		// Initialising the geometry of the grid
+
+		// # Number of col,rows
 		this->_nx = nx;
 		this->_ny = ny;
+		// # Number of nodes
 		this->_nxy = nx * ny;
+		// # spatial spacing
 		this->_dx = dx;
 		this->_dy = dy;
 		this->_dxy = std::sqrt(dx * dx + dy * dy);
+		this->_area = this->_dx * this->_dy;
+		// # grid total length
 		this->_lx = (nx + 1) * dx;
 		this->_ly = (ny + 1) * dy;
+
+		// # Connecting the data bag
 		this->data = &data;
-		this->_area = this->_dx * this->_dy;
 
 		// Initialisatio of the lookup table
 		this->data->LK8 =
@@ -75,8 +85,10 @@ public:
 	{
 
 		// Initialising the boundary conditions
-		// # If boundaries are EDGES, automatically sets them to
+		// # If boundaries are EDGES, automatically sets them to can out at all
+		// edges
 		if (this->boutype == CONBOU::EDGES) {
+			// # set all boundary codes to normal
 			this->data->_boundaries = std::vector<BC>(this->nxy(), BC::FLOW);
 			for (int i = 0; i < this->_nx; ++i)
 				this->data->_boundaries[i] = BC::OUT;
@@ -99,10 +111,13 @@ public:
 			for (int i = this->_nxy - this->_nx; i < this->_nxy; ++i)
 				this->data->_boundaries[i] = BC::OUT;
 
-		}
-
-		else
+		} else if (this->boutype == CONBOU::CUSTOM) {
+			if (this->data->_boundaries.size() != static_cast<size_t>(this->nxy()))
+				throw std::runtime_error("cannot init connector: boutype set to custom "
+																 "but no boundaires array in the data bag");
+		} else {
 			throw std::runtime_error("boutype NOT IMPLOEMENTED YET");
+		}
 
 		// Computing the neighbour code
 		this->_compute_neighbours();
@@ -141,12 +156,14 @@ public:
 		}
 	}
 
+	// Access to the the steepest receiver of node i
 	i_t Sreceivers(i_t i) const
 	{
 		return i + this->data->LK8.NeighbourerD8[this->data->LK8.BC2idAdder(
 								 i, this->data->_boundaries[i])][this->data->_Sreceivers[i]];
 	}
 
+	// Access to the the steepest donors of node i
 	i_t Sdonors(i_t i, std::array<i_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
@@ -157,12 +174,14 @@ public:
 		return nn;
 	}
 
+	// Access to the the number of steepest donors of node i
 	i_t nSdonors(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_Sdonors[i]];
 	}
 
+	// Access to donors of node i
 	i_t Donors(i_t i, std::array<i_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
@@ -173,6 +192,7 @@ public:
 		return nn;
 	}
 
+	// Access to donors bitset of node i
 	i_t DonorsBits(i_t i, std::array<i_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
@@ -183,12 +203,14 @@ public:
 		return nn;
 	}
 
+	// Access to number of donors of node i
 	i_t nDonors(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_donors[i]];
 	}
 
+	// Access to Receivers of node i
 	i_t Receivers(i_t i, std::array<i_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
@@ -199,6 +221,7 @@ public:
 		return nn;
 	}
 
+	// Access to Receivers bitcodes of node i
 	i_t ReceiversBits(i_t i, std::array<std::uint8_t, 8>& arr) const
 	{
 		arr = this->data->LK8.NeighbourerBits[this->data->LK8.BC2idAdder(
@@ -207,12 +230,14 @@ public:
 		return nn;
 	}
 
+	// Access to number of  Receivers of node i
 	i_t nReceivers(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_receivers[i]];
 	}
 
+	// Access to Neighbours of node i
 	i_t Neighbours(i_t i, std::array<i_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourer[this->data->LK8.BC2idAdder(
@@ -223,6 +248,7 @@ public:
 		return nn;
 	}
 
+	// Access to dx to each neighbours (distance to nodes) of node i
 	i_t NeighboursDx(i_t i, std::array<f_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
@@ -231,6 +257,7 @@ public:
 		return nn;
 	}
 
+	// Access to dy to each neighbours (distance to orthogonal nodes) of node i
 	i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
@@ -243,6 +270,7 @@ public:
 		return nn;
 	}
 
+	// Access to Neighbours' bitcodes of node i
 	i_t NeighboursBits(i_t i, std::array<std::uint8_t, 8>& arr) const
 	{
 		arr = this->data->LK8.NeighbourerBits[this->data->LK8.BC2idAdder(
@@ -251,13 +279,12 @@ public:
 		return nn;
 	}
 
+	// Access to number of neighbours of node i
 	i_t nNeighbours(i_t i) const
 	{
 		return this->data->LK8.NeighbourerNN[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
 	}
-
-	// NEED TO ADD ALL THINGIES HERE
 
 	// one-off computing operation: it computes the neighbours code to loop
 	// through the different neighbours of each node
@@ -413,6 +440,8 @@ public:
 		} else if (this->flowtopo == CONFLOWTOPO::MFD) {
 			this->_compute_mfd_only();
 		} else if (this->flowtopo == CONFLOWTOPO::SFD) {
+			throw std::runtime_error(
+				"compute for sfd only not available yet. Use ALL.");
 			// this->_compute_sfd_only();
 		}
 	}

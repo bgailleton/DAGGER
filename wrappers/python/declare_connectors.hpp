@@ -23,6 +23,20 @@ declare_D8connector(py::module& m, std::string typestr)
 		.def("reinit",
 				 &Connector8<int, double>::reinit,
 				 R"pdoc(Internal function resetting receivers/donors/...)pdoc")
+		.def("set_flowtopo",
+				 &Connector8<int, double>::set_flowtopo,
+				 R"pdoc(Set the flow topology parameter (pre-init).)pdoc")
+		.def("set_condou",
+				 &Connector8<int, double>::set_condou,
+				 R"pdoc(Set the boundary parameter (pre-init).)pdoc")
+		.def(
+			"compute",
+			&Connector8<int, double>::compute,
+			R"pdoc(Main function recomputing the graph to match the current surface array in the data bag.)pdoc")
+		.def(
+			"PFcompute_all",
+			&Connector8<int, double>::PFcompute_all,
+			R"pdoc(Temp function while I code the graph v2 computing the full graph using priority flood.)pdoc")
 
 		;
 

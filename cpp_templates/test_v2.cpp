@@ -16,50 +16,51 @@ main(int argc, char const* argv[])
 
 	ocarina timer;
 
-	int nx = 1024;
-	int ny = 1024;
-	double dx = 2.;
-	double dy = 2.;
-	std::string yolo{ "periodic_EW" };
+	int nx = 1001;
+	int ny = 1068;
+	double dx = 1.;
+	double dy = 1.;
+	std::string yolo{ "4edges" };
 
 	std::vector<double> topotest =
 		// DAGGER::_quick_fluvial_topo<double>(6, yolo, 10);
-		load_npy<double>("topo1024.npy");
-	// load_npy<double>("topo1024_rdnoise.npy");
+		// load_npy<double>("topo1024.npy");
+		// load_npy<double>("topo1024_rdnoise.npy");
+		load_npy<double>("green_river.npy");
 
-	for (auto& v : topotest)
-		v *= 0.1;
+	// for (auto& v : topotest)
+	// 	v *= 0.1;
 
 	// save_vec_to_1Dnpy("topo1024.npy",1024,1024, topotest);
 
-	D8connector<double> clacon(nx, ny, dx, dy, 0., 0.);
+	// D8connector<double> clacon(nx, ny, dx, dy, 0., 0.);
 
-	timer.tik();
-	clacon.update_links_from_topo(topotest);
-	timer.tok("clacon took");
+	// timer.tik();
+	// clacon.update_links_from_topo(topotest);
+	// timer.tok("clacon took");
 
-	graph<double, D8connector<double>> gra(clacon);
-	gra.set_LMR_method(DEPRES::priority_flood);
+	// graph<double, D8connector<double>> gra(clacon);
+	// gra.set_LMR_method(DEPRES::priority_flood);
 
-	timer.tik();
-	gra._compute_graph(topotest, false, false);
-	timer.tok("clagra took");
+	// timer.tik();
+	// gra._compute_graph(topotest, false, false);
+	// timer.tok("clagra took");
 
-	timer.tik();
-	gra.topological_sorting_SF();
-	timer.tok("clastack");
+	// timer.tik();
+	// gra.topological_sorting_SF();
+	// timer.tok("clastack");
 
 	Hermes<int, double> dbag;
 	dbag._surface = std::move(topotest);
 	Connector8<int, double> con(nx, ny, dx, dy, dbag);
-	con.boutype = CONBOU::PEW;
+	con.boutype = CONBOU::EDGES;
 	con.flowtopo = CONFLOWTOPO::ALL;
 
 	con.init();
 
-	timer.tik();
-	con.PFcompute_all();
-	timer.tok("PFcom took");
+	// timer.tik();
+	// con.PFcompute_all();
+	// timer.tok("PFcom took");
 
 	std::cout << "init gf2 " << std::endl;
 
@@ -68,15 +69,19 @@ main(int argc, char const* argv[])
 	gf.init();
 
 	std::cout << "init entry points" << std::endl;
-	gf.Prate = 1e-5;
+	gf.Prate = 1e-4;
 	gf._computeEntryPoints_prec(1);
 
 	std::cout << "done, I have " << gf.input_node_Qw.size()
 						<< " points, now running gf2" << std::endl;
-	gf.dt = 1e-3;
-	for (int i = 0; i < 1; ++i) {
+	gf.dt = 2e-3;
+
+	for (int i = 0; i < 100; ++i) {
 		std::cout << "run " << i << std::endl;
 		gf.run_subgraphflood();
+		// save_vec_to_2Dnpy("hw" + std::to_string(i) +".npy", con._nx, con._ny,
+		// dbag._hw);
+
 		// std::cout << "ran " << i << "\r";
 	}
 
@@ -99,22 +104,23 @@ main(int argc, char const* argv[])
 	save_vec_to_2Dnpy("topt.npy", con._nx, con._ny, dbag._surface);
 	save_vec_to_2Dnpy("hwtest.npy", con._nx, con._ny, dbag._hw);
 	save_vec_to_2Dnpy("Qwtest.npy", con._nx, con._ny, dbag._Qwin);
+	save_vec_to_2Dnpy("debugtest.npy", con._nx, con._ny, dbag._debug);
 
-	// timer.tik();
-	// con._quickSstack();
-	// timer.tok("newconSstack took");
+	// // timer.tik();
+	// // con._quickSstack();
+	// // timer.tok("newconSstack took");
 
-	std::vector<double> dA(con.nxy(), 0.);
+	// std::vector<double> dA(con.nxy(), 0.);
 
-	for (int i = con.nxy() - 1; i >= 0; --i) {
-		int node = dbag._Sstack[i];
-		int rec = con.Sreceivers(node);
-		dA[node] += con.area(node);
-		if (rec != node)
-			dA[rec] += dA[node];
-	}
+	// for (int i = con.nxy() - 1; i >= 0; --i) {
+	// 	int node = dbag._Sstack[i];
+	// 	int rec = con.Sreceivers(node);
+	// 	dA[node] += con.area(node);
+	// 	if (rec != node)
+	// 		dA[rec] += dA[node];
+	// }
 
-	save_vec_to_2Dnpy("DA.npy", con._nx, con._ny, dA);
+	// save_vec_to_2Dnpy("DA.npy", con._nx, con._ny, dA);
 
 	// Un comment to check the lookup
 
