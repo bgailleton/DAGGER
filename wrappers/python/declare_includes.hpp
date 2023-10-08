@@ -6,6 +6,8 @@ All the includes will be added there
 
 #include "D4connector.hpp"
 #include "D8connector.hpp"
+#include "databag.hpp"
+#include "dodconnector.hpp"
 #include "graph.hpp"
 #include "graphflood.hpp"
 #include "hillshading.hpp"

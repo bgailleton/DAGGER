@@ -6,6 +6,27 @@ using namespace DAGGER;
 void
 declare_D8connector(py::module& m, std::string typestr)
 {
+
+	py::class_<Connector8<int, double>>(m, typestr.c_str())
+
+		.def(py::init<int, int, double, double, Hermes<int, double>&>(),
+				 py::arg("nx"),
+				 py::arg("ny"),
+				 py::arg("dx"),
+				 py::arg("dy"),
+				 py::arg("dbag"))
+
+		.def(
+			"init",
+			&Connector8<int, double>::init,
+			R"pdoc(Initialises the connector inner structure. Will affects the data bag with neighbour codes.)pdoc")
+		.def("reinit",
+				 &Connector8<int, double>::reinit,
+				 R"pdoc(Internal function resetting receivers/donors/...)pdoc")
+
+		;
+
+	// D8Connector: linked-based graph
 	py::class_<D8connector<FLOATING_POINT_DAGGER>>(m, typestr.c_str(), R"pbdoc(
 	D8 regular grid connector D8N
 

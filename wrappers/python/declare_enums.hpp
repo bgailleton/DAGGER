@@ -6,6 +6,7 @@ using namespace DAGGER;
 void
 delclare_enums(py::module& m)
 {
+
 	py::enum_<DEPRES>(m, "LMR")
 		.value("cordonnier_fill", DEPRES::cordonnier_fill)
 		.value("cordonnier_carve", DEPRES::cordonnier_carve)
@@ -50,4 +51,21 @@ delclare_enums(py::module& m)
 		.value("DHW", CONVERGENCE::DHW)
 		.value("QWR", CONVERGENCE::QWR)
 		.value("ALL", CONVERGENCE::ALL);
+
+	py::enum_<RANDNOISE>(m, "NOISE")
+		.value("WHITE", RANDNOISE::WHITE)
+		.value("RED", RANDNOISE::RED)
+		.value("PERLIN", RANDNOISE::PERLIN);
+
+	py::enum_<CONFLOWTOPO>(m, "CONFLOW")
+		.value("ALL", CONFLOWTOPO::ALL)
+		.value("SFD", CONFLOWTOPO::SFD)
+		.value("MFD", CONFLOWTOPO::MFD)
+		.value("NONE", CONFLOWTOPO::NONE);
+
+	py::enum_<CONBOU>(m, "CONBOU")
+		.value("EDGES", CONBOU::EDGES)
+		.value("PEW", CONBOU::PEW)
+		.value("PNS", CONBOU::PNS)
+		.value("CUSTOM", CONBOU::CUSTOM);
 }
