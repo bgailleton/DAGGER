@@ -7,6 +7,49 @@ template<typename fT, typename GRAPH_T, typename CONNECTOR_T>
 void
 declare_graphflood(py::module& m, std::string typestr)
 {
+	py::class_<Graphflood2<int,
+												 double,
+												 Connector8<int, double>,
+												 int,
+												 Hermes<int, double>>>(m, "GF2")
+		.def(py::init<Connector8<int, double>&, int&, Hermes<int, double>&>())
+		.def("init",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::init)
+		.def("compute_entry_points_from_P",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::compute_entry_points_from_P)
+		.def("run_subgraphflood",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::run_subgraphflood)
+		.def("set_uniform_P",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::set_uniform_P)
+		.def("set_dt",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::set_dt)
+		.def("get_dt",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::get_dt);
+
 	py::class_<graphflood<fT, GRAPH_T, CONNECTOR_T>>(m, typestr.c_str())
 		.def(py::init<GRAPH_T&, CONNECTOR_T&>())
 		.def("run",

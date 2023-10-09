@@ -1,3 +1,5 @@
+#pragma once
+
 enum class HYDRO // : std::uint8_t
 {
 	GRAPH_SFD,

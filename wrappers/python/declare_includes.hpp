@@ -10,6 +10,7 @@ All the includes will be added there
 #include "dodconnector.hpp"
 #include "graph.hpp"
 #include "graphflood.hpp"
+#include "graphflood_v2.hpp"
 #include "hillshading.hpp"
 #include "popscape.hpp"
 #include "popscape_utils.hpp"

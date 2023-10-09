@@ -7,7 +7,7 @@ void
 declare_D8connector(py::module& m, std::string typestr)
 {
 
-	py::class_<Connector8<int, double>>(m, typestr.c_str())
+	py::class_<Connector8<int, double>>(m, "Connector8")
 
 		.def(py::init<int, int, double, double, Hermes<int, double>&>(),
 				 py::arg("nx"),

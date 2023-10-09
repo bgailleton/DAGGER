@@ -1,3 +1,4 @@
+#pragma once
 #include "dodcontexts.hpp"
 #include "graphflood_enums.hpp"
 #include "utils.hpp"
@@ -70,7 +71,9 @@ public:
 	DBAG_T* data;
 
 	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
-	f_t Prate = 1e-5; // mm.s^-1
+	f_t Prate = 1e-5; // mm.s^-1. Yarr.
+	void set_uniform_P(f_t val) { this->Prate = val; }
+
 	std::vector<i_t> input_node_Qw;
 	std::vector<f_t> input_Qw;
 
@@ -81,6 +84,8 @@ public:
 	// std::vector<f_t> data->_timetracker; // MOVED TO THE DATA BAG
 	f_t time = 0.;
 	f_t dt = 1e-3;
+	void set_dt(f_t val) { this->dt = val; }
+	f_t get_dt() { return this->dt; }
 
 	// Graphflood params
 	f_t mannings = 0.033;
@@ -110,6 +115,11 @@ public:
 		if (this->data->_Qwout.size() == 0)
 			this->data->_Qwout = std::vector<f_t>(this->con->nxy(), 0);
 		this->data->_vmot_hw = std::vector<f_t>(this->con->nxy(), 0);
+	}
+
+	void compute_entry_points_from_P(f_t Qw_threshold)
+	{
+		this->_computeEntryPoints_prec(Qw_threshold);
 	}
 
 	void _computeEntryPoints_prec(f_t Qw_threshold)
