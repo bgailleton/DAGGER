@@ -1,57 +1,10 @@
 #pragma once
 #include "dodcontexts.hpp"
 #include "graphflood_enums.hpp"
+#include "graphflood_parts.hpp"
 #include "utils.hpp"
 
 namespace DAGGER {
-
-template<class T, class U>
-class WaCell
-{
-public:
-	// empty constructor
-	WaCell(){};
-	// Constructor by default
-	WaCell(T node, U score, U Qw)
-	{
-		this->node = node;
-		this->topo = score;
-		this->Qw = Qw;
-	};
-
-	// Node index
-	T node;
-	// Score data
-	U topo;
-	U Qw;
-	U Qs = 0.;
-
-	// void ingest(WaCell<T,U>& other){this->Qw += other.Qw;}
-	void ingest(WaCell<T, U> other) { this->Qw += other.Qw; }
-};
-;
-
-// Custom operator sorting the nodes by scores
-template<class T, class U>
-inline bool
-operator>(const WaCell<T, U>& lhs, const WaCell<T, U>& rhs)
-{
-	if (lhs.topo != rhs.topo)
-		return lhs.topo > rhs.topo;
-	else
-		return lhs.node > rhs.node;
-}
-
-// Custom operator sorting the nodes by topos
-template<class T, class U>
-inline bool
-operator<(const WaCell<T, U>& lhs, const WaCell<T, U>& rhs)
-{
-	if (lhs.topo != rhs.topo)
-		return lhs.topo < rhs.topo;
-	else
-		return lhs.node < rhs.node;
-}
 
 template<class i_t, class f_t, class CONNECTOR_T, class GRAPH_T, class DBAG_T>
 class Graphflood2
@@ -76,6 +29,7 @@ public:
 
 	std::vector<i_t> input_node_Qw;
 	std::vector<f_t> input_Qw;
+	std::vector<f_t> input_Qs;
 
 	// Water transfer params
 	f_t min_part_Qw = 0.1;
@@ -171,15 +125,49 @@ public:
 		}
 	}
 
-	template<class DSTACK>
+	template<class arrin_i_t, class arrin_f_t>
+	void set_Qw_input_points(arrin_i_t& tarri, arrin_f_t& tarrf)
+	{
+		auto arri = format_input<arrin_i_t>(tarri);
+		this->input_node_Qw = to_vec(arri);
+		auto arrf = format_input<arrin_f_t>(tarrf);
+		this->input_Qw = to_vec(arrf);
+		this->input_Qs = std::vector<f_t>(this->input_Qw.size(), 0.);
+	}
+
+	template<class arrin_i_t, class arrin_f_t>
+	void set_QwQs_input_points(arrin_i_t& tarri,
+														 arrin_f_t& tarrf,
+														 arrin_f_t& tarrfqs)
+	{
+		auto arri = format_input<arrin_i_t>(tarri);
+		this->input_node_Qw = to_vec(arri);
+		auto arrf = format_input<arrin_f_t>(tarrf);
+		this->input_Qw = to_vec(arrf);
+		auto arrfqs = format_input<arrin_f_t>(tarrfqs);
+		this->input_Qs = to_vec(arrfqs);
+	}
+
+	template<class CELL, class DSTACK>
 	void init_dstack_Water(DSTACK& dstack)
 	{
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-			dstack.emplace(
-				WaCell<i_t, f_t>(this->input_node_Qw[i],
-												 this->data->_surface[this->input_node_Qw[i]],
-												 this->input_Qw[i]));
+			dstack.emplace(CELL(this->input_node_Qw[i],
+													this->data->_surface[this->input_node_Qw[i]],
+													this->input_Qw[i]));
+		}
+	}
+
+	template<class CELL, class DSTACK>
+	void init_dstack_WaterSed(DSTACK& dstack)
+	{
+
+		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+			dstack.emplace(CELL(this->input_node_Qw[i],
+													this->data->_surface[this->input_node_Qw[i]],
+													this->input_Qw[i],
+													this->input_Qs[i]));
 		}
 	}
 
@@ -195,7 +183,7 @@ public:
 												std::vector<WaCell<i_t, f_t>>,
 												std::less<WaCell<i_t, f_t>>>
 			dynastack;
-		this->init_dstack_Water(dynastack);
+		this->init_dstack_Water<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
 		CT_neighbourer_WaCell<i_t, f_t> ctx;
 
 		// fillvec(this->data->_vmot_hw,0.);
@@ -206,7 +194,7 @@ public:
 			// std::cout << dynastack.size() << "|";
 
 			// Getting the next node
-			auto next = this->_dstack_next(dynastack);
+			auto next = this->_dstack_next<WaCell<i_t, f_t>>(dynastack);
 
 			bool ispast = this->data->_timetracker[next.node] != this->time;
 
@@ -242,7 +230,7 @@ public:
 				this->data->_timetracker[i] = this->time;
 				this->data->_Qwin[i] = 0.;
 				ctx.update(i, *this->con);
-				this->calculate_Qwout(ctx);
+				this->_calculate_Qwout_for_disconnected_nodes(ctx);
 			}
 		}
 
@@ -265,10 +253,9 @@ public:
 		}
 	}
 
-	WaCell<i_t, f_t> _dstack_next(
-		std::priority_queue<WaCell<i_t, f_t>,
-												std::vector<WaCell<i_t, f_t>>,
-												std::less<WaCell<i_t, f_t>>>& dynastack)
+	template<class CELL>
+	CELL _dstack_next(
+		std::priority_queue<CELL, std::vector<CELL>, std::less<CELL>>& dynastack)
 	{
 		auto next = dynastack.top();
 		// std::cout << next.Qw;
@@ -334,7 +321,7 @@ public:
 	}
 
 	template<class CTX>
-	void calculate_Qwout(CTX& ctx)
+	void _calculate_Qwout_for_disconnected_nodes(CTX& ctx)
 	{
 
 		f_t& thw = this->data->_hw[ctx.node];
@@ -429,6 +416,150 @@ public:
 				std::cout << sumW << std::endl;
 		}
 	}
-};
+
+	template<class CTX, class Q_t>
+	void emplace_transfer(ExpCell<i_t, f_t>& next, CTX& ctx, Q_t& dynastack)
+	{
+		if (ctx.canout)
+			return;
+
+		if (ctx.nr == 0) {
+			next.topo = this->data->_surface[next.node];
+			dynastack.emplace(next);
+		} else {
+			// std::cout << ctx.nr << "|";
+			f_t sumW = 0;
+			for (int i = 0; i < ctx.nr; ++i) {
+				if (ctx.receiversWeights[i] > 0) {
+					sumW += ctx.receiversWeights[i];
+					auto tnext = ExpCell<i_t, f_t>(ctx.receivers[i],
+																				 this->data->_surface[ctx.receivers[i]],
+																				 next.Qw * ctx.receiversWeights[i],
+																				 next.Qs * ctx.receiversWeights[i]);
+					dynastack.emplace(tnext);
+				}
+			}
+
+			if (abs(sumW - 1) > 1e-5)
+				std::cout << sumW << std::endl;
+		}
+	}
+
+	void run_subgraphflood_expA(f_t propsed, f_t erate, f_t th_Qw, f_t stochED)
+	{
+
+		if (this->data->_timetracker.size() == 0) {
+			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_debug = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_Qsin = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_Qsout = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		std::priority_queue<ExpCell<i_t, f_t>,
+												std::vector<ExpCell<i_t, f_t>>,
+												std::less<ExpCell<i_t, f_t>>>
+			dynastack;
+		this->init_dstack_WaterSed<ExpCell<i_t, f_t>, decltype(dynastack)>(
+			dynastack);
+		CT_neighbourer_WaCell<i_t, f_t> ctx;
+
+		// fillvec(this->data->_vmot_hw,0.);
+		this->time += this->dt;
+
+		while (dynastack.empty() == false) {
+
+			// std::cout << dynastack.size() << "|";
+
+			// Getting the next node
+			auto next = this->_dstack_next<ExpCell<i_t, f_t>>(dynastack);
+
+			bool ispast = this->data->_timetracker[next.node] != this->time;
+
+			// Updating the timer
+			this->data->_timetracker[next.node] = this->time;
+
+			// std::cout << "A" << std::endl;
+			ctx.update(next.node, *this->con);
+			// std::cout << "B" << std::endl;
+
+			if (can_out(ctx.boundary))
+				continue;
+
+			if (next.Qw < th_Qw) {
+				// this->data->_Qsin[next.node] += next.Qs;
+				continue;
+			}
+
+			//
+			if (ctx.nr > 0) {
+				// std::cout << "A" << std::endl;
+				this->_subGF_process_node(next, ctx, dynastack);
+
+				if (ispast) {
+					f_t tprop = next.Qs / next.Qw;
+					if (tprop < propsed) {
+						f_t te = std::max(erate,
+															(propsed - tprop) /
+																(this->con->area(next.node) * this->dt)) *
+										 (1 + (this->data->randu->get()) * 2 * stochED - stochED);
+						this->data->_Qsout[next.node] += te * this->con->area(next.node);
+						next.Qs += te * this->con->area(next.node);
+					} else {
+						f_t td = (tprop - propsed) /
+										 (this->con->area(next.node) * this->dt) *
+										 (1 + (this->data->randu->get()) * 2 * stochED - stochED);
+						this->data->_Qsin[next.node] += td * this->con->area(next.node);
+						next.Qs -= td * this->con->area(next.node);
+					}
+				}
+
+				// std::cout << "Ad" << std::endl;
+			} else {
+				// std::cout << "B " << next.node << " " << this->data->_hw[next.node]
+				// << " " << this->data->_surface[next.node]  << " " << ctx.nr << "|" <<
+				// ctx.nn << std::endl;
+				this->_subGF_reprocess_node(next, ctx, dynastack);
+				// std::cout << "Bd:: " << this->data->_surface[next.node] << std::endl;
+				// for(int j=0; j< ctx.nn; ++j){
+				// 	std::cout << "|" << this->data->_surface[ctx.neighbours[j]];
+				// }
+			}
+		}
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+			if (this->data->_timetracker[i]<this->time&& this->data->_hw[i]> 0) {
+				this->data->_timetracker[i] = this->time;
+				this->data->_Qwin[i] = 0.;
+				ctx.update(i, *this->con);
+				this->_calculate_Qwout_for_disconnected_nodes(ctx);
+			}
+		}
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+
+			f_t dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+			dhw *= this->dt;
+			dhw /= this->con->area(i);
+
+			thw += dhw;
+			tsurf += dhw;
+
+			tsurf += (this->data->_Qsin[i] - this->data->_Qsout[i]) /
+							 this->con->area(i) * this->dt;
+
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+
+			this->data->_Qsin[i] = 0.;
+			this->data->_Qsout[i] = 0.;
+		}
+	}
+
+}; // end of class
 
 } // end of namespace DAGGER

@@ -19,5 +19,8 @@ declare_dbag(py::module& m)
 		.def("set_Qwout", &Hermes<int, double>::set_Qwout<py::array_t<double, 1>>)
 		.def("get_Qwout", &Hermes<int, double>::get_Qwout<py::array_t<double, 1>>)
 
+		.def("set_boundaries",
+				 &Hermes<int, double>::set_boundaries<py::array_t<std::uint8_t, 1>>)
+
 		;
 }

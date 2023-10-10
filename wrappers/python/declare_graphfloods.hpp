@@ -31,12 +31,32 @@ declare_graphflood(py::module& m, std::string typestr)
 											Connector8<int, double>,
 											int,
 											Hermes<int, double>>::run_subgraphflood)
+		.def("run_subgraphflood_expA",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::run_subgraphflood_expA)
 		.def("set_uniform_P",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
 											Hermes<int, double>>::set_uniform_P)
+		.def("set_Qw_input_points",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::
+					 set_Qw_input_points<py::array_t<int, 1>, py::array_t<double, 1>>)
+		.def("set_Qw_Qsinput_points",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::
+					 set_QwQs_input_points<py::array_t<int, 1>, py::array_t<double, 1>>)
 		.def("set_dt",
 				 &Graphflood2<int,
 											double,

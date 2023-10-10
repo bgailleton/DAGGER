@@ -23,7 +23,16 @@ public:
 	std::vector<uint8_t> _Sdonors;
 	std::vector<uint8_t> _receivers;
 	std::vector<uint8_t> _donors;
+
 	std::vector<BC> _boundaries;
+	template<class arrin_t>
+	void set_boundaries(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_boundaries = std::vector<BC>(arr.size());
+		for (int i = 0; i < arr.size(); ++i)
+			this->_boundaries[i] = static_cast<BC>(arr[i]);
+	}
 
 	// Storing Graph-related stuffies
 	std::vector<i_t> _stack;
@@ -87,6 +96,32 @@ public:
 	out_t get_Qwout()
 	{
 		return format_output<decltype(this->_Qwout), out_t>(this->_Qwout);
+	}
+
+	std::vector<f_t> _Qsin;
+	template<class arrin_t>
+	void set_Qsin(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_Qsin = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_Qsin()
+	{
+		return format_output<decltype(this->_Qsin), out_t>(this->_Qsin);
+	}
+
+	std::vector<f_t> _Qsout;
+	template<class arrin_t>
+	void set_Qsout(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_Qsout = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_Qsout()
+	{
+		return format_output<decltype(this->_Qsout), out_t>(this->_Qsout);
 	}
 
 	std::vector<f_t> _debug;
