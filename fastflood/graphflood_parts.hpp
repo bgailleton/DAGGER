@@ -4,6 +4,50 @@
 namespace DAGGER {
 
 template<class T, class U>
+class NodeCell
+{
+public:
+	// empty constructor
+	NodeCell(){};
+	// Constructor by default
+	NodeCell(T node, U score)
+	{
+		this->node = node;
+		this->topo = score;
+	};
+
+	// Node index
+	T node;
+	// Score data
+	U topo;
+
+	void ingest(NodeCell<T, U> other) { ; }
+};
+;
+
+// Custom operator sorting the nodes by scores
+template<class T, class U>
+inline bool
+operator>(const NodeCell<T, U>& lhs, const NodeCell<T, U>& rhs)
+{
+	if (lhs.topo != rhs.topo)
+		return lhs.topo > rhs.topo;
+	else
+		return lhs.node > rhs.node;
+}
+
+// Custom operator sorting the nodes by topos
+template<class T, class U>
+inline bool
+operator<(const NodeCell<T, U>& lhs, const NodeCell<T, U>& rhs)
+{
+	if (lhs.topo != rhs.topo)
+		return lhs.topo < rhs.topo;
+	else
+		return lhs.node < rhs.node;
+}
+
+template<class T, class U>
 class WaCell
 {
 public:
@@ -15,6 +59,13 @@ public:
 		this->node = node;
 		this->topo = score;
 		this->Qw = Qw;
+	};
+
+	WaCell(T node, U score)
+	{
+		this->node = node;
+		this->topo = score;
+		this->Qw = 0.;
 	};
 
 	// Node index

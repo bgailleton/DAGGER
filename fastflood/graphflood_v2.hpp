@@ -27,6 +27,7 @@ public:
 	f_t Prate = 1e-5; // mm.s^-1. Yarr.
 	void set_uniform_P(f_t val) { this->Prate = val; }
 
+	std::vector<i_t> entry_node_PQ;
 	std::vector<i_t> input_node_Qw;
 	std::vector<f_t> input_Qw;
 	std::vector<f_t> input_Qs;
@@ -46,6 +47,8 @@ public:
 	f_t hw_increment_LM = 1e-3;
 
 	bool prefill_lakes = true;
+
+	// std::vector<i_t> active_nodes;
 
 	void init()
 	{
@@ -79,6 +82,10 @@ public:
 	void _computeEntryPoints_prec(f_t Qw_threshold)
 	{
 
+		this->entry_node_PQ.clear();
+		this->input_node_Qw.clear();
+		this->input_Qw.clear();
+
 		// copying the bedrock elevation
 		std::vector<f_t> bedrock(this->data->_surface);
 
@@ -109,18 +116,38 @@ public:
 			}
 		}
 
+		std::vector<std::uint8_t> isdone(this->con->nxy(), false);
+
+		fillvec(this->data->_Qwin, 0.);
+
 		for (int i = this->con->nxy() - 1; i >= 0; --i) {
 			int node = this->data->_Sstack[i];
 			if (nodata(this->data->_boundaries[node]))
 				continue;
 
 			int rec = this->con->Sreceivers(node);
-			if (QW[rec] >= Qw_threshold && QW[node] < Qw_threshold) {
-				input_node_Qw.emplace_back(node);
-				input_Qw.emplace_back(QW[node]);
+			if (QW[rec] >= Qw_threshold && QW[node] < Qw_threshold &&
+					isdone[rec] == false) {
+				this->input_node_Qw.emplace_back(node);
+				this->input_Qw.emplace_back(QW[node]);
+				this->entry_node_PQ.emplace_back(node);
+				isdone[node] = true;
+				while (rec != node) {
+					isdone[rec] = true;
+					node = rec;
+					rec = this->con->Sreceivers(node);
+				}
 			} else if (QW[node] >= Qw_threshold) {
-				input_node_Qw.emplace_back(node);
-				input_Qw.emplace_back(Prate * this->con->area(node));
+				this->data->_Qwin[node] += Prate * this->con->area(node);
+
+			} else if (QW[rec] >= Qw_threshold) {
+				this->data->_Qwin[rec] += QW[node];
+			}
+		}
+		for (int i = this->con->nxy() - 1; i >= 0; --i) {
+			if (this->data->_Qwin[i] > 0) {
+				this->input_node_Qw.emplace_back(i);
+				this->input_Qw.emplace_back(this->data->_Qwin[i]);
 			}
 		}
 	}
@@ -130,6 +157,7 @@ public:
 	{
 		auto arri = format_input<arrin_i_t>(tarri);
 		this->input_node_Qw = to_vec(arri);
+		this->entry_node_PQ = to_vec(arri);
 		auto arrf = format_input<arrin_f_t>(tarrf);
 		this->input_Qw = to_vec(arrf);
 		this->input_Qs = std::vector<f_t>(this->input_Qw.size(), 0.);
@@ -142,6 +170,7 @@ public:
 	{
 		auto arri = format_input<arrin_i_t>(tarri);
 		this->input_node_Qw = to_vec(arri);
+		this->entry_node_PQ = to_vec(arri);
 		auto arrf = format_input<arrin_f_t>(tarrf);
 		this->input_Qw = to_vec(arrf);
 		auto arrfqs = format_input<arrin_f_t>(tarrfqs);
@@ -153,9 +182,11 @@ public:
 	{
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-			dstack.emplace(CELL(this->input_node_Qw[i],
-													this->data->_surface[this->input_node_Qw[i]],
-													this->input_Qw[i]));
+			this->data->_Qwin[this->input_node_Qw[i]] = this->input_Qw[i];
+		}
+		for (size_t i = 0; i < this->entry_node_PQ.size(); ++i) {
+			dstack.emplace(CELL(this->entry_node_PQ[i],
+													this->data->_surface[this->entry_node_PQ[i]]));
 		}
 	}
 
@@ -183,7 +214,11 @@ public:
 												std::vector<WaCell<i_t, f_t>>,
 												std::less<WaCell<i_t, f_t>>>
 			dynastack;
+
+		fillvec(this->data->_Qwin, 0.);
+
 		this->init_dstack_Water<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
+
 		CT_neighbourer_WaCell<i_t, f_t> ctx;
 
 		// fillvec(this->data->_vmot_hw,0.);
@@ -203,6 +238,10 @@ public:
 
 			// std::cout << "A" << std::endl;
 			ctx.update(next.node, *this->con);
+
+			if (ispast) {
+				this->data->_Qwin[next.node] += next.Qw;
+			}
 			// std::cout << "B" << std::endl;
 
 			if (can_out(ctx.boundary))
@@ -308,8 +347,8 @@ public:
 		// 	throw std::runtime_error("bite");
 		// }
 
-		this->data->_Qwin[ctx.node] =
-			next.Qw; // std::max( this->data->_Qwin[ctx.node], next.Qw);
+		// this->data->_Qwin[ctx.node] =
+		// 	next.Qw; // std::max( this->data->_Qwin[ctx.node], next.Qw);
 		this->data->_Qwout[ctx.node] = tQwout;
 
 		// if (thw < 0) {
@@ -351,10 +390,10 @@ public:
 		thw += tinc;
 		tsurf += tinc;
 
-		this->data->_Qwin[ctx.node] =
-			next.Qw; // std::max( this->data->_Qwin[ctx.node], next.Qw);
+		// this->data->_Qwin[ctx.node] =
+		// 	next.Qw; // std::max( this->data->_Qwin[ctx.node], next.Qw);
 		// this->data->_Qwin[ctx.node] = 0.;
-		this->data->_Qwout[ctx.node] = 0.;
+		// this->data->_Qwout[ctx.node] = 0.;
 
 		this->emplace_transfer(next, ctx, dynastack);
 	}
@@ -402,12 +441,22 @@ public:
 			for (int i = 0; i < ctx.nr; ++i) {
 				if (ctx.receiversWeights[i] > 0) {
 					sumW += ctx.receiversWeights[i];
-					auto tnext = WaCell<i_t, f_t>(ctx.receivers[i],
-																				this->data->_surface[ctx.receivers[i]],
-																				next.Qw * ctx.receiversWeights[i]);
+					WaCell<i_t, f_t> tnext;
+					if (this->time != this->data->_timetracker[ctx.receivers[i]]) {
+						tnext = WaCell<i_t, f_t>(ctx.receivers[i],
+																		 this->data->_surface[ctx.receivers[i]]);
+
+						this->data->_Qwin[ctx.receivers[i]] +=
+							this->data->_Qwin[next.node] * ctx.receiversWeights[i];
+					} else {
+						tnext = WaCell<i_t, f_t>(ctx.receivers[i],
+																		 this->data->_surface[ctx.receivers[i]],
+																		 this->data->_Qwin[next.node] *
+																			 ctx.receiversWeights[i]);
+					}
 					// if(this->data->_hw[tnext.node] == 0) std::cout << tnext.Qw <<
 					// std::endl;
-					this->data->_debug[tnext.node] = 1;
+					// this->data->_debug[tnext.node] = 1;
 					dynastack.emplace(tnext);
 				}
 			}
