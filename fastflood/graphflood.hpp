@@ -1820,7 +1820,7 @@ public:
 			if (sumw > 0)
 				weights[i] = weights[i] / sumw;
 			else
-				weights[i] = 1.d / nval;
+				weights[i] = 1. / nval;
 
 			sumf += weights[i];
 		}
@@ -2488,7 +2488,7 @@ public:
 			this->last_dx_prec = std::vector<fT>(this->connector->nnodes, 0.);
 		}
 
-		// Computes the total volume of Qin.dt for all entry points
+		// Computes the total volume of Qin.t for all entry points
 		// -> if precipitation: sums all the precipitations * cellarea * dt
 		// -> if entry Qwin: sum all the entryQwin*dt
 		// this also sets the stochastic spawner
@@ -3712,7 +3712,7 @@ public:
 
 			fT sumweig = 0;
 			if (nrecs == 1) {
-				weights[0] = 1.d;
+				weights[0] = 1.;
 				sumweig += 1;
 			} else if (sumslopes > 0) {
 				for (int j = 0; j < nrecs; ++j) {
@@ -3721,7 +3721,7 @@ public:
 				}
 			} else {
 				for (int j = 0; j < nrecs; ++j) {
-					weights[j] = 1.d / nrecs;
+					weights[j] = 1. / nrecs;
 					sumweig += weights[j];
 				}
 			}
