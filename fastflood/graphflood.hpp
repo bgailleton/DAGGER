@@ -2255,6 +2255,75 @@ public:
 	}
 
 	template<class out_t>
+	out_t compute_QW8_stochastic_Qw(fT exp)
+	{
+
+		auto hydrocache = this->hydromode;
+
+		this->hydromode = HYDRO::GRAPH_SFD;
+
+		// getting the volumetric discharge out
+		std::vector<fT> tQwout = this->_compute_tuqQ(3);
+
+		// initialising the ouwput
+		std::vector<fT> Aout(this->connector->nxy(), 0.);
+		if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT ||
+				this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE) {
+			for (int i = 0; i < this->graph->nnodes; ++i) {
+				if (this->connector->boundaries.can_give(i) &&
+						this->connector->flow_out_or_pit(i) == false) {
+					Aout[i] +=
+						this->precipitations(i) * this->connector->get_area_at_node(i);
+				}
+			}
+		} else if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_H) {
+			for (size_t i = 0; i < this->_water_entries.size(); ++i) {
+				int node = this->_water_entry_nodes[i];
+				Aout[node] +=
+					this->_water_entries[i] * this->connector->get_area_at_node(node);
+			}
+		}
+
+		auto receivers = this->connector->get_empty_neighbour();
+		for (int i = this->connector->nxy() - 1; i >= 0; --i) {
+
+			int node = this->graph->stack[i];
+
+			if (this->_initial_check_boundary_pit(node, receivers))
+				continue;
+
+			int nrecs = this->connector->get_receivers_idx_links(node, receivers);
+			fT maxQw = -1;
+			int tSrec = this->connector->Sreceivers(node);
+			fT tSdx = this->connector->Sdistance2receivers[node];
+			for (int j = 0; j < nrecs; ++j) {
+				int tl = receivers[j];
+				fT dx = this->connector->get_dx_from_links_idx(tl);
+				int tn = this->connector->get_to_links(tl);
+
+				fT tmaxQw = std::pow(tQwout[tn], exp) * this->connector->randu->get();
+
+				if (tmaxQw > maxQw) {
+					maxQw = tmaxQw;
+					tSrec = tn;
+					tSdx = dx;
+				}
+			}
+
+			this->connector->_Sreceivers[node] = tSrec;
+			this->connector->Sdistance2receivers[node] = tSdx;
+
+			Aout[tSrec] += Aout[node];
+		}
+
+		this->connector->recompute_SF_donors_from_receivers();
+		this->graph->topological_sorting_SF();
+
+		this->hydromode = hydrocache;
+		return format_output<decltype(Aout), out_t>(Aout);
+	}
+
+	template<class out_t>
 	out_t compute_AD8_stochastic_Sw(fT exp)
 	{
 

@@ -63,12 +63,27 @@ declare_graphflood(py::module& m, std::string typestr)
 											Connector8<int, double>,
 											int,
 											Hermes<int, double>>::set_dt)
+		.def("initial_fill",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::initial_fill)
 		.def("get_dt",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::get_dt);
+											Hermes<int, double>>::get_dt)
+
+		.def("_quick_slipos_from_point",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>>::_quick_slipos_from_point)
+
+		;
 
 	py::class_<graphflood<fT, GRAPH_T, CONNECTOR_T>>(m, typestr.c_str())
 		.def(py::init<GRAPH_T&, CONNECTOR_T&>())
@@ -203,6 +218,11 @@ declare_graphflood(py::module& m, std::string typestr)
 		.def(
 			"compute_AD8_stochastic_Qw",
 			&graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_AD8_stochastic_Qw<
+				py::array_t<FLOATING_POINT_DAGGER, 1>>)
+
+		.def(
+			"compute_QW8_stochastic_Qw",
+			&graphflood<fT, GRAPH_T, CONNECTOR_T>::template compute_QW8_stochastic_Qw<
 				py::array_t<FLOATING_POINT_DAGGER, 1>>)
 
 		.def(

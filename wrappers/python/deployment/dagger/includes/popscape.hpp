@@ -623,7 +623,7 @@ public:
 // boundaries are "4edges" "periodic_EW" or "periodic_NW"
 template<class fT>
 std::vector<fT>
-_quick_fluvial_topo(int ncycles, std::string boundaries)
+_quick_fluvial_topo(int ncycles, std::string boundaries, int nrefine = 10)
 {
 	// init dx to get a final one = 50
 	fT dx = std::pow(2, ncycles) * 50;
@@ -640,7 +640,7 @@ _quick_fluvial_topo(int ncycles, std::string boundaries)
 	psc.set_topo(topo);
 
 	for (int i = 0; i < ncycles + 1; ++i) {
-		psc.StSt(10);
+		psc.StSt(nrefine);
 		if (i < ncycles)
 			psc.restriction(5);
 	}

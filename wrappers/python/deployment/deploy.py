@@ -13,6 +13,7 @@ import glob
 files_to_copy = glob.glob("../../../DAGGER/*.hpp")
 files_to_copy += glob.glob("../../../fastflood/*.hpp")
 files_to_copy += glob.glob("../../../popscape/*.hpp")
+files_to_copy += glob.glob("../*.hpp")
 
 print("Copying all the files ... ")
 

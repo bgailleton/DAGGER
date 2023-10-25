@@ -15,7 +15,7 @@ elif platform == "darwin":
 elif platform == "win32":
 	isWindows = True
 
-__version__ = "0.0.6"
+__version__ = "0.0."
 
 # The main interface is through Pybind11Extension.
 # * You can add cxx_std=11/14/17, and then build_ext can be removed.
@@ -30,7 +30,7 @@ MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None), ("BOOST_AVA
 if(isWindows):
 	EXTRA_COMPILE = ['/Ox']
 	EXTRA_LINK = []
-	
+
 else:
 	EXTRA_COMPILE = ['-O3', '-Wall']
 	EXTRA_LINK = ['-O3']

@@ -21,6 +21,8 @@ declare_dbag(py::module& m)
 
 		.def("set_boundaries",
 				 &Hermes<int, double>::set_boundaries<py::array_t<std::uint8_t, 1>>)
+		.def("get_boundaries",
+				 &Hermes<int, double>::get_boundaries<py::array_t<std::uint8_t, 1>>)
 
 		;
 }

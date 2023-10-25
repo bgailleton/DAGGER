@@ -248,6 +248,33 @@ public:
 		return nn;
 	}
 
+	// Access to steepest rec of node i but reprocessed on the spot (as opposed to
+	// preprocessed from a compute() operation)
+	int Sreceivers_raw(i_t i,
+										 std::array<i_t, 8>& arr,
+										 std::array<f_t, 8>& arrdx,
+										 i_t& trec,
+										 f_t& tdx) const
+	{
+		i_t nn = this->Neighbours(i, arr);
+		nn = this->NeighboursDx(i, arrdx);
+		trec = -1;
+		tdx = this->_dx;
+		f_t tSS = 0.;
+		for (int j = 0; j < nn; ++j) {
+			arr[j] += i;
+			f_t ttSS =
+				(this->data->_surface[i] - this->data->_surface[arr[j]]) / arrdx[j];
+			if (ttSS > tSS) {
+				tSS = ttSS;
+				trec = arr[j];
+				tdx = arrdx[j];
+			}
+		}
+
+		return nn;
+	}
+
 	// Access to dx to each neighbours (distance to nodes) of node i
 	i_t NeighboursDx(i_t i, std::array<f_t, 8>& arr) const
 	{

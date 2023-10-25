@@ -2,6 +2,13 @@
 History
 =======
 
+0.0.9 (23/10/2023)
+------------------
+
+* A lot of minor fixes for the graph, classic connector and graphflood
+* Majors additions behind teh scenes for the next big refactoring (experimental features in)
+
+
 0.0.8 (01/08/2023)
 ------------------
 

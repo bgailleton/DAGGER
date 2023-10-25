@@ -250,4 +250,46 @@ public:
 	}
 };
 
+template<class i_t, class f_t>
+class CT_neighbours
+{
+
+public:
+	i_t node = 0;
+	BC boundary;
+	i_t nn = 0;
+
+	std::array<i_t, 8> neighbours;
+	std::array<BC, 8> neighboursCode;
+	std::array<f_t, 8> neighboursDx;
+	std::array<f_t, 8> neighboursDy;
+
+	bool canout = false;
+
+	template<class CONNECTOR_T>
+	void update(i_t node, CONNECTOR_T& con)
+	{
+
+		// updating to the current node
+		this->node = node;
+		// node boundary code
+		this->boundary = con.data->_boundaries[node];
+
+		// Fetching neighbour infos
+		this->nn = con.Neighbours(node, this->neighbours);
+		con.NeighboursDx(node, this->neighboursDx);
+		con.NeighboursDy(node, this->neighboursDy);
+		this->canout = false;
+
+		// Processing neighbours
+		for (size_t i = 0; i < this->nn; ++i) {
+			// Assing boundary code
+			this->neighboursCode[i] = con.data->_boundaries[this->neighbours[i]];
+
+			if (can_out(this->neighboursCode[i]))
+				this->canout = true;
+		}
+	}
+};
+
 } // end of namespace

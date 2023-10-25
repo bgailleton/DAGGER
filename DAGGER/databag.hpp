@@ -33,6 +33,14 @@ public:
 		for (int i = 0; i < arr.size(); ++i)
 			this->_boundaries[i] = static_cast<BC>(arr[i]);
 	}
+	template<class out_t>
+	out_t get_boundaries()
+	{
+		std::vector<std::uint8_t> out(this->_boundaries.size(), 0);
+		for (int i = 0; i < this->_boundaries.size(); ++i)
+			out[i] = static_cast<uint8_t>(this->_boundaries[i]);
+		return format_output<decltype(out), out_t>(out);
+	}
 
 	// Storing Graph-related stuffies
 	std::vector<i_t> _stack;

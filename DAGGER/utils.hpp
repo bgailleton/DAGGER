@@ -598,9 +598,9 @@ minmax(std::vector<T>& vec, T& tmin, T& tmax)
 	}
 }
 
-template<class T>
+template<class T, class U>
 void
-fillvec(std::vector<T>& vec, T val)
+fillvec(std::vector<T>& vec, U val)
 {
 	for (size_t i = 0; i < vec.size(); ++i)
 		vec[i] = val;
