@@ -2,26 +2,34 @@
 #include "dodcontexts.hpp"
 #include "graphflood_enums.hpp"
 #include "graphflood_parts.hpp"
+#include "parambag.hpp"
 #include "utils.hpp"
 
 namespace DAGGER {
 
-template<class i_t, class f_t, class CONNECTOR_T, class GRAPH_T, class DBAG_T>
+template<class i_t,
+				 class f_t,
+				 class CONNECTOR_T,
+				 class GRAPH_T,
+				 class DBAG_T,
+				 class PARAM_T>
 class Graphflood2
 {
 public:
 	Graphflood2(){};
 
-	Graphflood2(CONNECTOR_T& con, GRAPH_T& gra, DBAG_T& data)
+	Graphflood2(CONNECTOR_T& con, GRAPH_T& gra, DBAG_T& data, PARAM_T& param)
 	{
 		this->con = &con;
 		this->gra = &gra;
 		this->data = &data;
+		this->param = &param;
 	}
 
 	CONNECTOR_T* con;
 	GRAPH_T* gra;
 	DBAG_T* data;
+	PARAM_T* param;
 
 	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
 	f_t Prate = 1e-5; // mm.s^-1. Yarr.
@@ -360,7 +368,8 @@ public:
 
 		for (int i = 0; i < this->con->nxy(); ++i) {
 
-			if (nodata(this->data->_boundaries[i]))
+			if (nodata(this->data->_boundaries[i]) ||
+					can_out(this->data->_boundaries[i]))
 				continue;
 			if (this->data->_timetracker[i]<this->time&& this->data->_hw[i]> 0) {
 				this->data->_timetracker[i] = this->time;
@@ -372,7 +381,8 @@ public:
 
 		for (int i = 0; i < this->con->nxy(); ++i) {
 
-			if (nodata(this->data->_boundaries[i]))
+			if (nodata(this->data->_boundaries[i]) ||
+					can_out(this->data->_boundaries[i]))
 				continue;
 
 			f_t& thw = this->data->_hw[i];

@@ -11,6 +11,7 @@ namespace DAGGER {
 template<class i_t, class f_t>
 class Hermes
 {
+
 public:
 	Hermes(){};
 

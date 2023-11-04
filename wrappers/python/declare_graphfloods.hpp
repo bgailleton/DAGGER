@@ -94,6 +94,14 @@ declare_graphflood(py::module& m, std::string typestr)
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::dynarun,
 				 R"pdoc(Main function running the model from all the input params)pdoc")
 
+		.def("set_maxdHw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_maxdHw,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
+		.def("set_mindHw",
+				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_mindHw,
+				 R"pdoc(Main function running the model from all the input params)pdoc")
+
 		.def("set_out_QS_as_input_QS",
 				 &graphflood<fT, GRAPH_T, CONNECTOR_T>::set_out_QS_as_input_QS)
 

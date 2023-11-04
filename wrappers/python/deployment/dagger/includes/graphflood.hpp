@@ -173,6 +173,11 @@ public:
 	// ## actual time step (default -1 means not calculated yet)
 	fT courant_dt_hydro = -1;
 
+	// # Hydro Dt regulator
+	fT maxdHw = 1e2; // set to very high values by default, as we do not want to
+									 // impose artificial regulation
+	void set_maxdHw(fT val) { this->maxdHw = val; }
+
 	// # minimum slope for manning's calculation
 	fT minslope = 0.;
 
@@ -1637,7 +1642,12 @@ public:
 			if (this->connector->boundaries.forcing_io(i))
 				continue;
 
-			fT tvh = vmot_hw[i];
+			fT tvh;
+			if (tvh > 0)
+				tvh = std::min(vmot_hw[i], this->maxdHw);
+			else
+				tvh = std::max(vmot_hw[i], -this->maxdHw);
+
 			if (use_dt) {
 				tvh *= this->dt_hydro(i);
 				// std::cout << this->dt_hydro(i) << std::endl;
@@ -1679,7 +1689,12 @@ public:
 			if (this->connector->boundaries.forcing_io(i) && this->hydrostationary)
 				continue;
 
-			fT tvh = vmot_hw[i];
+			fT tvh;
+			if (tvh > 0)
+				tvh = std::min(vmot_hw[i], this->maxdHw);
+			else
+				tvh = std::max(vmot_hw[i], -this->maxdHw);
+
 			if (use_dt) {
 				tvh *= this->dt_hydro(i);
 				// std::cout << this->dt_hydro(i) << std::endl;

@@ -12,6 +12,7 @@ All the includes will be added there
 #include "graphflood.hpp"
 #include "graphflood_v2.hpp"
 #include "hillshading.hpp"
+#include "parambag.hpp"
 #include "popscape.hpp"
 #include "popscape_utils.hpp"
 #include "river_tools_python.hpp"
