@@ -1,7 +1,7 @@
 #pragma once
 
 #include "dodconnector.hpp"
-#include "dodcontext.hpp"
+#include "dodcontexts.hpp"
 #include "utils.hpp"
 #include <vector>
 
@@ -32,7 +32,7 @@ public:
 	std::vector<std::uint8_t> isDone;
 
 	template<class CONTAINER_INT>
-	void build_simple(CONTAINER& startingNodes)
+	void build_simple(CONTAINER_INT& startingNodes)
 	{
 
 		this->stack.clear();

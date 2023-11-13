@@ -495,10 +495,10 @@ public:
 
 	void reset_node(i_t i)
 	{
-		this->data->_Sreceivers[ctx.node] = 0;
-		this->data->_receivers[ctx.node] = 0;
-		this->data->_donors[ctx.node] = 0;
-		this->data->_Sdonors[this->Sreceivers(ctx.node)] = 0;
+		this->data->_Sreceivers[i] = 0;
+		this->data->_receivers[i] = 0;
+		this->data->_donors[i] = 0;
+		this->data->_Sdonors[this->Sreceivers(i)] = 0;
 	}
 
 	template<class CTX>
@@ -569,8 +569,8 @@ public:
 														 std::array<i_t, 8>& arr2)
 	{
 		int nr = this->ReceiversBits(i, arr);
-		int nr = this->Receivers(i, arr2);
-		for (int j = 0; j < nr, ++j) {
+		this->Receivers(i, arr2);
+		for (int j = 0; j < nr; ++j) {
 			int trec = arr2[j];
 			this->data->_donors[trec] |= invBits(arr[j]);
 		}
