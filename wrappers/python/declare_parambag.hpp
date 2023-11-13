@@ -4,11 +4,19 @@
 using namespace DAGGER;
 
 void
-declare_dbag(py::module& m)
+declare_param(py::module& m)
 {
 	py::class_<ParamBag<int, double>>(m, "ParamBag")
 		.def(py::init<>())
 		.def("set_ke", &ParamBag<int, double>::set_ke)
+		.def("enable_gf2_diffuse_Qwin",
+				 &ParamBag<int, double>::enable_gf2_diffuse_Qwin)
+		.def("disable_gf2_diffuse_Qwin",
+				 &ParamBag<int, double>::disable_gf2_diffuse_Qwin)
+		.def("enable_gf2_morpho", &ParamBag<int, double>::enable_gf2_morpho)
+		.def("disable_gf2_morpho", &ParamBag<int, double>::disable_gf2_morpho)
+		.def("set_kd", &ParamBag<int, double>::set_kd)
+		.def("get_kd", &ParamBag<int, double>::get_kd)
 
 		;
 }

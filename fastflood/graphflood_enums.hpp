@@ -76,3 +76,11 @@ enum class CONVERGENCE
 	QWR,
 	ALL
 };
+
+// Specific to GF v2
+enum class SUBGRAPHMETHOD
+{
+	V1,
+	FILLONLY,
+	QWOUTK
+};

@@ -61,6 +61,14 @@ public:
 		this->Qw = Qw;
 	};
 
+	WaCell(T node, U score, U Qw, U Qs)
+	{
+		this->node = node;
+		this->topo = score;
+		this->Qw = Qw;
+		this->Qs = Qs;
+	};
+
 	WaCell(T node, U score)
 	{
 		this->node = node;

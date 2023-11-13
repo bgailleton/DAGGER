@@ -2,6 +2,11 @@
 History
 =======
 
+0.0.10 (13/11/2023)
+-------------------
+
+* Loads of minor bug fixes and random additions on the experimental side
+
 0.0.9 (23/10/2023)
 ------------------
 

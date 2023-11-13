@@ -14,6 +14,21 @@ class ParamBag
 public:
 	ParamBag(){};
 
+	// GRAPHFLOOD PARAMETRY
+
+	f_t GRAVITY = 9.8;
+	f_t rho_sed = 1000;
+	f_t tau_c = 4.;
+	f_t alpha = 1.5;
+
+	bool gf2_diffuse_Qwin = false;
+	void enable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = true; }
+	void disable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = false; }
+
+	bool gf2_morpho = false;
+	void enable_gf2_morpho() { this->gf2_morpho = true; }
+	void disable_gf2_morpho() { this->gf2_morpho = false; }
+
 	f_t ke = 1e-3;
 	void set_ke(f_t val) { this->ke = val; }
 	f_t get_ke() { return this->ke; }

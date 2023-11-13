@@ -177,6 +177,16 @@ public:
 	fT maxdHw = 1e2; // set to very high values by default, as we do not want to
 									 // impose artificial regulation
 	void set_maxdHw(fT val) { this->maxdHw = val; }
+	fT mindHw = -1e2; // set to very high values by default, as we do not want to
+										// impose artificial regulation
+	void set_mindHw(fT val)
+	{
+		if (val < 0) {
+			this->mindHw = val;
+		} else {
+			throw std::runtime_error("mindHw needs to be negative (decrement)");
+		}
+	}
 
 	// # minimum slope for manning's calculation
 	fT minslope = 0.;
@@ -1646,7 +1656,7 @@ public:
 			if (tvh > 0)
 				tvh = std::min(vmot_hw[i], this->maxdHw);
 			else
-				tvh = std::max(vmot_hw[i], -this->maxdHw);
+				tvh = std::max(vmot_hw[i], this->mindHw);
 
 			if (use_dt) {
 				tvh *= this->dt_hydro(i);
@@ -1693,7 +1703,7 @@ public:
 			if (tvh > 0)
 				tvh = std::min(vmot_hw[i], this->maxdHw);
 			else
-				tvh = std::max(vmot_hw[i], -this->maxdHw);
+				tvh = std::max(vmot_hw[i], this->mindHw);
 
 			if (use_dt) {
 				tvh *= this->dt_hydro(i);
@@ -1819,6 +1829,9 @@ public:
 			else if (this->weight_management == MFD_PARTITIONNING::PROPOREC)
 				weights[i] = 1.;
 
+			else if (this->weight_management == MFD_PARTITIONNING::PROPOSLOPE_NODIAG)
+				weights[i] = slopes[i] * tdw;
+
 			if (this->stochaslope)
 				weights[i] += this->stochaslope_coeff * this->randu.get();
 
@@ -1854,6 +1867,10 @@ public:
 				this->_rec_flowvec[node * 2] /= length;
 				this->_rec_flowvec[node * 2 + 1] /= length;
 			}
+		}
+
+		if (this->weight_management == MFD_PARTITIONNING::PROPOSLOPE_NODIAG) {
+			dw0max = this->connector->dx;
 		}
 
 		topological_number_v2 = (Smax * dw0max) / sumSdw;
@@ -2901,11 +2918,9 @@ public:
 		for (int _ = 0; _ < N; ++_) {
 
 			// int node = this->spawn_precipition();
-
 			int node = starters[this->dis(this->gen)];
-			while (this->connector->boundaries->no_data(node)) {
-				node = starters[this->dis(this->gen)];
-			}
+			// int onode = node;
+			// std::cout << "init at " << node << std::endl;
 
 			this->current_dt_prec += precdt;
 

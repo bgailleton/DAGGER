@@ -5,6 +5,7 @@
 #include "declare_graphfloods.hpp"
 #include "declare_graphs.hpp"
 #include "declare_includes.hpp"
+#include "declare_parambag.hpp"
 #include "declare_popscapes.hpp"
 #include "declare_trackscapes.hpp"
 
@@ -100,6 +101,7 @@ PYBIND11_MODULE(dagger, m)
 
 	delclare_enums(m);
 	declare_dbag(m);
+	declare_param(m);
 	declare_D8connector(m, "D8N");
 	declare_graph<D8connector<FLOATING_POINT_DAGGER>>(m, "graph");
 

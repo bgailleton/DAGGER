@@ -15,7 +15,7 @@ elif platform == "darwin":
 elif platform == "win32":
 	isWindows = True
 
-__version__ = "0.0."
+__version__ = "0.0.8"
 
 # The main interface is through Pybind11Extension.
 # * You can add cxx_std=11/14/17, and then build_ext can be removed.

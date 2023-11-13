@@ -11,77 +11,114 @@ declare_graphflood(py::module& m, std::string typestr)
 												 double,
 												 Connector8<int, double>,
 												 int,
-												 Hermes<int, double>>>(m, "GF2")
-		.def(py::init<Connector8<int, double>&, int&, Hermes<int, double>&>())
+												 Hermes<int, double>,
+												 ParamBag<int, double>>>(m, "GF2")
+		.def(py::init<Connector8<int, double>&,
+									int&,
+									Hermes<int, double>&,
+									ParamBag<int, double>&>())
 		.def("init",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::init)
+											Hermes<int, double>,
+											ParamBag<int, double>>::init)
 		.def("compute_entry_points_from_P",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::compute_entry_points_from_P)
+											Hermes<int, double>,
+											ParamBag<int, double>>::compute_entry_points_from_P)
 		.def("run_subgraphflood",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::run_subgraphflood)
+											Hermes<int, double>,
+											ParamBag<int, double>>::run_subgraphflood)
+		.def("fillrun_subgraphflood",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::fillrun_subgraphflood)
+		.def("anarun_subgraphflood",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::anarun_subgraphflood)
+		.def("diffuse_topo",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::diffuse_topo)
+
 		.def("run_subgraphflood_expA",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::run_subgraphflood_expA)
+											Hermes<int, double>,
+											ParamBag<int, double>>::run_subgraphflood_expA)
 		.def("set_uniform_P",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::set_uniform_P)
+											Hermes<int, double>,
+											ParamBag<int, double>>::set_uniform_P)
 		.def("set_Qw_input_points",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::
+											Hermes<int, double>,
+											ParamBag<int, double>>::
 					 set_Qw_input_points<py::array_t<int, 1>, py::array_t<double, 1>>)
 		.def("set_Qw_Qsinput_points",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::
+											Hermes<int, double>,
+											ParamBag<int, double>>::
 					 set_QwQs_input_points<py::array_t<int, 1>, py::array_t<double, 1>>)
 		.def("set_dt",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::set_dt)
+											Hermes<int, double>,
+											ParamBag<int, double>>::set_dt)
 		.def("initial_fill",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::initial_fill)
+											Hermes<int, double>,
+											ParamBag<int, double>>::initial_fill)
 		.def("get_dt",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::get_dt)
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_dt)
 
 		.def("_quick_slipos_from_point",
 				 &Graphflood2<int,
 											double,
 											Connector8<int, double>,
 											int,
-											Hermes<int, double>>::_quick_slipos_from_point)
+											Hermes<int, double>,
+											ParamBag<int, double>>::_quick_slipos_from_point)
 
 		;
 

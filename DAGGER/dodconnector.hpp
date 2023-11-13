@@ -162,6 +162,8 @@ public:
 		return i + this->data->LK8.NeighbourerD8[this->data->LK8.BC2idAdder(
 								 i, this->data->_boundaries[i])][this->data->_Sreceivers[i]];
 	}
+	// Access to the the steepest receiver of node i
+	std::uint8_t SreceiversBit(i_t i) const { return this->data->_Sreceivers[i]; }
 
 	// Access to the the steepest donors of node i
 	i_t Sdonors(i_t i, std::array<i_t, 8>& arr) const
@@ -491,6 +493,14 @@ public:
 		}
 	}
 
+	void reset_node(i_t i)
+	{
+		this->data->_Sreceivers[ctx.node] = 0;
+		this->data->_receivers[ctx.node] = 0;
+		this->data->_donors[ctx.node] = 0;
+		this->data->_Sdonors[this->Sreceivers(ctx.node)] = 0;
+	}
+
 	template<class CTX>
 	void __compute_all_single_node(i_t i, CTX& ctx)
 	{
@@ -524,6 +534,48 @@ public:
 		this->data->_receivers[ctx.node] = rcode;
 		this->data->_donors[ctx.node] = dcode;
 		this->data->_Sdonors[this->Sreceivers(ctx.node)] |= invBits(srecode);
+	}
+
+	template<class CTX>
+	void __compute_recs_single_node(i_t i, CTX& ctx)
+	{
+		ctx.update(i, *this);
+		f_t SS = 0;
+		std::uint8_t rcode = 0;
+		std::uint8_t srecode = 0;
+
+		for (int j = 0; j < ctx.nn; ++j) {
+			f_t dz = ctx.topo - ctx.neighboursTopo[j];
+
+			if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false)
+				continue;
+
+			if (dz > 0) {
+				rcode |= ctx.neighboursBits[j];
+				f_t tSS = dz / ctx.neighboursDx[j];
+				if (tSS > SS) {
+					SS = tSS;
+					srecode = ctx.neighboursBits[j];
+				}
+			}
+		}
+
+		this->data->_Sreceivers[ctx.node] = srecode;
+		this->data->_receivers[ctx.node] = rcode;
+	}
+
+	void __invert_recs_at_node(i_t i,
+														 std::array<std::uint8_t, 8>& arr,
+														 std::array<i_t, 8>& arr2)
+	{
+		int nr = this->ReceiversBits(i, arr);
+		int nr = this->Receivers(i, arr2);
+		for (int j = 0; j < nr, ++j) {
+			int trec = arr2[j];
+			this->data->_donors[trec] |= invBits(arr[j]);
+		}
+		this->data->_Sdonors[this->Sreceivers(i)] |=
+			invBits(this->SreceiversBit(i));
 	}
 
 	void __compute_all_single_node(i_t i)
