@@ -162,6 +162,23 @@ public:
 		return i + this->data->LK8.NeighbourerD8[this->data->LK8.BC2idAdder(
 								 i, this->data->_boundaries[i])][this->data->_Sreceivers[i]];
 	}
+
+	// Access to the the steepest receiver of node i
+	f_t SreceiversDx(i_t i) const
+	{
+		return this->data->LK8.NeighbourerD8dx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_Sreceivers[i]];
+	}
+
+	// Access to the the steepest receiver of node i
+	f_t SreceiversDy(i_t i) const
+	{
+		f_t tdx = this->data->LK8.NeighbourerD8dx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_Sreceivers[i]];
+		return (tdx == this->_dx) ? this->_dy
+															: ((tdx == this->_dy) ? this->_dx : this->_dxy);
+	}
+
 	// Access to the the steepest receiver of node i
 	std::uint8_t SreceiversBit(i_t i) const { return this->data->_Sreceivers[i]; }
 
@@ -286,12 +303,43 @@ public:
 		return nn;
 	}
 
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t ReceiversDx(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
+		return nn;
+	}
+
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t DonorsDx(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		return nn;
+	}
+
 	// Access to dy to each neighbours (distance to orthogonal nodes) of node i
 	i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
 	{
 		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
 		i_t nn = this->nNeighbours(i);
+		for (int j = 0; j < nn; ++j)
+			arr[j] = (arr[j] == this->_dx)
+								 ? this->_dy
+								 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to orthogonal nodes) of node i
+	i_t ReceiversDy(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
 		for (int j = 0; j < nn; ++j)
 			arr[j] = (arr[j] == this->_dx)
 								 ? this->_dy
@@ -498,7 +546,7 @@ public:
 		this->data->_Sreceivers[i] = 0;
 		this->data->_receivers[i] = 0;
 		this->data->_donors[i] = 0;
-		this->data->_Sdonors[this->Sreceivers(i)] = 0;
+		this->data->_Sdonors[i] = 0;
 	}
 
 	template<class CTX>
@@ -564,12 +612,44 @@ public:
 		this->data->_receivers[ctx.node] = rcode;
 	}
 
+	template<class CTX>
+	void __compute_recs_single_node_mask(i_t i,
+																			 CTX& ctx,
+																			 std::vector<std::uint8_t>& xtraMask)
+	{
+		ctx.update(i, *this);
+		f_t SS = 0;
+		std::uint8_t rcode = 0;
+		std::uint8_t srecode = 0;
+
+		for (int j = 0; j < ctx.nn; ++j) {
+			f_t dz = ctx.topo - ctx.neighboursTopo[j];
+
+			if (Fcan_connect(ctx.boundary, ctx.neighboursCode[j]) == false ||
+					xtraMask[ctx.neighbours[j]] == false)
+				continue;
+
+			if (dz > 0) {
+				rcode |= ctx.neighboursBits[j];
+				f_t tSS = dz / ctx.neighboursDx[j];
+				if (tSS > SS) {
+					SS = tSS;
+					srecode = ctx.neighboursBits[j];
+				}
+			}
+		}
+
+		this->data->_Sreceivers[ctx.node] = srecode;
+		this->data->_receivers[ctx.node] = rcode;
+	}
+
 	void __invert_recs_at_node(i_t i,
 														 std::array<std::uint8_t, 8>& arr,
 														 std::array<i_t, 8>& arr2)
 	{
 		int nr = this->ReceiversBits(i, arr);
 		this->Receivers(i, arr2);
+
 		for (int j = 0; j < nr; ++j) {
 			int trec = arr2[j];
 			this->data->_donors[trec] |= invBits(arr[j]);
@@ -1140,8 +1220,13 @@ public:
 		}
 	}
 
-	void PFcompute_all()
+	void PFcompute_all(bool affect_topo = true)
 	{
+		std::vector<f_t> oldtopo;
+		if (affect_topo == false) {
+			oldtopo = this->data->_surface;
+		}
+
 		PQFORPF open;
 		std::queue<PQH> pit;
 		this->data->_stack = std::vector<i_t>(this->_nxy, 0);
@@ -1152,6 +1237,7 @@ public:
 		std::vector<int8_t> closed(this->_nxy, false);
 
 		for (int i = 0; i < this->_nxy; ++i) {
+			this->reset_node(i);
 			if (can_out(this->data->_boundaries[i]) == false)
 				continue;
 
@@ -1189,6 +1275,10 @@ public:
 			this->__compute_all_single_node(c.node, ctx);
 		}
 		this->_quickSstack();
+
+		if (affect_topo == false) {
+			this->data->_surface = oldtopo;
+		}
 	}
 };
 

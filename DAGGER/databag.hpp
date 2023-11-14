@@ -135,9 +135,21 @@ public:
 
 	std::vector<f_t> _debug;
 
-	std::vector<std::vector<f_t>> fbag;
-	std::vector<std::vector<i_t>> ibag;
-	std::vector<std::vector<std::uint8_t>> u8bag;
+	std::map<std::string, std::vector<f_t>> fbag;
+	template<class out_t>
+	out_t get_fbag(std::string which)
+	{
+		return format_output<std::vector<f_t>, out_t>(this->fbag[which]);
+	}
+
+	std::map<std::string, std::vector<i_t>> ibag;
+	template<class out_t>
+	out_t get_ibag(std::string which)
+	{
+		return format_output<std::vector<i_t>, out_t>(this->ibag[which]);
+	}
+
+	std::map<std::string, std::vector<std::uint8_t>> u8bag;
 
 	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 

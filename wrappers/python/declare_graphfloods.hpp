@@ -60,6 +60,22 @@ declare_graphflood(py::module& m, std::string typestr)
 											Hermes<int, double>,
 											ParamBag<int, double>>::diffuse_topo)
 
+		.def("prepare_tinygraph_chunk_from_EP",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::prepare_tinygraph_chunk_from_EP)
+
+		.def("run_tinysubgraph",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::run_tinysubgraph)
+
 		.def("run_subgraphflood_expA",
 				 &Graphflood2<int,
 											double,

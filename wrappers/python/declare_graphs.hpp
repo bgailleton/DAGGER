@@ -14,6 +14,10 @@ void
 declare_graph(py::module& m, std::string typestr)
 {
 
+	m.def(
+		"compute_min_distance_from_outlets",
+		&compute_min_distance_from_outlets<int, double, Connector8<int, double>>);
+
 	py::class_<graph<FLOATING_POINT_DAGGER, CONNECTOR_T>>(m,
 																												typestr.c_str(),
 																												R"pdoc(

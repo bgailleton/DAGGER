@@ -21,6 +21,12 @@ public:
 	f_t tau_c = 4.;
 	f_t alpha = 1.5;
 
+	f_t TSG_dist = false;
+	void enable_TSG_dist() { this->TSG_dist = true; }
+	void disable_TSG_dist() { this->TSG_dist = false; }
+	f_t TSG_distmax = 1e9;
+	void set_TSG_distmax(f_t val) { this->TSG_distmax = val; }
+
 	bool gf2_diffuse_Qwin = false;
 	void enable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = true; }
 	void disable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = false; }

@@ -17,7 +17,8 @@ public:
 		this->con = &con;
 		this->data = &data;
 		this->param = &param;
-		this->isDone = std::vector<std::uint8_t>(this->con->nxy(), false);
+		this->tempN = std::vector<std::uint8_t>(this->con->nxy(), false);
+		this->xtraMask = std::vector<std::uint8_t>(this->con->nxy(), true);
 	};
 
 	~TinySubGraph(){};
@@ -29,16 +30,23 @@ public:
 	std::vector<i_t> stack;
 	std::vector<i_t> nodes;
 	std::vector<i_t> baseLevels;
-	std::vector<std::uint8_t> isDone;
+	std::vector<std::uint8_t> tempN, xtraMask;
 
 	template<class CONTAINER_INT>
-	void build_simple(CONTAINER_INT& startingNodes)
+	void build_from_donor_sources(CONTAINER_INT& startingNodes)
+	{
+		this->label_from_donor_sources(startingNodes);
+		this->build_stack();
+	}
+
+	template<class CONTAINER_INT>
+	void label_from_donor_sources(CONTAINER_INT& startingNodes)
 	{
 
 		this->stack.clear();
 		this->nodes.clear();
 		this->baseLevels.clear();
-		fillvec(this->isDone, false);
+		fillvec(this->tempN, false);
 
 		// Initialising a node queue
 		std::queue<i_t> tQ;
@@ -46,13 +54,14 @@ public:
 		// Feeding it witht the starting nodes
 		for (auto v : startingNodes) {
 			nodes.emplace_back(v);
-			isDone[v] = true;
+			tempN[v] = true;
 			tQ.emplace(v);
 		}
 
 		// Setting up context and helper arrays
 		CT_neighbourer_1<i_t, f_t> ctx;
 		std::array<i_t, 8> recs;
+		std::array<f_t, 8> recdxs;
 		std::array<std::uint8_t, 8> recbits;
 
 		while (tQ.empty() == false) {
@@ -68,11 +77,14 @@ public:
 			this->con->reset_node(nextnode);
 
 			// compute receivers only at that specific node
-			this->con->__compute_recs_single_node(nextnode, ctx);
+			this->con->__compute_recs_single_node_mask(nextnode, ctx, this->xtraMask);
 
 			// gathering receivers
 			int nr = this->con->Receivers(nextnode, recs);
-			this->isDone[nextnode] = nr;
+			if (this->param->TSG_dist)
+				this->con->ReceiversDx(nextnode, recdxs);
+
+			// this->tempN[nextnode] = nr;
 
 			if (nr == 0) {
 				this->baseLevels.emplace_back(nextnode);
@@ -80,23 +92,34 @@ public:
 			}
 
 			// Gathering the receivers into the queue
-			for (int i = 0; i < nr; ++i) {
-				int trec = recs[i];
+			for (int j = 0; j < nr; ++j) {
+				int trec = recs[j];
 				// double checking they are not already in there/processed
-				if (this->isDone[trec] == false) {
+				if (this->tempN[trec] == false) {
 					tQ.emplace(trec);
-					this->isDone[trec] = true;
+					this->tempN[trec] = true;
 				}
 			}
 		}
 
 		// A that point, all the nodes and baselevels for the graph have been
-		// gathered And this->isDone[trec] has the number of receivers per node
+		// gathered And this->tempN[trec] has the number of receivers per node
 		//=================
 
 		// Let's invert the receiver codes into donors
-		for (auto v : this->nodes)
+		for (auto v : this->nodes) {
 			this->con->__invert_recs_at_node(v, recbits, recs);
+			this->tempN[v] = this->con->nReceivers(v);
+		}
+	}
+
+	void build_stack()
+	{
+
+		// Initialising a node queue
+		std::queue<i_t> tQ;
+
+		std::array<i_t, 8> recs;
 
 		// Build the stack
 		this->stack.reserve(this->nodes.size());
@@ -118,14 +141,41 @@ public:
 				// each donors is visited
 				int tdon = recs[i];
 				// and I keep track of the number of visits
-				--this->isDone[tdon];
+				--this->tempN[tdon];
 				// if the donor has been visited by all its receivers, then it is ready
-				if (this->isDone[tdon] == 0) {
+				if (this->tempN[tdon] == 0) {
 					tQ.emplace(tdon);
 				}
 			}
 		}
 
+		// std::vector<int> acc(this->con->nxy(),1);
+		// for(int i=this->stack.size()-1;i>=0; --i){
+		// 	if(this->con->Sreceivers(this->stack[i]) != this->stack[i])
+		// 		acc[this->con->Sreceivers(this->stack[i])] += acc[this->stack[i]];
+		// }
+
+		// fillvec(this->tempN,false);
+		// for(int i=0; i< this->baseLevels.size(); ++i){
+		// 	int tbl = this->baseLevels[i];
+		// 	tQ.emplace(tbl);
+		// 	while(tQ.empty()==false){
+		// 		int nextnode = tQ.front();
+		// 		acc[nextnode]++;
+
+		// 		tQ.pop();
+		// 		int nd = this->con->Donors(nextnode,recs);
+		// 		for(int j=0; j<nd; ++j){
+		// 			int tdon = recs[j];
+		// 			if(this->tempN[tdon]==false){
+		// 				this->tempN[tdon] = true;
+		// 				tQ.emplace(tdon);
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		// this->data->ibag["acctsg"] = acc;
 		// Done
 	}
 };

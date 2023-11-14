@@ -17,6 +17,9 @@ declare_param(py::module& m)
 		.def("disable_gf2_morpho", &ParamBag<int, double>::disable_gf2_morpho)
 		.def("set_kd", &ParamBag<int, double>::set_kd)
 		.def("get_kd", &ParamBag<int, double>::get_kd)
+		.def("enable_TSG_dist", &ParamBag<int, double>::enable_TSG_dist)
+		.def("disable_TSG_dist", &ParamBag<int, double>::disable_TSG_dist)
+		.def("set_TSG_distmax", &ParamBag<int, double>::set_TSG_distmax)
 
 		;
 }

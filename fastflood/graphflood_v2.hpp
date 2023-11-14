@@ -2,6 +2,7 @@
 #include "dodcontexts.hpp"
 #include "graphflood_enums.hpp"
 #include "graphflood_parts.hpp"
+#include "graphuncs.hpp"
 #include "parambag.hpp"
 #include "tinysubgraph.hpp"
 #include "utils.hpp"
@@ -41,6 +42,9 @@ public:
 	std::vector<f_t> input_Qw;
 	std::vector<f_t> input_Qs;
 	std::vector<std::uint8_t> isInQ;
+
+	std::vector<i_t> input_node_Qw_tsg;
+	std::vector<f_t> input_Qw_tsg;
 
 	TinySubGraph<i_t, f_t, CONNECTOR_T, DBAG_T, PARAM_T> tsg;
 
@@ -90,6 +94,9 @@ public:
 			this->data->_Qwout = std::vector<f_t>(this->con->nxy(), 0);
 		this->data->_vmot_hw = std::vector<f_t>(this->con->nxy(), 0);
 		this->isInQ = std::vector<std::uint8_t>(this->con->nxy(), false);
+
+		this->tsg = TinySubGraph<i_t, f_t, CONNECTOR_T, DBAG_T, PARAM_T>(
+			*this->con, *this->data, *this->param);
 	}
 
 	void initial_fill()
@@ -1295,6 +1302,249 @@ public:
 	{
 		this->data->_surface = On_gaussian_blur(
 			mag, this->data->_surface, this->con->_nx, this->con->_ny);
+	}
+
+	void prepare_tinygraph_chunk_from_EP(f_t mindist, f_t maxdist)
+	{
+
+		// First computing the bloody graph stuffies yolo
+		this->con->PFcompute_all(false);
+
+		this->input_node_Qw_tsg.clear();
+		this->input_Qw_tsg.clear();
+
+		std::vector<f_t> dist2out =
+			_compute_min_distance_from_outlets<i_t, f_t, CONNECTOR_T>(*this->con);
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+			if (dist2out[i] > mindist && dist2out[i] < maxdist)
+				this->tsg.xtraMask[i] = true;
+			else
+				this->tsg.xtraMask[i] = false;
+		}
+
+		std::vector<f_t> tQw(this->con->nxy(), 0.);
+		std::vector<std::uint8_t> isDone(this->con->nxy(), false);
+		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+			tQw[this->input_node_Qw[i]] += this->input_Qw[i];
+		}
+
+		for (int i = this->con->nxy() - 1; i >= 0; --i) {
+			int node = this->data->_Sstack[i];
+			int trec = this->con->Sreceivers(node);
+			if (isDone[node] || nodata(this->data->_boundaries[node]) ||
+					this->tsg.xtraMask[node]) {
+				isDone[trec] = true;
+				continue;
+			}
+
+			isDone[node] = true;
+
+			tQw[trec] += tQw[node];
+
+			if (this->tsg.xtraMask[trec]) {
+				this->input_node_Qw_tsg.emplace_back(trec);
+				isDone[trec] = true;
+			}
+		}
+
+		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+			if (this->tsg.xtraMask[this->input_node_Qw[i]])
+				this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
+		}
+
+		for (auto v : this->input_node_Qw_tsg) {
+			// std::cout << "|" << v;
+			this->input_Qw_tsg.emplace_back(tQw[v]);
+		}
+
+		// this->tsg.build_from_donor_sources(this->entry_node_PQ);
+		// std::vector<int> yolo(this->con->nxy(),0);
+		// for(int i=0; i<this->con->nxy(); ++i)
+		// 	yolo[i] = int(this->tsg.xtraMask[i]);
+
+		this->data->ibag["debugTSG"] = this->input_node_Qw_tsg;
+
+		std::cout << "N input points::" << this->input_node_Qw_tsg.size() << "/"
+							<< this->input_Qw_tsg.size() << std::endl;
+	}
+
+	void run_tinysubgraph()
+	{
+
+		fillvec(this->data->_Qwin, 0.);
+		fillvec(this->data->_Qwout, 0.);
+
+		this->tsg.build_from_donor_sources(this->input_node_Qw_tsg);
+		// this->data->ibag["debugTSG"] = this->tsg.nodes;
+
+		for (int i = 0; i < static_cast<int>(this->input_node_Qw_tsg.size()); ++i) {
+			this->data->_Qwin[this->input_node_Qw_tsg[i]] += this->input_Qw_tsg[i];
+		}
+
+		// throw std::runtime_error("StopA");
+		std::array<i_t, 8> recs;
+		std::array<f_t, 8> dxs;
+		std::array<f_t, 8> dys;
+		std::array<f_t, 8> slopes;
+		for (int i = static_cast<int>(this->tsg.stack.size()) - 1; i >= 0; --i) {
+			int node = this->tsg.stack[i];
+
+			int nr = this->con->Receivers(node, recs);
+			if (nr == 0)
+				continue;
+
+			this->con->ReceiversDx(node, dxs);
+			this->con->ReceiversDy(node, dys);
+
+			f_t sumslopes = 0.;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] =
+					(this->data->_surface[node] - this->data->_surface[recs[j]]) /
+					dxs[j] * dys[j];
+				sumslopes += slopes[j];
+			}
+
+			if (sumslopes <= 0)
+				sumslopes = nr;
+
+			f_t sumweight = 0;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] /= sumslopes;
+				this->data->_Qwin[recs[j]] += slopes[j] * this->data->_Qwin[node];
+				sumweight += slopes[j];
+			}
+
+			// if(std::abs(sumweight - 1.) > 1e-3) throw std::runtime_error("WUFT");
+
+			f_t SS = (this->data->_surface[node] -
+								this->data->_surface[this->con->Sreceivers(node)]) /
+							 this->con->SreceiversDx(node);
+			f_t SSdy = this->con->SreceiversDy(node);
+
+			f_t u_w = std::pow(this->data->_hw[node], (2. / 3.)) / this->mannings *
+								std::sqrt(std::max(1e-6, SS));
+
+			this->data->_Qwout[node] = this->data->_hw[node] * u_w * SSdy;
+		}
+
+		for (auto i : this->tsg.nodes) {
+
+			if (can_out(this->data->_boundaries[i]))
+				continue;
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+
+			f_t dhw = 0.;
+			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
+				dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
+				dhw = this->data->_Qwin[i];
+			}
+
+			dhw *= this->dt;
+			dhw /= this->con->area(i);
+
+			thw += dhw;
+			tsurf += dhw;
+
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+		}
+	}
+
+	// Test tinygraph
+	void _run_tinysubgraph_v1()
+	{
+
+		fillvec(this->data->_Qwin, 0.);
+		fillvec(this->data->_Qwout, 0.);
+
+		this->tsg.build_from_donor_sources(this->entry_node_PQ);
+		this->data->ibag["debugTSG"] = this->tsg.nodes;
+
+		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+			this->data->_Qwin[this->input_node_Qw[i]] += this->input_Qw[i];
+		}
+
+		std::array<i_t, 8> recs;
+		std::array<f_t, 8> dxs;
+		std::array<f_t, 8> dys;
+		std::array<f_t, 8> slopes;
+		for (int i = static_cast<int>(this->tsg.stack.size()) - 1; i >= 0; --i) {
+			int node = this->tsg.stack[i];
+
+			int nr = this->con->Receivers(node, recs);
+			if (nr == 0)
+				continue;
+
+			this->con->ReceiversDx(node, dxs);
+			this->con->ReceiversDy(node, dys);
+
+			f_t sumslopes = 0.;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] =
+					(this->data->_surface[node] - this->data->_surface[recs[j]]) /
+					dxs[j] * dys[j];
+				sumslopes += slopes[j];
+			}
+
+			if (sumslopes <= 0)
+				sumslopes = nr;
+
+			f_t sumweight = 0;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] /= sumslopes;
+				this->data->_Qwin[recs[j]] += slopes[j] * this->data->_Qwin[node];
+				sumweight += slopes[j];
+			}
+
+			// if(std::abs(sumweight - 1.) > 1e-3) throw std::runtime_error("WUFT");
+
+			f_t SS = (this->data->_surface[node] -
+								this->data->_surface[this->con->Sreceivers(node)]) /
+							 this->con->SreceiversDx(node);
+			f_t SSdy = this->con->SreceiversDy(node);
+
+			f_t u_w = std::pow(this->data->_hw[node], (2. / 3.)) / this->mannings *
+								std::sqrt(std::max(1e-6, SS));
+
+			this->data->_Qwout[node] = this->data->_hw[node] * u_w * SSdy;
+		}
+
+		for (auto i : this->tsg.nodes) {
+
+			if (can_out(this->data->_boundaries[i]))
+				continue;
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+
+			f_t dhw = 0.;
+			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
+				dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
+				dhw = this->data->_Qwin[i];
+			}
+
+			dhw *= this->dt;
+			dhw /= this->con->area(i);
+
+			thw += dhw;
+			tsurf += dhw;
+
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+		}
 	}
 
 }; // end of class

@@ -11,6 +11,7 @@ All the includes will be added there
 #include "graph.hpp"
 #include "graphflood.hpp"
 #include "graphflood_v2.hpp"
+#include "graphuncs.hpp"
 #include "hillshading.hpp"
 #include "parambag.hpp"
 #include "popscape.hpp"
