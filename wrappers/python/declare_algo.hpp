@@ -83,14 +83,19 @@ B.G.
 
 	m.def(
 		"RiverNetwork",
-		RiverNetwork<FLOATING_POINT_DAGGER,
-								 DAGGER::D8connector<FLOATING_POINT_DAGGER>,
-								 DAGGER::graph<FLOATING_POINT_DAGGER,
-															 DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
-	m.def(
-		"DrainageDivides",
-		DrainageDivides<FLOATING_POINT_DAGGER,
-										DAGGER::D8connector<FLOATING_POINT_DAGGER>,
-										DAGGER::graph<FLOATING_POINT_DAGGER,
-																	DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
+		&RiverNetwork<FLOATING_POINT_DAGGER,
+									DAGGER::D8connector<FLOATING_POINT_DAGGER>,
+									DAGGER::graph<FLOATING_POINT_DAGGER,
+																DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
+
+	m.def("RiverNetworkC8",
+				&RiverNetworkC8<FLOATING_POINT_DAGGER,
+												DAGGER::Connector8<int, FLOATING_POINT_DAGGER>>);
+
+	m.def("DrainageDivides",
+				&DrainageDivides<
+					FLOATING_POINT_DAGGER,
+					DAGGER::D8connector<FLOATING_POINT_DAGGER>,
+					DAGGER::graph<FLOATING_POINT_DAGGER,
+												DAGGER::D8connector<FLOATING_POINT_DAGGER>>>);
 }

@@ -18,6 +18,8 @@ declare_dbag(py::module& m)
 		.def("get_fbag", &Hermes<int, double>::get_fbag<py::array_t<double, 1>>)
 		.def("set_Qwin", &Hermes<int, double>::set_Qwin<py::array_t<double, 1>>)
 		.def("get_Qwin", &Hermes<int, double>::get_Qwin<py::array_t<double, 1>>)
+		.def("set_DA", &Hermes<int, double>::set_DA<py::array_t<double, 1>>)
+		.def("get_DA", &Hermes<int, double>::get_DA<py::array_t<double, 1>>)
 		.def("set_Qwout", &Hermes<int, double>::set_Qwout<py::array_t<double, 1>>)
 		.def("get_Qwout", &Hermes<int, double>::get_Qwout<py::array_t<double, 1>>)
 

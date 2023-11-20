@@ -133,6 +133,19 @@ public:
 		return format_output<decltype(this->_Qsout), out_t>(this->_Qsout);
 	}
 
+	std::vector<f_t> _DA;
+	template<class arrin_t>
+	void set_DA(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_DA = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_DA()
+	{
+		return format_output<decltype(this->_DA), out_t>(this->_DA);
+	}
+
 	std::vector<f_t> _debug;
 
 	std::map<std::string, std::vector<f_t>> fbag;

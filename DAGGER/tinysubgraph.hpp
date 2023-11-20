@@ -94,6 +94,9 @@ public:
 			// Gathering the receivers into the queue
 			for (int j = 0; j < nr; ++j) {
 				int trec = recs[j];
+				if (this->xtraMask[trec] == false)
+					continue;
+
 				// double checking they are not already in there/processed
 				if (this->tempN[trec] == false) {
 					tQ.emplace(trec);
@@ -111,6 +114,14 @@ public:
 			this->con->__invert_recs_at_node(v, recbits, recs);
 			this->tempN[v] = this->con->nReceivers(v);
 		}
+
+		this->data->ibag["tsgNodes"] = this->nodes;
+		std::vector<int> temp;
+
+		for (auto v : this->xtraMask)
+			temp.emplace_back(static_cast<int>(v));
+
+		this->data->ibag["tsgMask"] = temp;
 	}
 
 	void build_stack()

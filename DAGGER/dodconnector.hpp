@@ -1235,9 +1235,17 @@ public:
 		CT_neighbourer_1<i_t, f_t> ctx;
 
 		std::vector<int8_t> closed(this->_nxy, false);
+		int istack = 0;
 
 		for (int i = 0; i < this->_nxy; ++i) {
+
 			this->reset_node(i);
+			if (nodata(this->data->_boundaries[i])) {
+				this->data->_stack[istack] = i;
+				++istack;
+				continue;
+			}
+
 			if (can_out(this->data->_boundaries[i]) == false)
 				continue;
 
@@ -1246,7 +1254,6 @@ public:
 		}
 
 		std::array<int, 8> neighbours;
-		int istack = 0;
 		while (open.size() > 0 || pit.size() > 0) {
 			PQH c;
 			c = open.top();

@@ -2,6 +2,7 @@
 
 #include "boundary_conditions.hpp"
 #include "enumutils.hpp"
+#include "graphflood_enums.hpp"
 #include "lookup_neighbourer.hpp"
 #include "utils.hpp"
 #include "wrap_helper.hpp"
@@ -20,6 +21,9 @@ public:
 	f_t rho_sed = 1000;
 	f_t tau_c = 4.;
 	f_t alpha = 1.5;
+
+	BOUNDARY_HW gf2Bmode = BOUNDARY_HW::FIXED_SLOPE;
+	f_t gf2Bbval = 1e-2;
 
 	f_t TSG_dist = false;
 	void enable_TSG_dist() { this->TSG_dist = true; }

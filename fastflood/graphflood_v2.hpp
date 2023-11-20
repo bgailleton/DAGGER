@@ -35,7 +35,11 @@ public:
 
 	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
 	f_t Prate = 1e-5; // mm.s^-1. Yarr.
-	void set_uniform_P(f_t val) { this->Prate = val; }
+	void set_uniform_P(f_t val)
+	{
+		this->water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
+		this->Prate = val;
+	}
 
 	std::vector<i_t> entry_node_PQ;
 	std::vector<i_t> input_node_Qw;
@@ -187,12 +191,15 @@ public:
 				this->data->_Qwin[rec] += QW[node];
 			}
 		}
+
 		for (int i = this->con->nxy() - 1; i >= 0; --i) {
 			if (this->data->_Qwin[i] > 0) {
 				this->input_node_Qw.emplace_back(i);
 				this->input_Qw.emplace_back(this->data->_Qwin[i]);
 			}
 		}
+
+		this->water_input_mode = WATER_INPUT::ENTRY_POINTS_QW;
 	}
 
 	template<class arrin_i_t, class arrin_f_t>
@@ -204,6 +211,7 @@ public:
 		auto arrf = format_input<arrin_f_t>(tarrf);
 		this->input_Qw = to_vec(arrf);
 		this->input_Qs = std::vector<f_t>(this->input_Qw.size(), 0.);
+		this->water_input_mode = WATER_INPUT::ENTRY_POINTS_QW;
 	}
 
 	template<class arrin_i_t, class arrin_f_t>
@@ -237,6 +245,26 @@ public:
 			dstack.emplace(CELL(this->entry_node_PQ[i],
 													this->data->_surface[this->entry_node_PQ[i]]));
 			this->isInQ[this->entry_node_PQ[i]] = true;
+		}
+	}
+
+	template<class CELL, class DSTACK>
+	void init_dstack_tsbdyn(DSTACK& dstack)
+	{
+
+		for (size_t i = 0; i < this->input_node_Qw_tsg.size(); ++i) {
+			this->data->_Qwin[this->input_node_Qw_tsg[i]] = this->input_Qw_tsg[i];
+		}
+
+		// for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+		// 	if (this->param->gf2_morpho)
+		// 		this->data->_Qsin[this->input_node_Qw[i]] = this->input_Qs[i];
+		// }
+
+		for (size_t i = 0; i < this->input_node_Qw_tsg.size(); ++i) {
+			dstack.emplace(CELL(this->input_node_Qw_tsg[i],
+													this->data->_surface[this->input_node_Qw_tsg[i]]));
+			this->isInQ[this->input_node_Qw_tsg[i]] = true;
 		}
 	}
 
@@ -1298,24 +1326,86 @@ public:
 		// i_t& trec, f_t& tdx)
 	}
 
+	void standalone_Qwin() { this->data->_Qwin = this->_standalone_Qwin(); }
+
+	std::vector<f_t> _standalone_Qwin()
+	{
+
+		this->con->PFcompute_all(false);
+
+		std::vector<f_t> tQw(this->con->nxy(), 0.);
+
+		if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_QW) {
+			for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+				tQw[this->input_node_Qw[i]] += this->input_Qw[i];
+			}
+		}
+
+		std::array<i_t, 8> recs;
+		std::array<f_t, 8> dxs;
+		std::array<f_t, 8> dys;
+		std::array<f_t, 8> slopes;
+		for (int i = static_cast<int>(this->data->_stack.size()) - 1; i >= 0; --i) {
+			int node = this->data->_stack[i];
+
+			if (nodata(this->data->_boundaries[node]) ||
+					can_out(this->data->_boundaries[node]))
+				continue;
+
+			if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT)
+				tQw[node] += this->Prate * this->con->area(node);
+
+			int nr = this->con->Receivers(node, recs);
+
+			if (nr == 0)
+				continue;
+
+			this->con->ReceiversDx(node, dxs);
+			this->con->ReceiversDy(node, dys);
+
+			f_t sumslopes = 0.;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] =
+					std::max(this->data->_surface[node] - this->data->_surface[recs[j]],
+									 1e-6) /
+					dxs[j] * dys[j];
+				sumslopes += slopes[j];
+			}
+
+			if (sumslopes <= 0)
+				sumslopes = nr;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] /= sumslopes;
+				tQw[recs[j]] += slopes[j] * tQw[node];
+			}
+		}
+
+		return tQw;
+	}
+
 	void diffuse_topo(f_t mag)
 	{
 		this->data->_surface = On_gaussian_blur(
 			mag, this->data->_surface, this->con->_nx, this->con->_ny);
 	}
 
-	void prepare_tinygraph_chunk_from_EP(f_t mindist, f_t maxdist)
+	void chunk_by_distance_to_outlet(f_t mindist, f_t maxdist)
 	{
 
 		// First computing the bloody graph stuffies yolo
 		this->con->PFcompute_all(false);
 
+		// Reset the entry points
 		this->input_node_Qw_tsg.clear();
 		this->input_Qw_tsg.clear();
 
+		// Calculating the distance from outlet
 		std::vector<f_t> dist2out =
 			_compute_min_distance_from_outlets<i_t, f_t, CONNECTOR_T>(*this->con);
 
+		// and masking
 		for (int i = 0; i < this->con->nxy(); ++i) {
 			if (dist2out[i] > mindist && dist2out[i] < maxdist)
 				this->tsg.xtraMask[i] = true;
@@ -1323,50 +1413,129 @@ public:
 				this->tsg.xtraMask[i] = false;
 		}
 
-		std::vector<f_t> tQw(this->con->nxy(), 0.);
+		// Old ways (bug?)
+		// // Now calculating the Qw for the whole landscape
+		// std::vector<f_t> tQw(this->con->nxy(), 0.);
+		// std::vector<std::uint8_t> isDone(this->con->nxy(), false);
+		// for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+		// 	tQw[this->input_node_Qw[i]] += this->input_Qw[i];
+		// }
+
+		// for (int i = this->con->nxy() - 1; i >= 0; --i) {
+		// 	int node = this->data->_Sstack[i];
+		// 	int trec = this->con->Sreceivers(node);
+		// 	if (isDone[node] || nodata(this->data->_boundaries[node]) ||
+		// 			this->tsg.xtraMask[node]) {
+		// 		isDone[trec] = true;
+		// 		continue;
+		// 	}
+
+		// 	isDone[node] = true;
+
+		// 	tQw[trec] += tQw[node];
+
+		// 	if (this->tsg.xtraMask[trec]) {
+		// 		this->input_node_Qw_tsg.emplace_back(trec);
+		// 		isDone[trec] = true;
+		// 	}
+		// }
+
+		// for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+		// 	if (this->tsg.xtraMask[this->input_node_Qw[i]])
+		// 		this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
+		// }
+
+		// for (auto v : this->input_node_Qw_tsg) {
+		// 	// std::cout << "|" << v;
+		// 	this->input_Qw_tsg.emplace_back(tQw[v]);
+		// }
+
+		// // this->tsg.build_from_donor_sources(this->entry_node_PQ);
+		// // std::vector<int> yolo(this->con->nxy(),0);
+		// // for(int i=0; i<this->con->nxy(); ++i)
+		// // 	yolo[i] = int(this->tsg.xtraMask[i]);
+
+		// this->data->ibag["debugTSG"] = this->input_node_Qw_tsg;
+
+		// std::cout << "N input points::" << this->input_node_Qw_tsg.size() << "/"
+		// 					<< this->input_Qw_tsg.size() << std::endl;
+	}
+
+	void prepare_tsg()
+	{
+
+		// flush the old entry points
+		this->input_node_Qw_tsg.clear();
+		this->input_Qw_tsg.clear();
+
+		// reserve new space (let's say 1% of the total number of nodes, to be
+		// tested but should not be performance critical)
+		this->input_node_Qw_tsg.reserve(static_cast<int>(this->con->nxy() / 100));
+		this->input_Qw_tsg.reserve(static_cast<int>(this->con->nxy() / 100));
+
+		// process non-local fluxes entries
+		// # Get the right Qwin
+		// # Note it also computes the TopoSort
+		std::vector<f_t> tQw = this->_standalone_Qwin();
 		std::vector<std::uint8_t> isDone(this->con->nxy(), false);
-		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
-			tQw[this->input_node_Qw[i]] += this->input_Qw[i];
-		}
 
-		for (int i = this->con->nxy() - 1; i >= 0; --i) {
-			int node = this->data->_Sstack[i];
-			int trec = this->con->Sreceivers(node);
-			if (isDone[node] || nodata(this->data->_boundaries[node]) ||
-					this->tsg.xtraMask[node]) {
-				isDone[trec] = true;
+		// # iterates upstream to downstream to gather the entry points
+		std::array<i_t, 8> recs;
+		for (int i = static_cast<int>(this->data->_stack.size()) - 1; i >= 0; --i) {
+			// ## Getting next upstreamest unprocessed node
+			int node = this->data->_stack[i];
+
+			// ## ignoring if already processed or already in the tsg
+			if (nodata(this->data->_boundaries[node]) ||
+					can_out(this->data->_boundaries[node]) || this->tsg.xtraMask[node])
 				continue;
+
+			// ## Getting receivers
+			int nr = this->con->Receivers(node, recs);
+			if (nr == 0)
+				continue;
+
+			// ## Iterating through receivers
+			for (int j = 0; j < nr; ++j) {
+				int trec = recs[j];
+				if (this->tsg.xtraMask[trec] && tQw[trec] > 0) {
+					// ## and labelling the ones that are in the tsg while current node
+					// isn't
+					isDone[trec] = true;
+				}
 			}
+		}
 
-			isDone[node] = true;
-
-			tQw[trec] += tQw[node];
-
-			if (this->tsg.xtraMask[trec]) {
-				this->input_node_Qw_tsg.emplace_back(trec);
-				isDone[trec] = true;
+		// Saving the labelled entry points to the subgraph
+		for (int i = 0; i < this->con->nxy(); ++i) {
+			// # First the ones labelled non=locally above
+			if (isDone[i]) {
+				this->input_node_Qw_tsg.emplace_back(i);
+				this->input_Qw_tsg.emplace_back(tQw[i]);
+				// # but also the local ones in case a node is not labelled, in the tsg,
+				// and if precipitations rates are global
+			} else if (this->tsg.xtraMask[i] &&
+								 this->water_input_mode ==
+									 WATER_INPUT::PRECIPITATIONS_CONSTANT) {
+				this->input_node_Qw_tsg.emplace_back(i);
+				this->input_Qw_tsg.emplace_back(this->Prate * this->con->area(i));
 			}
 		}
 
-		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
-			if (this->tsg.xtraMask[this->input_node_Qw[i]])
-				this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
+		// dealing now with the local inputs
+		if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_QW) {
+			for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+				if (this->tsg.xtraMask[this->input_node_Qw[i]] &&
+						isDone[this->input_node_Qw[i]] == false) {
+					if (this->input_Qw[i] > 0) {
+						this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
+						this->input_Qw_tsg.emplace_back(this->input_Qw[i]);
+					}
+				}
+			}
 		}
 
-		for (auto v : this->input_node_Qw_tsg) {
-			// std::cout << "|" << v;
-			this->input_Qw_tsg.emplace_back(tQw[v]);
-		}
-
-		// this->tsg.build_from_donor_sources(this->entry_node_PQ);
-		// std::vector<int> yolo(this->con->nxy(),0);
-		// for(int i=0; i<this->con->nxy(); ++i)
-		// 	yolo[i] = int(this->tsg.xtraMask[i]);
-
-		this->data->ibag["debugTSG"] = this->input_node_Qw_tsg;
-
-		std::cout << "N input points::" << this->input_node_Qw_tsg.size() << "/"
-							<< this->input_Qw_tsg.size() << std::endl;
+		// std::cout << input_node_Qw_tsg.size() << " in da Q" << std::endl;
 	}
 
 	void run_tinysubgraph()
@@ -1376,7 +1545,8 @@ public:
 		fillvec(this->data->_Qwout, 0.);
 
 		this->tsg.build_from_donor_sources(this->input_node_Qw_tsg);
-		// this->data->ibag["debugTSG"] = this->tsg.nodes;
+
+		// std::cout << "Node in tsg::" << this->tsg.nodes.size() << std::endl;
 
 		for (int i = 0; i < static_cast<int>(this->input_node_Qw_tsg.size()); ++i) {
 			this->data->_Qwin[this->input_node_Qw_tsg[i]] += this->input_Qw_tsg[i];
@@ -1391,8 +1561,13 @@ public:
 			int node = this->tsg.stack[i];
 
 			int nr = this->con->Receivers(node, recs);
-			if (nr == 0)
+			if (nr == 0) {
+				f_t oSS = this->param->gf2Bbval;
+				f_t u_w = std::pow(this->data->_hw[node], (2. / 3.)) / this->mannings *
+									std::sqrt(std::max(1e-6, oSS));
+				this->data->_Qwout[node] = this->data->_hw[node] * u_w * this->con->_dy;
 				continue;
+			}
 
 			this->con->ReceiversDx(node, dxs);
 			this->con->ReceiversDy(node, dys);
@@ -1401,7 +1576,8 @@ public:
 
 			for (int j = 0; j < nr; ++j) {
 				slopes[j] =
-					(this->data->_surface[node] - this->data->_surface[recs[j]]) /
+					std::max(this->data->_surface[node] - this->data->_surface[recs[j]],
+									 1e-6) /
 					dxs[j] * dys[j];
 				sumslopes += slopes[j];
 			}
@@ -1417,7 +1593,8 @@ public:
 				sumweight += slopes[j];
 			}
 
-			// if(std::abs(sumweight - 1.) > 1e-3) throw std::runtime_error("WUFT");
+			if (std::abs(sumweight - 1.) > 1e-3 && sumweight != 0.)
+				throw std::runtime_error("WUFT");
 
 			f_t SS = (this->data->_surface[node] -
 								this->data->_surface[this->con->Sreceivers(node)]) /
@@ -1456,6 +1633,258 @@ public:
 				thw = 0;
 			}
 		}
+	}
+
+	void run_tinysubgraph_dyn()
+	{
+
+		if (this->data->_timetracker.size() == 0) {
+			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_debug = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		if (this->param->gf2_morpho && this->data->_Qsin.size() == 0) {
+			this->data->_Qsin = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_Qsout = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		std::priority_queue<WaCell<i_t, f_t>,
+												std::vector<WaCell<i_t, f_t>>,
+												std::less<WaCell<i_t, f_t>>>
+			dynastack;
+
+		fillvec(this->data->_Qwin, 0.);
+		fillvec(this->isInQ, false);
+		if (this->param->gf2_morpho) {
+			fillvec(this->data->_Qsin, 0.);
+			fillvec(this->data->_Qsout, 0.);
+		}
+
+		this->init_dstack_tsbdyn<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
+
+		// CT_neighbourer_WaCell<i_t, f_t> ctx;
+		CT_neighbours<i_t, f_t> ctx;
+
+		// int nndt = 0;
+		// for(auto v:this->data->_boundaries){
+		// 	if(nodata(v)) ++nndt;
+		// }
+		// std::cout << "I have " << nndt << "no data " << std::endl;
+
+		// fillvec(this->data->_vmot_hw,0.);
+		this->time += this->dt;
+		// std::vector<bool> isdone(this->con->nxy(), false);
+		// int ndone = 0;
+		// int nredone = 0;
+
+		std::array<i_t, 8> receivers;
+		std::array<f_t, 8> receiversWeights;
+
+		f_t sumout = 0.;
+
+		// std::cout << "Starting the process" << std::endl;
+
+		while (dynastack.empty() == false) {
+
+			// Getting the next node
+			auto next = this->_dstack_next<WaCell<i_t, f_t>>(dynastack);
+
+			if (this->tsg.xtraMask[next.node] == false) {
+				f_t oSS = this->param->gf2Bbval;
+				f_t u_w = std::pow(this->data->_hw[next.node], (2. / 3.)) /
+									this->mannings * std::sqrt(std::max(1e-6, oSS));
+				this->data->_Qwout[next.node] =
+					this->data->_hw[next.node] * u_w * this->con->_dy;
+				continue;
+			}
+
+			this->isInQ[next.node] = false;
+
+			bool ispast = this->data->_timetracker[next.node] != this->time;
+
+			// if(isdone[next.node] == false){
+			// 	ndone++;
+			// 	isdone[next.node] = true;
+			// 	if(ndone % 100 == 0)
+			// 		std::cout << ndone << " vs " << nredone << " PQsizzla: " <<
+			// dynastack.size() << " this->debugyolo " << this->debugyolo <<
+			// std::endl; }else{ 	nredone++;
+			// }
+
+			// Updating the timer
+			this->data->_timetracker[next.node] = this->time;
+
+			// std::cout << next.node << std::endl;
+			ctx.update(next.node, *this->con);
+			;
+
+			// std::cout << BC2str(ctx.boundary) << std::endl;
+
+			if (ispast) {
+				// this->data->_Qwin[next.node] = std::max(this->data->_Qwin[next.node],
+				// next.Qw);
+				if (this->data->_Qwin[next.node] > next.Qw) {
+					this->data->_Qwin[next.node] += next.Qw;
+				} else {
+					this->data->_Qwin[next.node] = next.Qw;
+				}
+			}
+
+			if (can_out(ctx.boundary)) {
+				if (ispast)
+					sumout += this->data->_Qwin[ctx.node];
+				continue;
+			}
+
+			if (nodata(ctx.boundary)) {
+				// std::cout << "nodata reached" << std::endl;
+				continue;
+			}
+
+			int nr = 0;
+			f_t SS = 0;
+			f_t SSdx = 1.;
+			f_t SSdy = 1.;
+
+			// std::cout << "A1" << std::endl;
+			this->update_receivers(
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy);
+			// std::cout << "A2" << std::endl;
+
+			f_t& thw = this->data->_hw[next.node];
+			f_t& tsurf = this->data->_surface[next.node];
+			// Actual flux calculation
+
+			f_t u_w = std::pow(thw, (2. / 3.)) / this->mannings *
+								std::sqrt(std::max(1e-6, SS));
+			f_t tQwout = thw * u_w * SSdy;
+
+			this->data->_Qwout[ctx.node] = tQwout;
+
+			if (this->param->gf2_morpho) {
+				f_t tau = this->param->rho_sed * this->param->GRAVITY * SS * thw;
+				f_t edot = 0.;
+				f_t ddot = 0.;
+				if (tau > this->param->tau_c) {
+					edot = this->param->ke *
+								 std::pow(tau - this->param->tau_c, this->param->alpha);
+				}
+				ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy);
+
+				this->data->_Qsout[ctx.node] =
+					std::max(static_cast<f_t>(0.),
+									 this->data->_Qsin[ctx.node] + edot * SSdx * SSdy -
+										 ddot * SSdx * SSdy);
+			}
+
+			// if (!ispast) {
+			// 	thw += this->hw_increment_LM;
+			// 	tsurf += this->hw_increment_LM;
+			// }
+
+			// NEED TO CARY ON ADDING MORPHO HERE
+
+			f_t baseQw = (ispast) ? this->data->_Qwin[next.node] : next.Qw;
+			f_t baseQs;
+			if (this->param->gf2_morpho)
+				baseQs = (ispast) ? this->data->_Qsin[next.node] : next.Qs;
+
+			for (int j = 0; j < nr; ++j) {
+				int i = receivers[j];
+				int rec = ctx.neighbours[i];
+				bool tizdone = this->data->_timetracker[rec] == this->time;
+				if (tizdone) {
+					if (this->param->gf2_morpho)
+						dynastack.emplace(WaCell<i_t, f_t>(rec,
+																							 this->data->_surface[rec],
+																							 baseQw * receiversWeights[j],
+																							 baseQs * receiversWeights[j]));
+					else
+						dynastack.emplace(WaCell<i_t, f_t>(
+							rec, this->data->_surface[rec], baseQw * receiversWeights[j]));
+
+				} else {
+					if (this->isInQ[rec] == false) {
+						dynastack.emplace(WaCell<i_t, f_t>(rec, this->data->_surface[rec]));
+						this->isInQ[rec] = true;
+					}
+					this->data->_Qwin[rec] += baseQw * receiversWeights[j];
+					if (this->param->gf2_morpho)
+						this->data->_Qsin[rec] += baseQs * receiversWeights[j];
+				}
+			}
+		}
+		// std::cout << "done" << std::endl;
+
+		CT_neighbourer_WaCell<i_t, f_t> ctx2;
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (nodata(this->data->_boundaries[i]) ||
+					can_out(this->data->_boundaries[i]) ||
+					this->sbg_method == SUBGRAPHMETHOD::FILLONLY ||
+					this->tsg.xtraMask[i] == false)
+				continue;
+			if (this->data->_timetracker[i]<this->time&& this->data->_hw[i]> 0) {
+				this->data->_timetracker[i] = this->time;
+				this->data->_Qwin[i] = 0.;
+				ctx.update(i, *this->con);
+				this->_calculate_Qwout_for_disconnected_nodes(ctx2);
+			}
+		}
+
+		if (this->param->gf2_diffuse_Qwin)
+			this->data->_Qwin =
+				On_gaussian_blur(1., this->data->_Qwin, this->con->_nx, this->con->_ny);
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (nodata(this->data->_boundaries[i]) ||
+					can_out(this->data->_boundaries[i]) || this->tsg.xtraMask[i] == false)
+				continue;
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+
+			f_t dhw = 0.;
+			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
+				dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
+				dhw = this->data->_Qwin[i];
+			}
+
+			dhw *= this->dt;
+			dhw /= this->con->area(i);
+
+			thw += dhw;
+			tsurf += dhw;
+
+			if (this->param->gf2_morpho) {
+				f_t dz = this->data->_Qsin[i] - this->data->_Qsout[i];
+				dz *= this->dt;
+				dz /= this->con->area(i);
+				if (thw - dz > 0) {
+					thw -= dz;
+				} else {
+					tsurf -= thw - dz;
+					thw = 1e-4;
+				}
+			}
+
+			if (std::isfinite(tsurf) == false) {
+				std::cout << this->data->_Qwout[i] << "|" << this->data->_Qwin[i]
+									<< std::endl;
+				;
+				throw std::runtime_error("blug");
+			}
+
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+		}
+
+		// std::cout << "Sumout: " << sumout << std::endl; ;
 	}
 
 	// Test tinygraph

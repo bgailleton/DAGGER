@@ -14,9 +14,24 @@ void
 declare_graph(py::module& m, std::string typestr)
 {
 
+	m.def("compute_SFD_basin_labels",
+				&compute_SFD_basin_labels<int, double, Connector8<int, double>>);
+
+	m.def("fill_lake_in_hw",
+				&fill_lake_in_hw<int, double, Connector8<int, double>>);
+
+	m.def("compute_SFD_DA",
+				&compute_SFD_DA<int, double, Connector8<int, double>>);
+
 	m.def(
 		"compute_min_distance_from_outlets",
 		&compute_min_distance_from_outlets<int, double, Connector8<int, double>>);
+
+	m.def("recast_BC_bellow_Z",
+				&recast_BC_bellow_Z<int, double, Connector8<int, double>>);
+
+	m.def("recast_BC_from_outlet",
+				&recast_BC_from_outlet<int, double, Connector8<int, double>>);
 
 	py::class_<graph<FLOATING_POINT_DAGGER, CONNECTOR_T>>(m,
 																												typestr.c_str(),
