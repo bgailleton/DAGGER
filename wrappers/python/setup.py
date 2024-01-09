@@ -79,4 +79,6 @@ setup(
 		cmdclass={"build_ext": build_ext},
 		zip_safe=False,
 		python_requires=">=3.6",
+		build_requires=['numpy','pybind11'],
+		install_requires=['numpy','pybind11'],
 )

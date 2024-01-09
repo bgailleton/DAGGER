@@ -2,6 +2,13 @@
 History
 =======
 
+0.0.11 (05/01/2023)
+-------------------
+
+* Minor improvements and cleanings
+* Minor bug fixes in the installation (related to pep 517 and 518)
+* Start of some refactoring prior to version  0.1
+
 0.0.10 (13/11/2023)
 -------------------
 

@@ -27,6 +27,9 @@ declare_graph(py::module& m, std::string typestr)
 		"compute_min_distance_from_outlets",
 		&compute_min_distance_from_outlets<int, double, Connector8<int, double>>);
 
+	m.def("compute_relief",
+				&compute_relief<int, double, Connector8<int, double>>);
+
 	m.def("recast_BC_bellow_Z",
 				&recast_BC_bellow_Z<int, double, Connector8<int, double>>);
 

@@ -558,8 +558,11 @@ template<class fT>
 void
 save_vec_to_2Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
 {
-	const std::vector<long unsigned> shape{ std::uint64_t(ny),
-																					std::uint64_t(nx) };
+
+	long unsigned tny = ny;
+	long unsigned tnx = nx;
+
+	const std::vector<long unsigned> shape{ tny, tnx };
 	const bool fortran_order{ false };
 	npy::SaveArrayAsNumpy(fname, fortran_order, shape.size(), shape.data(), data);
 }
@@ -568,7 +571,9 @@ template<class fT>
 void
 save_vec_to_1Dnpy(std::string fname, int nx, int ny, std::vector<fT>& data)
 {
-	const std::vector<long unsigned> shape{ std::uint64_t(ny * nx) };
+	long unsigned tny = ny;
+	long unsigned tnx = nx;
+	const std::vector<long unsigned> shape{ tny * tnx };
 	const bool fortran_order{ false };
 	npy::SaveArrayAsNumpy(fname, fortran_order, shape.size(), shape.data(), data);
 }
