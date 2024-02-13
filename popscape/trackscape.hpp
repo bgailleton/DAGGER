@@ -1245,7 +1245,8 @@ public:
 		fT irec_elevation = this->z_surf[this->tSrec];
 		fT elevation_k = ielevation;
 		fT elevation_prev = std::numeric_limits<fT>::max();
-		fT tolerance = 1e-4;
+		fT tolerance = 1e-6;
+
 		while (abs(elevation_k - elevation_prev) > tolerance) {
 			elevation_prev = elevation_k;
 			fT slope = std::max(elevation_k - irec_elevation, static_cast<fT>(1e-6));
@@ -3241,6 +3242,8 @@ public:
 
 		// Computing the graph
 		std::vector<fT> faketopo(this->z_surf);
+
+		fT Smax = 0.;
 
 		this->graph->_compute_graph(faketopo, !need_mfrecs, false);
 		// throw std::runtime_error("blug");

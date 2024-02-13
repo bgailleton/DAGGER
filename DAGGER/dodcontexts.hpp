@@ -290,6 +290,98 @@ public:
 				this->canout = true;
 		}
 	}
+
+	template<class ARRT>
+	int idxHighestNeighbour(ARRT& vecin)
+	{
+		f_t Zmax = vecin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if (vecin[this->neighbours[ii]] > Zmax) {
+				imax = ii;
+				Zmax = vecin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
+
+	template<class ARRT>
+	int idxLowestNeighbour(ARRT& vecin)
+	{
+		f_t Zmax = vecin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if (vecin[this->neighbours[ii]] < Zmax) {
+				imax = ii;
+				Zmax = vecin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
+
+	template<class ARRT>
+	int idxHighestNeighbour(ARRT& vecadd, ARRT& vecmin)
+	{
+		f_t Zmax = vecadd[this->node] - vecmin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if ((vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]]) >
+					Zmax) {
+				imax = ii;
+				Zmax = vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
+
+	template<class ARRT>
+	int idxLowestNeighbour(ARRT& vecadd, ARRT& vecmin)
+	{
+		f_t Zmax = vecadd[this->node] - vecmin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if ((vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]]) <
+					Zmax) {
+				imax = ii;
+				Zmax = vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
+
+	template<class ARRT>
+	int idxHighestNeighbour(ARRT& vecadd, ARRT& vecmin, int notAnOption)
+	{
+		f_t Zmax = vecadd[this->node] - vecmin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if (this->neighbours[ii] == notAnOption)
+				continue;
+			if ((vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]]) >
+					Zmax) {
+				imax = ii;
+				Zmax = vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
+
+	template<class ARRT>
+	int idxLowestNeighbour(ARRT& vecadd, ARRT& vecmin, int notAnOption)
+	{
+		f_t Zmax = vecadd[this->node] - vecmin[this->node];
+		int imax = -1;
+		for (int ii = 0; ii < this->nn; ++ii) {
+			if (this->neighbours[ii] == notAnOption)
+				continue;
+			if ((vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]]) <
+					Zmax) {
+				imax = ii;
+				Zmax = vecadd[this->neighbours[ii]] - vecmin[this->neighbours[ii]];
+			}
+		}
+		return imax;
+	}
 };
 
 } // end of namespace

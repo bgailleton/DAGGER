@@ -20,6 +20,9 @@ _compute_min_distance_from_outlets(CONNECTOR_T& con)
 
 	for (auto node : con.data->_stack) {
 
+		if (nodata(con.data->_boundaries[node]))
+			continue;
+
 		int nd = con.Receivers(node, recs);
 
 		con.ReceiversDx(node, dxs);
@@ -42,6 +45,9 @@ _compute_SFD_distance_from_outlets(CONNECTOR_T& con)
 	std::vector<f_t> out(con.nxy(), 0.);
 
 	for (auto node : con.data->_stack) {
+
+		if (nodata(con.data->_boundaries[node]))
+			continue;
 
 		int rec = con.Sreceivers(node);
 		f_t recdx = con.SreceiversDx(node);
@@ -136,7 +142,12 @@ void
 compute_SFD_DA(bool compute_PQ, CONNECTOR_T& con)
 {
 
+	if (compute_PQ) {
+		con.PFcompute_all(false);
+	}
+
 	con.data->_DA = std::vector<f_t>(con.nxy(), 0);
+
 	for (int i = con.nxy() - 1; i >= 0; --i) {
 		int node = con.data->_Sstack[i];
 
@@ -240,6 +251,66 @@ recast_BC_from_outlet(i_t baseNode,
 
 	connector.set_condou(CONBOU::CUSTOM);
 	connector.init();
+}
+
+template<class i_t, class f_t, class CONNECTOR_T>
+std::vector<f_t>
+_compute_relief(f_t radius, CONNECTOR_T& connector)
+{
+
+	std::vector<f_t> relief(connector.nxy(), 0.);
+	std::array<i_t, 8> neighbours;
+	std::array<f_t, 8> neighboursdx;
+	std::queue<i_t> tQ;
+
+	for (int i = 0; i < connector.nxy(); ++i) {
+
+		if (nodata(connector.data->_boundaries[i]))
+			continue;
+
+		std::unordered_map<int, f_t> checks;
+		checks[i] = 0.;
+		tQ.emplace(i);
+
+		f_t tZ = connector.data->_surface[i];
+		f_t tR = 0.;
+
+		while (tQ.empty() == false) {
+			int node = tQ.front();
+			tQ.pop();
+			f_t ttR = connector.data->_surface[node] - tZ;
+			ttR = std::abs(ttR);
+
+			if (ttR > tR)
+				tR = ttR;
+
+			int nn = connector.Neighbours(node, neighbours);
+			connector.NeighboursDx(node, neighboursdx);
+			f_t tdist = checks[node];
+			for (int j = 0; j < nn; ++j) {
+				int onode = neighbours[j];
+				f_t odx = neighboursdx[j];
+				if (checks.find(onode) == checks.end() && odx + tdist <= radius) {
+					checks[onode] = odx + tdist;
+					tQ.emplace(onode);
+				}
+			}
+		}
+
+		relief[i] = tR;
+	}
+
+	return relief;
+}
+
+template<class i_t, class f_t, class CONNECTOR_T>
+void
+compute_relief(f_t radius, std::string name, CONNECTOR_T& con)
+{
+
+	std::vector<f_t> relief = _compute_relief<i_t, f_t, CONNECTOR_T>(radius, con);
+
+	con.data->fbag[name] = relief;
 }
 
 }; // end of namespace

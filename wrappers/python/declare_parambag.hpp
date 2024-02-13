@@ -17,9 +17,22 @@ declare_param(py::module& m)
 		.def("disable_gf2_morpho", &ParamBag<int, double>::disable_gf2_morpho)
 		.def("set_kd", &ParamBag<int, double>::set_kd)
 		.def("get_kd", &ParamBag<int, double>::get_kd)
+		.def("set_kdl", &ParamBag<int, double>::set_kdl)
+		.def("get_kdl", &ParamBag<int, double>::get_kdl)
+		.def("set_kel", &ParamBag<int, double>::set_kel)
+		.def("get_kel", &ParamBag<int, double>::get_kel)
 		.def("enable_TSG_dist", &ParamBag<int, double>::enable_TSG_dist)
 		.def("disable_TSG_dist", &ParamBag<int, double>::disable_TSG_dist)
 		.def("set_TSG_distmax", &ParamBag<int, double>::set_TSG_distmax)
+		.def("set_time_dilatation_morpho",
+				 &ParamBag<int, double>::set_time_dilatation_morpho)
+		.def("get_time_dilatation_morpho",
+				 &ParamBag<int, double>::get_time_dilatation_morpho)
+		.def("enable_transient_flow", &ParamBag<int, double>::enable_transient_flow)
+		.def("disable_transient_flow",
+				 &ParamBag<int, double>::disable_transient_flow)
+		.def("enable_bank_erosion", &ParamBag<int, double>::enable_bank_erosion)
+		.def("disable_bank_erosion", &ParamBag<int, double>::disable_bank_erosion)
 
 		;
 }

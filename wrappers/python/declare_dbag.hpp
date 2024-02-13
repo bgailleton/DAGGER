@@ -22,6 +22,10 @@ declare_dbag(py::module& m)
 		.def("get_DA", &Hermes<int, double>::get_DA<py::array_t<double, 1>>)
 		.def("set_Qwout", &Hermes<int, double>::set_Qwout<py::array_t<double, 1>>)
 		.def("get_Qwout", &Hermes<int, double>::get_Qwout<py::array_t<double, 1>>)
+		.def("set_Qsin", &Hermes<int, double>::set_Qsin<py::array_t<double, 1>>)
+		.def("get_Qsin", &Hermes<int, double>::get_Qsin<py::array_t<double, 1>>)
+		.def("set_Qsout", &Hermes<int, double>::set_Qsout<py::array_t<double, 1>>)
+		.def("get_Qsout", &Hermes<int, double>::get_Qsout<py::array_t<double, 1>>)
 
 		.def("set_boundaries",
 				 &Hermes<int, double>::set_boundaries<py::array_t<std::uint8_t, 1>>)

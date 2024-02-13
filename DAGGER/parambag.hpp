@@ -13,17 +13,53 @@ template<class i_t, class f_t>
 class ParamBag
 {
 public:
+	// Empty constructor
 	ParamBag(){};
 
-	// GRAPHFLOOD PARAMETRY
+	// GRAPHFLOOD PARAMETERS
 
+	// CONSTANTS
 	f_t GRAVITY = 9.8;
 	f_t rho_sed = 1000;
+
+	// Stuff I'll vary later
 	f_t tau_c = 4.;
 	f_t alpha = 1.5;
 
 	BOUNDARY_HW gf2Bmode = BOUNDARY_HW::FIXED_SLOPE;
 	f_t gf2Bbval = 1e-2;
+
+	bool gf2_morpho = false;
+	void enable_gf2_morpho() { this->gf2_morpho = true; }
+	void disable_gf2_morpho() { this->gf2_morpho = false; }
+
+	f_t time_dilatation_morpho = 1.;
+	void set_time_dilatation_morpho(f_t val)
+	{
+		this->time_dilatation_morpho = val;
+	}
+	f_t get_time_dilatation_morpho() { return this->time_dilatation_morpho; }
+
+	f_t ke = 1e-3;
+	void set_ke(f_t val) { this->ke = val; }
+	f_t get_ke() { return this->ke; }
+
+	f_t kd = 10;
+	void set_kd(f_t val) { this->kd = val; }
+	f_t get_kd() { return this->kd; }
+
+	bool bank_erosion = false;
+	void enable_bank_erosion() { this->bank_erosion = true; }
+	void disable_bank_erosion() { this->bank_erosion = false; }
+	f_t kel = 0.1;
+	void set_kel(f_t val) { this->kel = val; }
+	f_t get_kel() { return this->kel; }
+
+	f_t kdl = 0.1;
+	void set_kdl(f_t val) { this->kdl = val; }
+	f_t get_kdl() { return this->kdl; }
+
+	// # Graphflood experimental stuff
 
 	f_t TSG_dist = false;
 	void enable_TSG_dist() { this->TSG_dist = true; }
@@ -35,17 +71,9 @@ public:
 	void enable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = true; }
 	void disable_gf2_diffuse_Qwin() { this->gf2_diffuse_Qwin = false; }
 
-	bool gf2_morpho = false;
-	void enable_gf2_morpho() { this->gf2_morpho = true; }
-	void disable_gf2_morpho() { this->gf2_morpho = false; }
-
-	f_t ke = 1e-3;
-	void set_ke(f_t val) { this->ke = val; }
-	f_t get_ke() { return this->ke; }
-
-	f_t kd = 10;
-	void set_kd(f_t val) { this->ke = val; }
-	f_t get_kd() { return this->kd; }
+	bool transient_flow = false;
+	void enable_transient_flow() { this->transient_flow = true; }
+	void disable_transient_flow() { this->transient_flow = false; }
 };
 
 };

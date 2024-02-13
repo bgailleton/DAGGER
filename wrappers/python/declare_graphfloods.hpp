@@ -38,6 +38,14 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::run_subgraphflood)
+		.def("run_dynamic",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::run_dynamic)
+
 		.def("fillrun_subgraphflood",
 				 &Graphflood2<int,
 											double,
@@ -150,6 +158,13 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::get_dt)
+		.def("bluplift",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::bluplift)
 
 		.def("_quick_slipos_from_point",
 				 &Graphflood2<int,

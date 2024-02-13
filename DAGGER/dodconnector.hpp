@@ -1242,6 +1242,7 @@ public:
 			this->reset_node(i);
 			if (nodata(this->data->_boundaries[i])) {
 				this->data->_stack[istack] = i;
+				closed[i] = true;
 				++istack;
 				continue;
 			}

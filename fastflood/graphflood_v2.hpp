@@ -233,18 +233,44 @@ public:
 	{
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-			this->data->_Qwin[this->input_node_Qw[i]] = this->input_Qw[i];
+			this->data->_Qwin[this->input_node_Qw[i]] += this->input_Qw[i];
 		}
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
 			if (this->param->gf2_morpho)
-				this->data->_Qsin[this->input_node_Qw[i]] = this->input_Qs[i];
+				this->data->_Qsin[this->input_node_Qw[i]] += this->input_Qs[i];
 		}
 
 		for (size_t i = 0; i < this->entry_node_PQ.size(); ++i) {
 			dstack.emplace(CELL(this->entry_node_PQ[i],
 													this->data->_surface[this->entry_node_PQ[i]]));
 			this->isInQ[this->entry_node_PQ[i]] = true;
+		}
+	}
+
+	void add_init_flux()
+	{
+
+		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+			this->data->_Qwin[this->input_node_Qw[i]] += this->input_Qw[i];
+		}
+
+		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+			if (this->param->gf2_morpho)
+				this->data->_Qsin[this->input_node_Qw[i]] += this->input_Qs[i];
+		}
+	}
+
+	void add_init_flux(std::vector<f_t>& tqwqw, std::vector<f_t>& tqsqs)
+	{
+
+		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+			tqwqw[this->input_node_Qw[i]] += this->input_Qw[i];
+		}
+
+		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+			if (this->param->gf2_morpho)
+				tqsqs[this->input_node_Qw[i]] += this->input_Qs[i];
 		}
 	}
 
@@ -312,9 +338,12 @@ public:
 			fillvec(this->data->_Qsout, 0.);
 		}
 
+		std::vector<f_t> xtraQsout;
+		if (this->param->gf2_morpho)
+			xtraQsout = std::vector<f_t>(this->con->nxy(), 0.);
+
 		this->init_dstack<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
 
-		// CT_neighbourer_WaCell<i_t, f_t> ctx;
 		CT_neighbours<i_t, f_t> ctx;
 
 		// int nndt = 0;
@@ -389,13 +418,14 @@ public:
 			}
 
 			int nr = 0;
+			int SSi = 0;
 			f_t SS = 0;
 			f_t SSdx = 1.;
 			f_t SSdy = 1.;
 
 			// std::cout << "A1" << std::endl;
 			this->update_receivers(
-				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy);
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
 			// std::cout << "A2" << std::endl;
 
 			f_t& thw = this->data->_hw[next.node];
@@ -411,17 +441,46 @@ public:
 			if (this->param->gf2_morpho) {
 				f_t tau = this->param->rho_sed * this->param->GRAVITY * SS * thw;
 				f_t edot = 0.;
+				f_t eldot = 0;
 				f_t ddot = 0.;
+				f_t dldot = 0.;
 				if (tau > this->param->tau_c) {
 					edot = this->param->ke *
 								 std::pow(tau - this->param->tau_c, this->param->alpha);
+					if (this->param->bank_erosion) {
+						int hni = ctx.idxHighestNeighbour(
+							this->data->_surface, this->data->_hw, SSi);
+						// hni is -1 if there is no higher neighbours
+						if (hni >= 0) {
+							int hn = ctx.neighbours[hni];
+							f_t delta_Z =
+								(this->data->_surface[hn] - this->data->_hw[hn] -
+								 this->data->_surface[ctx.node] + this->data->_hw[ctx.node]);
+							f_t latslope = delta_Z / ctx.neighboursDx[hni];
+							// std::cout << latslope << std::endl;
+							eldot = this->param->kel * latslope * edot;
+
+							if (eldot * this->dt > delta_Z)
+								eldot = delta_Z / this->dt;
+
+							xtraQsout[hn] += eldot * this->con->area(hn);
+						}
+					}
 				}
-				ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy);
+				// ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy *
+				// (this->data->randu->get()*0.5 + 1.));
+				ddot =
+					(this->data->_Qsin[ctx.node] + eldot * this->con->area(ctx.node)) /
+					(this->param->kd * SSdy); //;
+
+				this->data->_debug[ctx.node] = ddot;
+				// ddot = std::pow(this->data->_Qsin[ctx.node] / (this->param->kd *
+				// SSdy), 0.5);
 
 				this->data->_Qsout[ctx.node] =
 					std::max(static_cast<f_t>(0.),
-									 this->data->_Qsin[ctx.node] + edot * SSdx * SSdy -
-										 ddot * SSdx * SSdy);
+									 this->data->_Qsin[ctx.node] +
+										 (edot + eldot - ddot) * this->con->area(ctx.node));
 			}
 
 			// if (!ispast) {
@@ -434,7 +493,7 @@ public:
 			f_t baseQw = (ispast) ? this->data->_Qwin[next.node] : next.Qw;
 			f_t baseQs;
 			if (this->param->gf2_morpho)
-				baseQs = (ispast) ? this->data->_Qsin[next.node] : next.Qs;
+				baseQs = (ispast) ? this->data->_Qsout[next.node] : next.Qs;
 
 			for (int j = 0; j < nr; ++j) {
 				int i = receivers[j];
@@ -479,6 +538,14 @@ public:
 			}
 		}
 
+		// if(this->param->bank_erosion){
+
+		// 	for (int i = 0; i < this->con->nxy(); ++i) {
+		// 		ctx.update(i, *this->con);
+
+		// 	}
+		// }
+
 		if (this->param->gf2_diffuse_Qwin)
 			this->data->_Qwin =
 				On_gaussian_blur(1., this->data->_Qwin, this->con->_nx, this->con->_ny);
@@ -506,15 +573,176 @@ public:
 			tsurf += dhw;
 
 			if (this->param->gf2_morpho) {
-				f_t dz = this->data->_Qsin[i] - this->data->_Qsout[i];
-				dz *= this->dt;
+				f_t dz = this->data->_Qsin[i] - this->data->_Qsout[i] - xtraQsout[i];
+				dz *= this->dt * this->param->time_dilatation_morpho;
 				dz /= this->con->area(i);
-				if (thw - dz > 0) {
-					thw -= dz;
-				} else {
-					tsurf -= thw - dz;
-					thw = 1e-4;
+				tsurf += dz;
+			}
+
+			if (std::isfinite(tsurf) == false) {
+				std::cout << this->data->_Qwout[i] << "|" << this->data->_Qwin[i]
+									<< std::endl;
+				;
+				throw std::runtime_error("blug");
+			}
+
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+		}
+
+		// this->data->fbag["ddot"] = this->data->_debug;
+
+		// std::cout << "Sumout: " << sumout << std::endl; ;
+	}
+
+	void run_dynamic()
+	{
+
+		// if (this->data->_timetracker.size() == 0) {
+		// 	throw std::runtime_error("Run 1 by 1 cannot work is ");
+		// }
+
+		if (this->data->_timetracker.size() == 0) {
+			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_debug = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		if (this->param->gf2_morpho && this->data->_Qsin.size() == 0) {
+			this->data->_Qsin = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_Qsout = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		std::vector<f_t> Qwinadd(this->data->_Qwin.size(), 0.);
+		std::vector<f_t> Qsinadd(this->data->_Qwin.size(), 0.);
+
+		this->add_init_flux();
+		this->add_init_flux(Qwinadd, Qsinadd);
+
+		CT_neighbours<i_t, f_t> ctx;
+
+		this->time += this->dt;
+
+		std::array<i_t, 8> receivers;
+		std::array<f_t, 8> receiversWeights;
+
+		f_t sumout = 0.;
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			// Updating the timer
+			this->data->_timetracker[i] = this->time;
+
+			// std::cout << i << std::endl;
+			ctx.update(i, *this->con);
+
+			if (can_out(ctx.boundary))
+				continue;
+
+			if (nodata(ctx.boundary))
+				continue;
+
+			int nr = 0;
+			int SSi = 0;
+			f_t SS = 0;
+			f_t SSdx = 1.;
+			f_t SSdy = 1.;
+
+			this->update_receivers(
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+			// Actual flux calculation
+
+			f_t u_w = std::pow(thw, (2. / 3.)) / this->mannings *
+								std::sqrt(std::max(1e-6, SS));
+			f_t tQwout = thw * u_w * SSdy;
+
+			this->data->_Qwout[ctx.node] = tQwout;
+
+			if (this->param->gf2_morpho) {
+				f_t tau = this->param->rho_sed * this->param->GRAVITY * SS * thw;
+				f_t edot = 0.;
+				f_t ddot = 0.;
+				if (tau > this->param->tau_c) {
+					edot = this->param->ke *
+								 std::pow(tau - this->param->tau_c, this->param->alpha);
+					// std::pow(tau - this->param->tau_c, this->param->alpha) *
+					// (this->data->randu->get()*0.5 + 1.);
 				}
+				// ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy *
+				// (this->data->randu->get()*0.5 + 1.));
+				ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy); //;
+				// ddot = std::pow(this->data->_Qsin[ctx.node] / (this->param->kd *
+				// SSdy), 0.5);
+
+				this->data->_Qsout[ctx.node] =
+					std::max(static_cast<f_t>(0.),
+									 this->data->_Qsin[ctx.node] + edot * SSdx * SSdy -
+										 ddot * SSdx * SSdy);
+			}
+
+			// if (!ispast) {
+			// 	thw += this->hw_increment_LM;
+			// 	tsurf += this->hw_increment_LM;
+			// }
+
+			// NEED TO CARY ON ADDING MORPHO HERE
+
+			f_t baseQw = this->data->_Qwin[i];
+			f_t baseQs;
+			if (this->param->gf2_morpho)
+				baseQs = this->data->_Qsout[i];
+
+			// if(nr==0){
+			// 	Qwinadd[i] += this->data->_Qwin[i];
+			// 	if (this->param->gf2_morpho) Qsinadd[i] += this->data->_Qsin[i];
+			// }
+
+			for (int j = 0; j < nr; ++j) {
+				int tn = receivers[j];
+				int rec = ctx.neighbours[tn];
+				Qwinadd[rec] += (this->param->transient_flow)
+													? tQwout * receiversWeights[j]
+													: baseQw * receiversWeights[j];
+				if (this->param->gf2_morpho)
+					Qsinadd[rec] += baseQs * receiversWeights[j];
+			}
+		}
+
+		this->data->_Qwin = std::move(Qwinadd);
+		if (this->param->gf2_morpho)
+			this->data->_Qsin = std::move(Qsinadd);
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (nodata(this->data->_boundaries[i]) ||
+					can_out(this->data->_boundaries[i]))
+				continue;
+
+			f_t& thw = this->data->_hw[i];
+			f_t& tsurf = this->data->_surface[i];
+
+			f_t dhw = 0.;
+			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
+				dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
+				dhw = this->data->_Qwin[i];
+			}
+
+			dhw *= this->dt;
+			dhw /= this->con->area(i);
+
+			thw += dhw;
+			tsurf += dhw;
+
+			if (this->param->gf2_morpho) {
+				f_t dz = this->data->_Qsin[i] - this->data->_Qsout[i];
+				dz *= this->dt * this->param->time_dilatation_morpho;
+				dz /= this->con->area(i);
+				tsurf += dz;
 			}
 
 			if (std::isfinite(tsurf) == false) {
@@ -532,6 +760,8 @@ public:
 
 		// std::cout << "Sumout: " << sumout << std::endl; ;
 	}
+
+	// experimental
 
 	void anarun_subgraphflood()
 	{
@@ -631,13 +861,14 @@ public:
 			}
 
 			int nr = 0;
+			int SSi = 0;
 			f_t SS = 0;
 			f_t SSdx = 1.;
 			f_t SSdy = 1.;
 
 			// std::cout << "A1" << std::endl;
 			this->update_receivers(
-				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy);
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
 			// std::cout << "A2" << std::endl;
 
 			f_t& thw = this->data->_hw[next.node];
@@ -718,7 +949,8 @@ public:
 												int& nr,
 												f_t& SS,
 												f_t& SSdx,
-												f_t& SSdy)
+												f_t& SSdy,
+												i_t& SSn)
 	{
 		nr = 0;
 		bool recout;
@@ -801,12 +1033,16 @@ public:
 			int i = receivers[j];
 			f_t tS = this->get_Sw(ctx.node, ctx.neighbours[i], ctx.neighboursDx[i]);
 			f_t tSdwinc = tS * ctx.neighboursDy[i];
+			// if(this->param->gf2_morpho)
+			// 	tSdwinc *= this->data->randu->get();
 			receiversWeights[j] = tSdwinc;
+
 			sumSdw += tSdwinc;
 			if (tS > SS) {
 				SS = tS;
 				SSdx = ctx.neighboursDx[i];
 				SSdy = ctx.neighboursDy[i];
+				SSn = ctx.neighbours[i];
 			}
 		}
 
@@ -1594,7 +1830,7 @@ public:
 			}
 
 			if (std::abs(sumweight - 1.) > 1e-3 && sumweight != 0.)
-				throw std::runtime_error("WUFT");
+				throw std::runtime_error("WUf_t");
 
 			f_t SS = (this->data->_surface[node] -
 								this->data->_surface[this->con->Sreceivers(node)]) /
@@ -1742,13 +1978,14 @@ public:
 			}
 
 			int nr = 0;
+			int SSi = 0;
 			f_t SS = 0;
 			f_t SSdx = 1.;
 			f_t SSdy = 1.;
 
 			// std::cout << "A1" << std::endl;
 			this->update_receivers(
-				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy);
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
 			// std::cout << "A2" << std::endl;
 
 			f_t& thw = this->data->_hw[next.node];
@@ -1935,7 +2172,7 @@ public:
 				sumweight += slopes[j];
 			}
 
-			// if(std::abs(sumweight - 1.) > 1e-3) throw std::runtime_error("WUFT");
+			// if(std::abs(sumweight - 1.) > 1e-3) throw std::runtime_error("WUf_t");
 
 			f_t SS = (this->data->_surface[node] -
 								this->data->_surface[this->con->Sreceivers(node)]) /
@@ -1972,6 +2209,15 @@ public:
 			if (thw < 0) {
 				tsurf -= thw;
 				thw = 0;
+			}
+		}
+	}
+
+	void bluplift(f_t rate)
+	{
+		for (int i = 0; i < this->con->nxy(); ++i) {
+			if (can_out(this->data->_boundaries[i]) == false) {
+				this->data->_surface[i] += rate * this->dt;
 			}
 		}
 	}
