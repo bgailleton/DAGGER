@@ -31,6 +31,14 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::compute_entry_points_from_P)
+		.def("compute_entry_points_sources",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::compute_entry_points_sources)
+
 		.def("run_subgraphflood",
 				 &Graphflood2<int,
 											double,
@@ -45,6 +53,13 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::run_dynamic)
+		.def("feed_inputQs_with_out",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::feed_inputQs_with_out)
 
 		.def("fillrun_subgraphflood",
 				 &Graphflood2<int,
@@ -67,6 +82,72 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::diffuse_topo)
+		.def("evaluate_convergence",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::evaluate_convergence)
+		.def("multiply_Qw_input_points",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::multiply_Qw_input_points)
+		.def("get_entry_node_PQ",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_entry_node_PQ)
+		.def("get_input_node_Qw",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_input_node_Qw)
+		.def("get_input_Qw",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_input_Qw)
+		.def("get_input_Qs",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_input_Qs)
+		.def("standalone_Qwin_D8",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::
+					 template standalone_Qwin_D8<py::array_t<double, 1>>)
+
+		.def("get_active_nodes",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_active_nodes)
+
+		.def("compute_qr",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::compute_qr)
 
 		.def("chunk_by_distance_to_outlet",
 				 &Graphflood2<int,
@@ -75,6 +156,36 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::chunk_by_distance_to_outlet)
+
+		.def("solve_analytically_if",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::solve_analytically_if)
+		.def("get_MB_Qwin_out",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_MB_Qwin_out)
+		.def("get_meandhstar",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::get_meandhstar)
+
+		.def("sum_Qw_inputs",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::sum_Qw_inputs)
 
 		.def("prepare_tsg",
 				 &Graphflood2<int,

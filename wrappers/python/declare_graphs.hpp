@@ -27,6 +27,10 @@ declare_graph(py::module& m, std::string typestr)
 		"compute_min_distance_from_outlets",
 		&compute_min_distance_from_outlets<int, double, Connector8<int, double>>);
 
+	m.def(
+		"compute_max_distance_from_outlets",
+		&compute_max_distance_from_outlets<int, double, Connector8<int, double>>);
+
 	m.def("compute_relief",
 				&compute_relief<int, double, Connector8<int, double>>);
 
@@ -35,6 +39,19 @@ declare_graph(py::module& m, std::string typestr)
 
 	m.def("recast_BC_from_outlet",
 				&recast_BC_from_outlet<int, double, Connector8<int, double>>);
+
+	m.def("compute_elevation_above_nearest_mask",
+				&compute_elevation_above_nearest_mask<int,
+																							double,
+																							Connector8<int, double>,
+																							py::array_t<std::uint8_t, 1>,
+																							py::array_t<double, 1>>);
+
+	m.def("compute_sources_D8",
+				&compute_sources_D8<int,
+														double,
+														Connector8<int, double>,
+														py::array_t<int, 1>>);
 
 	py::class_<graph<FLOATING_POINT_DAGGER, CONNECTOR_T>>(m,
 																												typestr.c_str(),

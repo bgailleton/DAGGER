@@ -85,3 +85,9 @@ enum class SUBGRAPHMETHOD
 	FILLONLY,
 	QWOUTK
 };
+
+enum class RUN_GF2
+{
+	NORMAL,
+	COMPUTEqr,
+};

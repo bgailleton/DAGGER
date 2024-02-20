@@ -38,6 +38,35 @@ _compute_min_distance_from_outlets(CONNECTOR_T& con)
 
 template<class i_t, class f_t, class CONNECTOR_T>
 std::vector<f_t>
+_compute_max_distance_from_outlets(CONNECTOR_T& con)
+{
+
+	// preformatting the output
+	std::vector<f_t> out(con.nxy(), 0.);
+
+	std::array<f_t, 8> dxs;
+	std::array<i_t, 8> recs;
+
+	for (auto node : con.data->_stack) {
+
+		if (nodata(con.data->_boundaries[node]))
+			continue;
+
+		int nd = con.Receivers(node, recs);
+
+		con.ReceiversDx(node, dxs);
+
+		for (int j = 0; j < nd; ++j) {
+			out[node] = (out[node] == 0) ? out[recs[j]] + dxs[j]
+																	 : std::max(out[node], out[recs[j]] + dxs[j]);
+		}
+	}
+
+	return out;
+}
+
+template<class i_t, class f_t, class CONNECTOR_T>
+std::vector<f_t>
 _compute_SFD_distance_from_outlets(CONNECTOR_T& con)
 {
 
@@ -73,6 +102,23 @@ compute_min_distance_from_outlets(bool compute_PQ,
 
 	std::vector<f_t> dx2out =
 		_compute_min_distance_from_outlets<i_t, f_t, CONNECTOR_T>(con);
+
+	con.data->fbag[name] = dx2out;
+}
+
+template<class i_t, class f_t, class CONNECTOR_T>
+void
+compute_max_distance_from_outlets(bool compute_PQ,
+																	std::string name,
+																	CONNECTOR_T& con)
+{
+
+	if (compute_PQ) {
+		con.PFcompute_all(false);
+	}
+
+	std::vector<f_t> dx2out =
+		_compute_max_distance_from_outlets<i_t, f_t, CONNECTOR_T>(con);
 
 	con.data->fbag[name] = dx2out;
 }
@@ -311,6 +357,169 @@ compute_relief(f_t radius, std::string name, CONNECTOR_T& con)
 	std::vector<f_t> relief = _compute_relief<i_t, f_t, CONNECTOR_T>(radius, con);
 
 	con.data->fbag[name] = relief;
+}
+
+/// Computes the elevation above the neart connected point on a mask
+template<class i_t, class f_t, class CONNECTOR_T>
+std::vector<f_t>
+_compute_elevation_above_nearest_mask(bool MFD,
+																			bool distance,
+																			std::vector<std::uint8_t>& mask,
+																			CONNECTOR_T& con)
+{
+
+	// Computing the full graph
+	con.PFcompute_all(false);
+
+	// Init the Zabove vector (Z above the mask) and mindist, min distance to the
+	// channel in MFD
+	std::vector<f_t> Zabove(con.nxy(), 0), mindist;
+
+	// Only allocate memory if MFD
+	if (MFD && distance)
+		mindist = std::vector<f_t>(con.nxy(), 0.);
+
+	std::array<i_t, 8> receivers;
+	std::array<f_t, 8> receiversDx;
+
+	// Right, let's go through the stack (downstream to upstream)
+	for (int i = 0; i < con.nxy(); ++i) {
+
+		int node = (MFD) ? con.data->_stack[i] : con.data->_Sstack[i];
+		if (can_out(con.data->_boundaries[node]) ||
+				nodata(con.data->_boundaries[node]))
+			continue;
+
+		if (mask[node])
+			continue;
+
+		if (MFD) {
+			int nn = con.Receivers(node, receivers);
+			int darec = -1;
+			f_t tmindx = 1.;
+			if (distance) {
+				con.ReceiversDx(node, receiversDx);
+				f_t tmindist = std::numeric_limits<f_t>::max();
+				for (int j = 0; j < nn; ++j) {
+					int trec = receivers[j];
+					if (mindist[trec] < tmindist) {
+						tmindist = mindist[trec];
+						darec = trec;
+					}
+				}
+			} else {
+				f_t tmaxZ = std::numeric_limits<f_t>::max();
+				for (int j = 0; j < nn; ++j) {
+					int trec = receivers[j];
+					if (Zabove[trec] < tmaxZ) {
+						tmaxZ = Zabove[trec];
+						darec = trec;
+					}
+				}
+			}
+
+			if (darec > -1) {
+				Zabove[node] =
+					Zabove[darec] +
+					std::max(con.data->_surface[node] - con.data->_surface[darec], 0.);
+				if (distance)
+					mindist[node] = mindist[darec] + tmindx;
+			}
+
+		} else {
+
+			// Steepest receiver
+			i_t Srec = con.Sreceivers(node);
+
+			// Steepest receiver
+			Zabove[node] =
+				Zabove[Srec] +
+				std::max(con.data->_surface[node] - con.data->_surface[Srec], 0.);
+		}
+	}
+
+	return Zabove;
+}
+
+template<class i_t, class f_t, class CONNECTOR_T, class in_t, class out_t>
+out_t
+compute_elevation_above_nearest_mask(bool MFD,
+																		 bool distance,
+																		 in_t& mask,
+																		 CONNECTOR_T& con)
+{
+
+	numvec<std::uint8_t> maski = format_input<in_t>(mask);
+	std::vector<std::uint8_t> masko = to_vec(maski);
+
+	auto out = _compute_elevation_above_nearest_mask<i_t, f_t, CONNECTOR_T>(
+		MFD, distance, masko, con);
+
+	return format_output<decltype(out), out_t>(out);
+}
+
+template<class i_t, class f_t, class CONNECTOR_T>
+std::vector<i_t>
+_compute_sources_D8(f_t Ath, CONNECTOR_T& con)
+{
+
+	con.PFcompute_all(false);
+
+	std::vector<f_t> DA(con.nxy(), 0);
+	std::vector<std::uint8_t> isDone(con.nxy(), false);
+
+	for (int i = con.nxy() - 1; i >= 0; --i) {
+		int node = con.data->_Sstack[i];
+
+		if (nodata(con.data->_boundaries[node]))
+			continue;
+
+		DA[node] += con.area(node);
+
+		int rec = con.Sreceivers(node);
+
+		if (rec == node)
+			continue;
+
+		DA[rec] += con.data->_DA[node];
+	}
+
+	std::vector<i_t> outi;
+
+	for (int i = con.nxy() - 1; i >= 0; --i) {
+		int node = con.data->_Sstack[i];
+
+		if (nodata(con.data->_boundaries[node]))
+			continue;
+		int rec = con.Sreceivers(node);
+
+		if (rec == node)
+			continue;
+
+		if (DA[node] > Ath && isDone[rec] == false) {
+			int tnode = node;
+			int trec = con.Sreceivers(node);
+			outi.emplace_back(node);
+
+			while (tnode != trec) {
+				isDone[tnode] = true;
+				tnode = trec;
+				trec = con.Sreceivers(tnode);
+			}
+		}
+	}
+
+	return outi;
+}
+
+template<class i_t, class f_t, class CONNECTOR_T, class out_t>
+out_t
+compute_sources_D8(f_t Ath, CONNECTOR_T& con)
+{
+
+	auto out = _compute_sources_D8<int, double, CONNECTOR_T>(Ath, con);
+
+	return format_output<decltype(out), out_t>(out);
 }
 
 }; // end of namespace

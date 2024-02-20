@@ -19,4 +19,11 @@ enum class CONBOU : std::uint8_t
 
 };
 
+// Parameter types
+enum class PARAMTYPE : std::uint8_t
+{
+	CTE,
+	VAR
+};
+
 }

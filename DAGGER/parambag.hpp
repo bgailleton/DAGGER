@@ -28,6 +28,8 @@ public:
 
 	BOUNDARY_HW gf2Bmode = BOUNDARY_HW::FIXED_SLOPE;
 	f_t gf2Bbval = 1e-2;
+	void set_gf2Bbval(f_t val) { this->gf2Bbval = val; }
+	f_t get_gf2Bbval() { return this->gf2Bbval; }
 
 	bool gf2_morpho = false;
 	void enable_gf2_morpho() { this->gf2_morpho = true; }
@@ -40,9 +42,27 @@ public:
 	}
 	f_t get_time_dilatation_morpho() { return this->time_dilatation_morpho; }
 
-	f_t ke = 1e-3;
-	void set_ke(f_t val) { this->ke = val; }
-	f_t get_ke() { return this->ke; }
+	f_t _ke = 1e-3;
+	std::vector<f_t> _ke_v;
+	PARAMTYPE p_ke = PARAMTYPE::CTE;
+	void set_ke(f_t val)
+	{
+		this->p_ke = PARAMTYPE::CTE;
+		this->_ke = val;
+	}
+	f_t get_ke() { return this->_ke; }
+	f_t ke(i_t node)
+	{
+		return (this->p_ke == PARAMTYPE::CTE) ? this->_ke : this->_ke_v[node];
+	}
+
+	template<class arrin_t>
+	void set_variable_ke(arrin_t& tarr)
+	{
+		this->p_ke = PARAMTYPE::VAR;
+		auto arr = format_input<arrin_t>(tarr);
+		this->_ke_v = to_vec(arr);
+	}
 
 	f_t kd = 10;
 	void set_kd(f_t val) { this->kd = val; }

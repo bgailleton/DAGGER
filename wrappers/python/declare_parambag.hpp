@@ -9,6 +9,8 @@ declare_param(py::module& m)
 	py::class_<ParamBag<int, double>>(m, "ParamBag")
 		.def(py::init<>())
 		.def("set_ke", &ParamBag<int, double>::set_ke)
+		.def("set_variable_ke",
+				 &ParamBag<int, double>::set_variable_ke<py::array_t<double, 1>>)
 		.def("enable_gf2_diffuse_Qwin",
 				 &ParamBag<int, double>::enable_gf2_diffuse_Qwin)
 		.def("disable_gf2_diffuse_Qwin",
@@ -33,6 +35,8 @@ declare_param(py::module& m)
 				 &ParamBag<int, double>::disable_transient_flow)
 		.def("enable_bank_erosion", &ParamBag<int, double>::enable_bank_erosion)
 		.def("disable_bank_erosion", &ParamBag<int, double>::disable_bank_erosion)
+		.def("set_gf2Bbval", &ParamBag<int, double>::set_gf2Bbval)
+		.def("get_gf2Bbval", &ParamBag<int, double>::get_gf2Bbval)
 
 		;
 }

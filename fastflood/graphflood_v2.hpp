@@ -1,5 +1,6 @@
 #pragma once
 #include "dodcontexts.hpp"
+#include "enumutils.hpp"
 #include "graphflood_enums.hpp"
 #include "graphflood_parts.hpp"
 #include "graphuncs.hpp"
@@ -9,30 +10,43 @@
 
 namespace DAGGER {
 
-template<class i_t,
-				 class f_t,
-				 class CONNECTOR_T,
-				 class GRAPH_T,
-				 class DBAG_T,
-				 class PARAM_T>
+template<class i_t, // type for integers (e.g. node index)
+				 class f_t, // type for floating points number: float (saves memory,
+										// more approximations for small numbers) or double
+										// (reccomended)
+				 class CONNECTOR_T, // type of connector (grid)
+				 class GRAPH_T,			// Type of graph (might be deprecated)
+				 class DBAG_T,			// type of data holder
+				 class PARAM_T>			// type of param holder
+/// Graphflood2 is the new version of graphflood calculator
+/// It uses induced dynamic subgraph to offer another significant speed up
+/// Getting stable, still afew mass balance issue for the segmented tsg
+/// calculation as of 17/02/2024 B.G. 2023 - 2024
 class Graphflood2
 {
+
+	// Everything is public. I know, not best practice. But watch me.
 public:
-	Graphflood2(){};
+	/*
+	=+=+=+=+=+=+=+=+=+=+=+=+=+=
+	=+=+=+=+=+=+=+=+=+=+=+=+=+=
+	=+	ATTRIBUTES +=+=+=+=+=+=
+	=+=+=+=+=+=+=+=+=+=+=+=+=+=
+	=+=+=+=+=+=+=+=+=+=+=+=+=+=
+	*/
 
-	Graphflood2(CONNECTOR_T& con, GRAPH_T& gra, DBAG_T& data, PARAM_T& param)
-	{
-		this->con = &con;
-		this->gra = &gra;
-		this->data = &data;
-		this->param = &param;
-	}
-
+	/// Ptr to connector (grid)
 	CONNECTOR_T* con;
+	/// Ptr to graph
 	GRAPH_T* gra;
+	/// Ptr to data holder
 	DBAG_T* data;
+	/// Ptr to parameter holder
 	PARAM_T* param;
 
+	// Should be moved to parameter bag
+	/// Controls how water enters the model:
+	/// --> WATER_INPUT::PRECIPITATIONS_CONSTANT:
 	WATER_INPUT water_input_mode = WATER_INPUT::PRECIPITATIONS_CONSTANT;
 	f_t Prate = 1e-5; // mm.s^-1. Yarr.
 	void set_uniform_P(f_t val)
@@ -41,16 +55,36 @@ public:
 		this->Prate = val;
 	}
 
+	// Attribute managing the inputs and starting points of the subgraphs
+	/// initial nodes in the PQ
 	std::vector<i_t> entry_node_PQ;
+	/// External Qw/Qs input location
 	std::vector<i_t> input_node_Qw;
+	/// External Qw input value
 	std::vector<f_t> input_Qw;
+	/// External Qs input value
 	std::vector<f_t> input_Qs;
+	/// Tracks which nodes are in the PQ or not
 	std::vector<std::uint8_t> isInQ;
+
+	std::vector<f_t> xtraQwin;
+	std::vector<f_t> xtraQsout;
+
+	// compute options
+	RUN_GF2 computor = RUN_GF2::NORMAL;
+
+	f_t MB_Qwin_out = 0.;
+	f_t get_MB_Qwin_out() { return this->MB_Qwin_out; }
+
+	f_t meandhstar = 0.;
+	f_t get_meandhstar() { return this->meandhstar; }
 
 	std::vector<i_t> input_node_Qw_tsg;
 	std::vector<f_t> input_Qw_tsg;
 
 	TinySubGraph<i_t, f_t, CONNECTOR_T, DBAG_T, PARAM_T> tsg;
+
+	std::vector<i_t> active_nodes;
 
 	bool fillonly = false;
 	SUBGRAPHMETHOD sbg_method = SUBGRAPHMETHOD::V1;
@@ -74,6 +108,23 @@ public:
 	int debugyolo = 0;
 
 	// std::vector<i_t> active_nodes;
+
+	/// Empty constructor
+	Graphflood2(){};
+
+	/// Classic constructor: links the graphflood module to existing constructor,
+	/// graph ,... Arguments:
+	/// ###--> Connector
+	/// ###--> graph
+	/// ###--> data bag
+	/// ###--> param bag
+	Graphflood2(CONNECTOR_T& con, GRAPH_T& gra, DBAG_T& data, PARAM_T& param)
+	{
+		this->con = &con;
+		this->gra = &gra;
+		this->data = &data;
+		this->param = &param;
+	}
 
 	void init()
 	{
@@ -101,6 +152,9 @@ public:
 
 		this->tsg = TinySubGraph<i_t, f_t, CONNECTOR_T, DBAG_T, PARAM_T>(
 			*this->con, *this->data, *this->param);
+
+		this->xtraQwin = std::vector<f_t>(this->con->nxy(), 0);
+		this->xtraQsout = std::vector<f_t>(this->con->nxy(), 0);
 	}
 
 	void initial_fill()
@@ -169,37 +223,68 @@ public:
 
 		for (int i = this->con->nxy() - 1; i >= 0; --i) {
 			int node = this->data->_Sstack[i];
-			if (nodata(this->data->_boundaries[node]))
+			if (nodata(this->data->_boundaries[node]) || isdone[node])
 				continue;
 
 			int rec = this->con->Sreceivers(node);
 			if (QW[rec] >= Qw_threshold && QW[node] < Qw_threshold &&
-					isdone[rec] == false) {
+					isdone[node] == false) {
 				this->input_node_Qw.emplace_back(node);
 				this->input_Qw.emplace_back(QW[node]);
 				this->entry_node_PQ.emplace_back(node);
+
 				isdone[node] = true;
-				while (rec != node) {
-					isdone[rec] = true;
-					node = rec;
-					rec = this->con->Sreceivers(node);
-				}
-			} else if (QW[node] >= Qw_threshold) {
-				this->data->_Qwin[node] += Prate * this->con->area(node);
 
-			} else if (QW[rec] >= Qw_threshold) {
-				this->data->_Qwin[rec] += QW[node];
+				// while (rec != node) {
+				// 	isdone[rec] = true;
+				// 	node = rec;
+				// 	rec = this->con->Sreceivers(node);
+				// }
+				// } else if (QW[node] >= Qw_threshold) {
+				// 	this->data->_Qwin[node] += Prate * this->con->area(node);
+
+				// } else if (QW[rec] >= Qw_threshold) {
+				// 	this->data->_Qwin[rec] += QW[node];
+			}
+
+			int nd = this->con->nSdonors(node);
+			if (nd == 0 && QW[node] >= Qw_threshold && isdone[node] == false) {
+				this->input_node_Qw.emplace_back(node);
+				this->input_Qw.emplace_back(QW[node]);
+				this->entry_node_PQ.emplace_back(node);
+
+				isdone[node] = true;
 			}
 		}
 
-		for (int i = this->con->nxy() - 1; i >= 0; --i) {
-			if (this->data->_Qwin[i] > 0) {
+		// for (int i = this->con->nxy() - 1; i >= 0; --i) {
+		// 	if (this->data->_Qwin[i] > 0) {
+		// 		this->input_node_Qw.emplace_back(i);
+		// 		this->input_Qw.emplace_back(this->data->_Qwin[i]);
+		// 	}
+		// }
+
+		// this->water_input_mode = WATER_INPUT::ENTRY_POINTS_QW;
+	}
+
+	void compute_entry_points_sources(f_t val)
+	{
+		this->entry_node_PQ.clear();
+		this->input_node_Qw.clear();
+		this->input_Qw.clear();
+
+		this->con->PFcompute_all(false);
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+			if (this->is_node_active(i) == false)
+				continue;
+			int nd = this->con->nSdonors(i);
+			if (nd == 0) {
+				this->entry_node_PQ.emplace_back(i);
 				this->input_node_Qw.emplace_back(i);
-				this->input_Qw.emplace_back(this->data->_Qwin[i]);
+				this->input_Qw.emplace_back(val);
 			}
 		}
-
-		this->water_input_mode = WATER_INPUT::ENTRY_POINTS_QW;
 	}
 
 	template<class arrin_i_t, class arrin_f_t>
@@ -213,6 +298,34 @@ public:
 		this->input_Qs = std::vector<f_t>(this->input_Qw.size(), 0.);
 		this->water_input_mode = WATER_INPUT::ENTRY_POINTS_QW;
 	}
+
+	void multiply_Qw_input_points(f_t factor)
+	{
+		for (auto& v : this->input_Qw) {
+			v *= factor;
+		}
+	}
+	void multiply_Qs_input_points(f_t factor)
+	{
+		for (auto& v : this->input_Qs) {
+			v *= factor;
+		}
+	}
+	f_t sum_Qw_inputs()
+	{
+		f_t susum = 0.;
+		for (auto& v : this->input_Qw) {
+			susum += v;
+		}
+		return susum;
+	}
+
+	// Small getters
+	std::vector<i_t> get_entry_node_PQ() { return entry_node_PQ; };
+	std::vector<i_t> get_active_nodes() { return active_nodes; };
+	std::vector<i_t> get_input_node_Qw() { return input_node_Qw; };
+	std::vector<f_t> get_input_Qw() { return input_Qw; };
+	std::vector<f_t> get_input_Qs() { return input_Qs; };
 
 	template<class arrin_i_t, class arrin_f_t>
 	void set_QwQs_input_points(arrin_i_t& tarri,
@@ -233,7 +346,7 @@ public:
 	{
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-			this->data->_Qwin[this->input_node_Qw[i]] += this->input_Qw[i];
+			this->xtraQwin[this->input_node_Qw[i]] += this->input_Qw[i];
 		}
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
@@ -246,13 +359,22 @@ public:
 													this->data->_surface[this->entry_node_PQ[i]]));
 			this->isInQ[this->entry_node_PQ[i]] = true;
 		}
+
+		if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT ||
+				this->water_input_mode == WATER_INPUT::PRECIPITATIONS_VARIABLE) {
+			for (int i = 0; i < this->con->nxy(); ++i) {
+				if (this->is_node_active(i)) {
+					this->xtraQwin[i] += this->Prate * this->con->area(i);
+				}
+			}
+		}
 	}
 
 	void add_init_flux()
 	{
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-			this->data->_Qwin[this->input_node_Qw[i]] += this->input_Qw[i];
+			this->xtraQwin[this->input_node_Qw[i]] += this->input_Qw[i];
 		}
 
 		for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
@@ -313,8 +435,20 @@ public:
 		this->sbg_method = SUBGRAPHMETHOD::V1;
 	}
 
+	void compute_qr()
+	{
+
+		this->computor = RUN_GF2::COMPUTEqr;
+		this->run_subgraphflood();
+		this->computor = RUN_GF2::NORMAL;
+	}
+
 	void run_subgraphflood()
 	{
+
+		std::vector<f_t> qr_out;
+		if (this->computor == RUN_GF2::COMPUTEqr)
+			qr_out = std::vector<f_t>(this->con->nxy(), 0.);
 
 		if (this->data->_timetracker.size() == 0) {
 			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
@@ -331,16 +465,36 @@ public:
 												std::less<WaCell<i_t, f_t>>>
 			dynastack;
 
-		fillvec(this->data->_Qwin, 0.);
-		fillvec(this->isInQ, false);
-		if (this->param->gf2_morpho) {
-			fillvec(this->data->_Qsin, 0.);
-			fillvec(this->data->_Qsout, 0.);
+		// ocarina nook;
+
+		// nook.tik();
+
+		if (this->active_nodes.size() == 0) {
+
+			fillvec(this->data->_Qwin, 0.);
+			fillvec(this->xtraQwin, 0.);
+			fillvec(this->isInQ, false);
+			if (this->param->gf2_morpho) {
+				fillvec(this->data->_Qsin, 0.);
+				fillvec(this->data->_Qsout, 0.);
+				fillvec(this->xtraQsout, 0.);
+			}
+		} else {
+
+			fillvec(this->data->_Qwin, 0., this->active_nodes);
+			fillvec(this->xtraQwin, 0., this->active_nodes);
+			fillvec(this->isInQ, false, this->active_nodes);
+			if (this->param->gf2_morpho) {
+				fillvec(this->data->_Qsin, 0., this->active_nodes);
+				fillvec(this->data->_Qsout, 0., this->active_nodes);
+				fillvec(this->xtraQsout, 0., this->active_nodes);
+			}
 		}
 
-		std::vector<f_t> xtraQsout;
-		if (this->param->gf2_morpho)
-			xtraQsout = std::vector<f_t>(this->con->nxy(), 0.);
+		std::vector<int> labels(this->con->nxy(), 0);
+
+		this->MB_Qwin_out = 0.;
+		this->meandhstar = 0.;
 
 		this->init_dstack<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
 
@@ -364,6 +518,9 @@ public:
 		f_t sumout = 0.;
 
 		// std::cout << "Starting the process" << std::endl;
+
+		// nook.tok("init took ");
+		// nook.tik();
 
 		while (dynastack.empty() == false) {
 
@@ -394,21 +551,24 @@ public:
 			ctx.update(next.node, *this->con);
 			;
 
+			++labels[next.node];
+
 			// std::cout << BC2str(ctx.boundary) << std::endl;
 
-			if (ispast) {
-				// this->data->_Qwin[next.node] = std::max(this->data->_Qwin[next.node],
-				// next.Qw);
-				if (this->data->_Qwin[next.node] > next.Qw) {
-					this->data->_Qwin[next.node] += next.Qw;
-				} else {
-					this->data->_Qwin[next.node] = next.Qw;
-				}
-			}
+			// if (ispast == false) {
+			// 	// this->data->_Qwin[next.node] =
+			// std::max(this->data->_Qwin[next.node],
+			// 	// next.Qw);
+			// 	// if (this->data->_Qwin[next.node] > next.Qw) {
+			// 		// this->data->_Qwin[next.node] += next.Qw;
+			// 	// } else {
+			// 		this->data->_Qwin[next.node] = next.Qw;
+			// 	// }
+			// }
 
 			if (can_out(ctx.boundary)) {
-				if (ispast)
-					sumout += this->data->_Qwin[ctx.node];
+				// if (ispast == false)
+				// 	this->MB_Qwin_out += this->data->_Qwin[ctx.node];
 				continue;
 			}
 
@@ -438,32 +598,61 @@ public:
 
 			this->data->_Qwout[ctx.node] = tQwout;
 
+			if (this->computor == RUN_GF2::COMPUTEqr)
+				qr_out[ctx.node] = thw * u_w;
+
+			// Manage the morphodynamics of the model
 			if (this->param->gf2_morpho) {
+				// Calculating shear stress
 				f_t tau = this->param->rho_sed * this->param->GRAVITY * SS * thw;
+
+				// rates
+				// # basal erosion
 				f_t edot = 0.;
+				// # lateral erosion
 				f_t eldot = 0;
+				// # basal dep
 				f_t ddot = 0.;
+				// # lateral dep
 				f_t dldot = 0.;
+
+				// erosion only happens if critical shear stress increases
 				if (tau > this->param->tau_c) {
-					edot = this->param->ke *
+
+					// calculating basal erosion: ke x (shear - critshear) ^ alpha
+					edot = this->param->ke(ctx.node) *
 								 std::pow(tau - this->param->tau_c, this->param->alpha);
+
+					// lateral erosion
 					if (this->param->bank_erosion) {
+						// Getting the highest neighbour to erode
 						int hni = ctx.idxHighestNeighbour(
 							this->data->_surface, this->data->_hw, SSi);
+
 						// hni is -1 if there is no higher neighbours
 						if (hni >= 0) {
+
+							// neihbour ID
 							int hn = ctx.neighbours[hni];
+
+							// difference in substrate elevation defining the max lateral
+							// erosion rate
 							f_t delta_Z =
 								(this->data->_surface[hn] - this->data->_hw[hn] -
 								 this->data->_surface[ctx.node] + this->data->_hw[ctx.node]);
+
+							// Lateral gradient
 							f_t latslope = delta_Z / ctx.neighboursDx[hni];
-							// std::cout << latslope << std::endl;
+
+							// Actual rate
 							eldot = this->param->kel * latslope * edot;
 
+							// checking we do not erode too much
 							if (eldot * this->dt > delta_Z)
 								eldot = delta_Z / this->dt;
 
-							xtraQsout[hn] += eldot * this->con->area(hn);
+							// applyin' stuff
+							this->xtraQsout[hn] += eldot * this->con->area(hn);
 						}
 					}
 				}
@@ -473,6 +662,29 @@ public:
 					(this->data->_Qsin[ctx.node] + eldot * this->con->area(ctx.node)) /
 					(this->param->kd * SSdy); //;
 
+				if (this->param->kd > 0) {
+					int hni =
+						ctx.idxLowestNeighbour(this->data->_surface, this->data->_hw, SSi);
+
+					// hni is -1 if there is no higher neighbours
+					if (hni >= 0) {
+						// neihbour ID
+						int hn = ctx.neighbours[hni];
+
+						// difference in substrate elevation defining the max lateral
+						// erosion rate
+						f_t delta_Z =
+							(this->data->_surface[ctx.node] - this->data->_hw[ctx.node] -
+							 this->data->_surface[hn] + this->data->_hw[hn]);
+
+						f_t latslope = delta_Z / ctx.neighboursDx[hni];
+
+						dldot = latslope * this->param->kdl * dldot;
+
+						this->xtraQsout[hn] += dldot * this->con->area(hn);
+					}
+				}
+
 				this->data->_debug[ctx.node] = ddot;
 				// ddot = std::pow(this->data->_Qsin[ctx.node] / (this->param->kd *
 				// SSdy), 0.5);
@@ -480,17 +692,13 @@ public:
 				this->data->_Qsout[ctx.node] =
 					std::max(static_cast<f_t>(0.),
 									 this->data->_Qsin[ctx.node] +
-										 (edot + eldot - ddot) * this->con->area(ctx.node));
+										 (edot + eldot - ddot - dldot) * this->con->area(ctx.node));
 			}
 
-			// if (!ispast) {
-			// 	thw += this->hw_increment_LM;
-			// 	tsurf += this->hw_increment_LM;
-			// }
+			this->data->_Qwin[ctx.node] = next.Qw + this->xtraQwin[ctx.node];
+			this->xtraQwin[ctx.node] = 0.;
 
-			// NEED TO CARY ON ADDING MORPHO HERE
-
-			f_t baseQw = (ispast) ? this->data->_Qwin[next.node] : next.Qw;
+			f_t baseQw = this->data->_Qwin[ctx.node];
 			f_t baseQs;
 			if (this->param->gf2_morpho)
 				baseQs = (ispast) ? this->data->_Qsout[next.node] : next.Qs;
@@ -499,44 +707,95 @@ public:
 				int i = receivers[j];
 				int rec = ctx.neighbours[i];
 				bool tizdone = this->data->_timetracker[rec] == this->time;
+
 				if (tizdone) {
-					if (this->param->gf2_morpho)
-						dynastack.emplace(WaCell<i_t, f_t>(rec,
-																							 this->data->_surface[rec],
-																							 baseQw * receiversWeights[j],
-																							 baseQs * receiversWeights[j]));
-					else
-						dynastack.emplace(WaCell<i_t, f_t>(
-							rec, this->data->_surface[rec], baseQw * receiversWeights[j]));
+					if (this->param->gf2_morpho) {
+						if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
+							if (this->isInQ[rec])
+								this->xtraQwin[rec] += baseQw * receiversWeights[j];
+							else
+								dynastack.emplace(
+									WaCell<i_t, f_t>(rec,
+																	 this->data->_surface[rec],
+																	 baseQw * receiversWeights[j],
+																	 baseQs * receiversWeights[j]));
+
+							this->isInQ[rec] = true;
+						} else
+							this->MB_Qwin_out += baseQw * receiversWeights[j];
+					} else {
+						if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
+							if (this->isInQ[rec])
+								this->xtraQwin[rec] += baseQw * receiversWeights[j];
+							else
+								dynastack.emplace(
+									WaCell<i_t, f_t>(rec,
+																	 this->data->_surface[rec],
+																	 baseQw * receiversWeights[j]));
+
+							this->isInQ[rec] = true;
+						} else
+							this->MB_Qwin_out += baseQw * receiversWeights[j];
+					}
 
 				} else {
+
 					if (this->isInQ[rec] == false) {
-						dynastack.emplace(WaCell<i_t, f_t>(rec, this->data->_surface[rec]));
-						this->isInQ[rec] = true;
+
+						if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
+							dynastack.emplace(
+								WaCell<i_t, f_t>(rec, this->data->_surface[rec]));
+							this->isInQ[rec] = true;
+						} else
+							this->MB_Qwin_out += baseQw * receiversWeights[j];
 					}
-					this->data->_Qwin[rec] += baseQw * receiversWeights[j];
+
+					this->xtraQwin[rec] += baseQw * receiversWeights[j];
 					if (this->param->gf2_morpho)
 						this->data->_Qsin[rec] += baseQs * receiversWeights[j];
 				}
 			}
 		}
-		// std::cout << "done" << std::endl;
+
+		if (this->computor == RUN_GF2::COMPUTEqr)
+			this->data->fbag["qr_out"] = std::move(qr_out);
+
+		if (this->computor != RUN_GF2::NORMAL)
+			return;
+
+		// nook.tok("PQ took ");
+		// nook.tik();
+		// std::cout << "actnodes " << this->active_nodes.size() << std::endl;
 
 		CT_neighbourer_WaCell<i_t, f_t> ctx2;
 
 		for (int i = 0; i < this->con->nxy(); ++i) {
 
-			if (nodata(this->data->_boundaries[i]) ||
-					can_out(this->data->_boundaries[i]) ||
-					this->sbg_method == SUBGRAPHMETHOD::FILLONLY)
+			if (this->active_nodes.size() > 0 && i >= this->active_nodes.size())
+				break;
+
+			int node = (this->active_nodes.size() > 0) ? this->active_nodes[i] : i;
+
+			this->data->_Qwin[node] += this->xtraQwin[node];
+			this->xtraQwin[node] = 0.;
+
+			if (this->is_node_active(i) == false)
 				continue;
-			if (this->data->_timetracker[i]<this->time&& this->data->_hw[i]> 0) {
-				this->data->_timetracker[i] = this->time;
-				this->data->_Qwin[i] = 0.;
+
+			if (this->data
+						->_timetracker[node]<this->time&& this->data->_hw[node]> 0) {
+				this->data->_timetracker[node] = this->time;
+				this->data->_Qwin[node] = 0.;
 				ctx.update(i, *this->con);
 				this->_calculate_Qwout_for_disconnected_nodes(ctx2);
 			}
 		}
+
+		// std::string no = "NO";
+		// for(auto st:this->input_node_Qw){if(st == 648257) no = "YES";}
+
+		// std::cout << "648257:::" << this->data->_Qwin[648257]<< " " << no <<
+		// std::endl;
 
 		// if(this->param->bank_erosion){
 
@@ -546,41 +805,56 @@ public:
 		// 	}
 		// }
 
-		if (this->param->gf2_diffuse_Qwin)
-			this->data->_Qwin =
-				On_gaussian_blur(1., this->data->_Qwin, this->con->_nx, this->con->_ny);
+		// if (this->param->gf2_diffuse_Qwin)
+		// 	this->data->_Qwin =
+		// 		On_gaussian_blur(1., this->data->_Qwin, this->con->_nx,
+		// this->con->_ny);
+
+		int NN = 0;
 
 		for (int i = 0; i < this->con->nxy(); ++i) {
 
-			if (nodata(this->data->_boundaries[i]) ||
-					can_out(this->data->_boundaries[i]))
+			if (this->active_nodes.size() > 0 && i >= this->active_nodes.size())
+				break;
+
+			int node = (this->active_nodes.size() > 0) ? this->active_nodes[i] : i;
+
+			if (can_out(this->data->_boundaries[node])) {
+				this->MB_Qwin_out += this->data->_Qwin[node];
+			}
+
+			if (this->is_node_active(i) == false)
 				continue;
 
-			f_t& thw = this->data->_hw[i];
-			f_t& tsurf = this->data->_surface[i];
+			f_t& thw = this->data->_hw[node];
+			f_t& tsurf = this->data->_surface[node];
 
 			f_t dhw = 0.;
 			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
-				dhw = this->data->_Qwin[i] - this->data->_Qwout[i];
+				dhw = this->data->_Qwin[node] - this->data->_Qwout[node];
 			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
-				dhw = this->data->_Qwin[i];
+				dhw = this->data->_Qwin[node];
 			}
 
 			dhw *= this->dt;
 			dhw /= this->con->area(i);
 
+			this->meandhstar += dhw / this->dt;
+			++NN;
+
 			thw += dhw;
 			tsurf += dhw;
 
 			if (this->param->gf2_morpho) {
-				f_t dz = this->data->_Qsin[i] - this->data->_Qsout[i] - xtraQsout[i];
+				f_t dz =
+					this->data->_Qsin[node] - this->data->_Qsout[node] - xtraQsout[node];
 				dz *= this->dt * this->param->time_dilatation_morpho;
 				dz /= this->con->area(i);
 				tsurf += dz;
 			}
 
 			if (std::isfinite(tsurf) == false) {
-				std::cout << this->data->_Qwout[i] << "|" << this->data->_Qwin[i]
+				std::cout << this->data->_Qwout[node] << "|" << this->data->_Qwin[node]
 									<< std::endl;
 				;
 				throw std::runtime_error("blug");
@@ -592,9 +866,69 @@ public:
 			}
 		}
 
-		// this->data->fbag["ddot"] = this->data->_debug;
+		// nook.tok("post took ");
+
+		if (NN > 0)
+			this->meandhstar /= NN;
+
+		this->data->ibag["labels"] = labels;
 
 		// std::cout << "Sumout: " << sumout << std::endl; ;
+	}
+
+	bool is_node_active(int i)
+	{
+		if (nodata(this->data->_boundaries[i]) ||
+				can_out(this->data->_boundaries[i])) {
+			return false;
+		}
+
+		if (this->param->TSG_dist && this->tsg.xtraMask[i] == false) {
+			return false;
+		}
+
+		return true;
+	}
+
+	void solve_analytically_if(f_t threshold)
+	{
+
+		CT_neighbours<i_t, f_t> ctx;
+
+		std::array<i_t, 8> receivers;
+		std::array<f_t, 8> receiversWeights;
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (this->is_node_active(i) == false)
+				continue;
+
+			if (this->data->_Qwin[i] == 0 ||
+					abs(1 - this->data->_Qwout[i] / this->data->_Qwin[i]) < threshold)
+				continue;
+
+			// std::cout << next.node << std::endl;
+			ctx.update(i, *this->con);
+			;
+
+			int nr = 0;
+			int SSi = 0;
+			f_t SS = 0;
+			f_t SSdx = 1.;
+			f_t SSdy = 1.;
+
+			// std::cout << "A1" << std::endl;
+			this->update_receivers(
+				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
+
+			f_t hw = this->data->_hw[i];
+
+			f_t nhw = std::pow((this->mannings * this->data->_Qwin[i]) /
+													 (SSdy * std::sqrt(SS)),
+												 3. / 5.);
+			this->data->_hw[i] = nhw;
+			this->data->_surface[i] += nhw - hw;
+		}
 	}
 
 	void run_dynamic()
@@ -667,7 +1001,7 @@ public:
 				f_t edot = 0.;
 				f_t ddot = 0.;
 				if (tau > this->param->tau_c) {
-					edot = this->param->ke *
+					edot = this->param->ke(ctx.node) *
 								 std::pow(tau - this->param->tau_c, this->param->alpha);
 					// std::pow(tau - this->param->tau_c, this->param->alpha) *
 					// (this->data->randu->get()*0.5 + 1.);
@@ -759,6 +1093,59 @@ public:
 		}
 
 		// std::cout << "Sumout: " << sumout << std::endl; ;
+	}
+
+	f_t evaluate_convergence(f_t tol = 0.05, bool onMask = true)
+	{
+
+		int Neq = 0;
+		int N = 0;
+
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (this->data->_Qwin[i] == 0)
+				continue;
+
+			if (onMask) {
+				if (this->tsg.xtraMask[i]) {
+					if (abs(1 - this->data->_Qwout[i] / this->data->_Qwin[i]) < tol)
+						++Neq;
+					++N;
+				}
+			} else {
+				if (abs(1 - this->data->_Qwout[i] / this->data->_Qwin[i]) < tol)
+					++Neq;
+				++N;
+			}
+		}
+
+		return (N > 0) ? static_cast<f_t>(Neq) / N : 0.;
+	}
+
+	/// Periodic refeeding of sediments
+	/// The sediments outputting the system are refed to every entry points
+	void feed_inputQs_with_out()
+	{
+
+		int n_inputs = static_cast<int>(this->input_Qs.size());
+
+		if (n_inputs == 0 || this->param->gf2_morpho == false)
+			return;
+
+		f_t tot_QS = 0.;
+		for (int i = 0; i < this->con->nxy(); ++i) {
+
+			if (can_out(this->data->_boundaries[i]))
+				tot_QS += this->data->_Qsin[i];
+		}
+
+		f_t sumsum = 0;
+		for (int j = 0; j < n_inputs; ++j) {
+			this->input_Qs[j] = tot_QS / n_inputs;
+			sumsum += this->input_Qs[j];
+		}
+
+		// std::cout << "tot_QS:" << tot_QS << " vs " << sumsum << std::endl;
 	}
 
 	// experimental
@@ -886,7 +1273,7 @@ public:
 				f_t edot = 0.;
 				f_t ddot = 0.;
 				if (tau > this->param->tau_c) {
-					edot = this->param->ke *
+					edot = this->param->ke(ctx.node) *
 								 std::pow(tau - this->param->tau_c, this->param->alpha);
 				}
 				ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy);
@@ -1057,14 +1444,11 @@ public:
 			}
 		}
 
-		// f_t sumsum = 0;
-		// for(int i=0; i<nr; ++i){
-		// 	if(receiversWeights[i] > 1)
-		// 		throw std::runtime_error("false");
-		// 	sumsum += receiversWeights[i];
-		// }
-		// if(std::abs(sumsum - 1) > 1e-4 && sumsum != 0)
-		// 	throw std::runtime_error("false");
+		if (SSn >= 0)
+			if (can_out(this->data->_boundaries[SSn]) &&
+					this->param->gf2Bmode == BOUNDARY_HW::FIXED_SLOPE) {
+				SS = std::min(this->param->gf2Bbval, SS);
+			}
 
 		// done
 	}
@@ -1085,7 +1469,9 @@ public:
 
 		if (dynastack.empty() == false) {
 			while (dynastack.top().node == next.node) {
+				// std::cout << next.Qw;
 				next.ingest(dynastack.top());
+				// std::cout << " | " << next.Qw << std::endl;
 				dynastack.pop();
 				if (dynastack.empty())
 					break;
@@ -1244,8 +1630,8 @@ public:
 				}
 			}
 
-			if (abs(sumW - 1) > 1e-5)
-				std::cout << sumW << std::endl;
+			// if (abs(sumW - 1) > 1e-5)
+			// 	std::cout << sumW << std::endl;
 		}
 	}
 
@@ -1272,8 +1658,8 @@ public:
 				}
 			}
 
-			if (abs(sumW - 1) > 1e-5)
-				std::cout << sumW << std::endl;
+			// if (abs(sumW - 1) > 1e-5)
+			// 	std::cout << sumW << std::endl;
 		}
 	}
 
@@ -1564,6 +1950,13 @@ public:
 
 	void standalone_Qwin() { this->data->_Qwin = this->_standalone_Qwin(); }
 
+	template<class out_t>
+	out_t standalone_Qwin_D8()
+	{
+		auto out = this->_standalone_Qwin_D8();
+		return format_output<std::vector<f_t>, out_t>(out);
+	}
+
 	std::vector<f_t> _standalone_Qwin()
 	{
 
@@ -1621,6 +2014,37 @@ public:
 		return tQw;
 	}
 
+	std::vector<f_t> _standalone_Qwin_D8()
+	{
+
+		this->con->PFcompute_all(false);
+
+		std::vector<f_t> tQw(this->con->nxy(), 0.);
+
+		if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_QW) {
+			for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+				tQw[this->input_node_Qw[i]] += this->input_Qw[i];
+			}
+		}
+
+		for (int i = static_cast<int>(this->data->_stack.size()) - 1; i >= 0; --i) {
+			int node = this->data->_stack[i];
+
+			if (nodata(this->data->_boundaries[node]) ||
+					can_out(this->data->_boundaries[node]))
+				continue;
+
+			if (this->water_input_mode == WATER_INPUT::PRECIPITATIONS_CONSTANT)
+				tQw[node] += this->Prate * this->con->area(node);
+
+			int trec = con->Sreceivers(node);
+			if (trec != node)
+				tQw[trec] += tQw[node];
+		}
+
+		return tQw;
+	}
+
 	void diffuse_topo(f_t mag)
 	{
 		this->data->_surface = On_gaussian_blur(
@@ -1633,6 +2057,11 @@ public:
 		// First computing the bloody graph stuffies yolo
 		this->con->PFcompute_all(false);
 
+		this->active_nodes = std::vector<i_t>();
+		this->active_nodes.reserve(this->con->nxy());
+
+		this->tsg.xtraMask = std::vector<std::uint8_t>(this->con->nxy(), false);
+
 		// Reset the entry points
 		this->input_node_Qw_tsg.clear();
 		this->input_Qw_tsg.clear();
@@ -1641,73 +2070,28 @@ public:
 		std::vector<f_t> dist2out =
 			_compute_min_distance_from_outlets<i_t, f_t, CONNECTOR_T>(*this->con);
 
+		normalise_vector(dist2out);
+
 		// and masking
 		for (int i = 0; i < this->con->nxy(); ++i) {
-			if (dist2out[i] > mindist && dist2out[i] < maxdist)
+			// std::cout << dist2out[i] << " ";
+			if (dist2out[i] > mindist && dist2out[i] < maxdist) {
+				// std::cout << "???" << std::endl;
 				this->tsg.xtraMask[i] = true;
-			else
+				this->active_nodes.emplace_back(i);
+			} else
 				this->tsg.xtraMask[i] = false;
 		}
 
-		// Old ways (bug?)
-		// // Now calculating the Qw for the whole landscape
-		// std::vector<f_t> tQw(this->con->nxy(), 0.);
-		// std::vector<std::uint8_t> isDone(this->con->nxy(), false);
-		// for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
-		// 	tQw[this->input_node_Qw[i]] += this->input_Qw[i];
-		// }
+		std::vector<int> temp(this->con->nxy());
+		std::copy(
+			this->tsg.xtraMask.begin(), this->tsg.xtraMask.end(), temp.begin());
 
-		// for (int i = this->con->nxy() - 1; i >= 0; --i) {
-		// 	int node = this->data->_Sstack[i];
-		// 	int trec = this->con->Sreceivers(node);
-		// 	if (isDone[node] || nodata(this->data->_boundaries[node]) ||
-		// 			this->tsg.xtraMask[node]) {
-		// 		isDone[trec] = true;
-		// 		continue;
-		// 	}
-
-		// 	isDone[node] = true;
-
-		// 	tQw[trec] += tQw[node];
-
-		// 	if (this->tsg.xtraMask[trec]) {
-		// 		this->input_node_Qw_tsg.emplace_back(trec);
-		// 		isDone[trec] = true;
-		// 	}
-		// }
-
-		// for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
-		// 	if (this->tsg.xtraMask[this->input_node_Qw[i]])
-		// 		this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
-		// }
-
-		// for (auto v : this->input_node_Qw_tsg) {
-		// 	// std::cout << "|" << v;
-		// 	this->input_Qw_tsg.emplace_back(tQw[v]);
-		// }
-
-		// // this->tsg.build_from_donor_sources(this->entry_node_PQ);
-		// // std::vector<int> yolo(this->con->nxy(),0);
-		// // for(int i=0; i<this->con->nxy(); ++i)
-		// // 	yolo[i] = int(this->tsg.xtraMask[i]);
-
-		// this->data->ibag["debugTSG"] = this->input_node_Qw_tsg;
-
-		// std::cout << "N input points::" << this->input_node_Qw_tsg.size() << "/"
-		// 					<< this->input_Qw_tsg.size() << std::endl;
+		this->data->ibag["tsgMask"] = temp;
 	}
 
 	void prepare_tsg()
 	{
-
-		// flush the old entry points
-		this->input_node_Qw_tsg.clear();
-		this->input_Qw_tsg.clear();
-
-		// reserve new space (let's say 1% of the total number of nodes, to be
-		// tested but should not be performance critical)
-		this->input_node_Qw_tsg.reserve(static_cast<int>(this->con->nxy() / 100));
-		this->input_Qw_tsg.reserve(static_cast<int>(this->con->nxy() / 100));
 
 		// process non-local fluxes entries
 		// # Get the right Qwin
@@ -1715,61 +2099,125 @@ public:
 		std::vector<f_t> tQw = this->_standalone_Qwin();
 		std::vector<std::uint8_t> isDone(this->con->nxy(), false);
 
+		std::unordered_map<i_t, f_t> i2Qw;
+		for (int i = 0; i < static_cast<int>(this->input_node_Qw.size()); ++i) {
+			i2Qw[this->input_node_Qw[i]] = this->input_Qw[i];
+		}
+
+		// flush the old entry points
+		this->input_node_Qw.clear();
+		this->entry_node_PQ.clear();
+		this->input_Qw.clear();
+
+		// reserve new space (let's say 1% of the total number of nodes, to be
+		// tested but should not be performance critical)
+		// this->input_node_Qw.reserve(static_cast<int>(this->con->nxy() / 100));
+		// this->input_Qw.reserve(static_cast<int>(this->con->nxy() / 100));
+
 		// # iterates upstream to downstream to gather the entry points
 		std::array<i_t, 8> recs;
+		std::array<f_t, 8> dxs, dys, slopes;
 		for (int i = static_cast<int>(this->data->_stack.size()) - 1; i >= 0; --i) {
 			// ## Getting next upstreamest unprocessed node
 			int node = this->data->_stack[i];
 
 			// ## ignoring if already processed or already in the tsg
 			if (nodata(this->data->_boundaries[node]) ||
-					can_out(this->data->_boundaries[node]) || this->tsg.xtraMask[node])
+					can_out(this->data->_boundaries[node]) ||
+					(this->tsg.xtraMask[node]) || isDone[node])
 				continue;
+
+			// if()
 
 			// ## Getting receivers
 			int nr = this->con->Receivers(node, recs);
 			if (nr == 0)
 				continue;
 
+			this->con->ReceiversDx(node, dxs);
+			this->con->ReceiversDy(node, dys);
+
+			f_t sumslopes = 0.;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] =
+					std::max(this->data->_surface[node] - this->data->_surface[recs[j]],
+									 1e-6) /
+					dxs[j] * dys[j];
+				sumslopes += slopes[j];
+			}
+
+			if (sumslopes <= 0)
+				sumslopes = nr;
+
+			for (int j = 0; j < nr; ++j) {
+				slopes[j] /= sumslopes;
+			}
+
+			bool is2add = false;
+			f_t sumQW = 0;
 			// ## Iterating through receivers
 			for (int j = 0; j < nr; ++j) {
 				int trec = recs[j];
-				if (this->tsg.xtraMask[trec] && tQw[trec] > 0) {
+				if (this->tsg.xtraMask[trec]) {
+
+					is2add = true;
+
 					// ## and labelling the ones that are in the tsg while current node
 					// isn't
 					isDone[trec] = true;
+					sumQW += tQw[node] * slopes[j];
 				}
+			}
+
+			if (is2add && sumQW > 0) {
+				this->input_node_Qw.emplace_back(node);
+				this->entry_node_PQ.emplace_back(node);
+				this->input_Qw.emplace_back(sumQW);
 			}
 		}
 
-		// Saving the labelled entry points to the subgraph
-		for (int i = 0; i < this->con->nxy(); ++i) {
-			// # First the ones labelled non=locally above
-			if (isDone[i]) {
-				this->input_node_Qw_tsg.emplace_back(i);
-				this->input_Qw_tsg.emplace_back(tQw[i]);
-				// # but also the local ones in case a node is not labelled, in the tsg,
-				// and if precipitations rates are global
-			} else if (this->tsg.xtraMask[i] &&
-								 this->water_input_mode ==
-									 WATER_INPUT::PRECIPITATIONS_CONSTANT) {
-				this->input_node_Qw_tsg.emplace_back(i);
-				this->input_Qw_tsg.emplace_back(this->Prate * this->con->area(i));
+		for (auto& pair : i2Qw) {
+			if (this->tsg.xtraMask[pair.first] && isDone[pair.first] == false) {
+				// tQw[pair.first] = pair.second;
+				this->input_node_Qw.emplace_back(pair.first);
+				this->entry_node_PQ.emplace_back(pair.first);
+				this->input_Qw.emplace_back(pair.second);
+				// isDone[pair.first] = true;
 			}
 		}
+
+		// // Saving the labelled entry points to the subgraph
+		// for (int i = 0; i < this->con->nxy(); ++i) {
+		// 	// # First the ones labelled non=locally above
+		// 	if (isDone[i]) {
+		// 		this->input_node_Qw.emplace_back(i);
+		// 		this->entry_node_PQ.emplace_back(i);
+		// 		this->input_Qw.emplace_back(tQw[i]);
+		// 		// # but also the local ones in case a node is not labelled, in the
+		// tsg,
+		// 		// and if precipitations rates are global
+		// 	} else if (this->tsg.xtraMask[i] &&
+		// 						 this->water_input_mode ==
+		// 							 WATER_INPUT::PRECIPITATIONS_CONSTANT) {
+		// 		this->input_node_Qw.emplace_back(i);
+		// 		this->entry_node_PQ.emplace_back(i);
+		// 		this->input_Qw.emplace_back(this->Prate * this->con->area(i));
+		// 	}
+		// }
 
 		// dealing now with the local inputs
-		if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_QW) {
-			for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
-				if (this->tsg.xtraMask[this->input_node_Qw[i]] &&
-						isDone[this->input_node_Qw[i]] == false) {
-					if (this->input_Qw[i] > 0) {
-						this->input_node_Qw_tsg.emplace_back(this->input_node_Qw[i]);
-						this->input_Qw_tsg.emplace_back(this->input_Qw[i]);
-					}
-				}
-			}
-		}
+		// if (this->water_input_mode == WATER_INPUT::ENTRY_POINTS_QW) {
+		// 	for (size_t i = 0; i < this->input_node_Qw.size(); ++i) {
+		// 		if (this->tsg.xtraMask[this->input_node_Qw[i]] &&
+		// 				isDone[this->input_node_Qw[i]] == false) {
+		// 			if (this->input_Qw[i] > 0) {
+		// 				this->input_node_Qw.emplace_back(this->input_node_Qw[i]);
+		// 				this->input_Qw.emplace_back(this->input_Qw[i]);
+		// 			}
+		// 		}
+		// 	}
+		// }
 
 		// std::cout << input_node_Qw_tsg.size() << " in da Q" << std::endl;
 	}
@@ -2003,7 +2451,7 @@ public:
 				f_t edot = 0.;
 				f_t ddot = 0.;
 				if (tau > this->param->tau_c) {
-					edot = this->param->ke *
+					edot = this->param->ke(ctx.node) *
 								 std::pow(tau - this->param->tau_c, this->param->alpha);
 				}
 				ddot = this->data->_Qsin[ctx.node] / (this->param->kd * SSdy);

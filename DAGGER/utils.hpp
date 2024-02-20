@@ -611,6 +611,14 @@ fillvec(std::vector<T>& vec, U val)
 		vec[i] = val;
 }
 
+template<class T, class U>
+void
+fillvec(std::vector<T>& vec, U val, std::vector<int>& nodes)
+{
+	for (size_t i = 0; i < nodes.size(); ++i)
+		vec[nodes[i]] = val;
+}
+
 template<class T>
 void
 fillvecrange(std::vector<T>& vec)
