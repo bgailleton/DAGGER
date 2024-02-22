@@ -1,5 +1,6 @@
 #pragma once
 
+#include "RivNet1D.hpp"
 #include "boundary_conditions.hpp"
 #include "enumutils.hpp"
 #include "lookup_neighbourer.hpp"
@@ -165,6 +166,8 @@ public:
 	std::map<std::string, std::vector<std::uint8_t>> u8bag;
 
 	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
+
+	std::vector<RivNet1D<i_t, f_t>> river_networks;
 
 }; // end of class Hermes
 

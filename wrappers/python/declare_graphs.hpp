@@ -34,6 +34,9 @@ declare_graph(py::module& m, std::string typestr)
 	m.def("compute_relief",
 				&compute_relief<int, double, Connector8<int, double>>);
 
+	m.def("replace_with_slopped_surface",
+				&replace_with_slopped_surface<int, double, Connector8<int, double>>);
+
 	m.def("recast_BC_bellow_Z",
 				&recast_BC_bellow_Z<int, double, Connector8<int, double>>);
 

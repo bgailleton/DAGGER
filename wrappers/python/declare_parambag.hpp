@@ -23,7 +23,11 @@ declare_param(py::module& m)
 		.def("get_kdl", &ParamBag<int, double>::get_kdl)
 		.def("set_kel", &ParamBag<int, double>::set_kel)
 		.def("get_kel", &ParamBag<int, double>::get_kel)
+		.def("calculate_ke_tau_c_from_MPM",
+				 &ParamBag<int, double>::calculate_ke_tau_c_from_MPM)
+
 		.def("enable_TSG_dist", &ParamBag<int, double>::enable_TSG_dist)
+
 		.def("disable_TSG_dist", &ParamBag<int, double>::disable_TSG_dist)
 		.def("set_TSG_distmax", &ParamBag<int, double>::set_TSG_distmax)
 		.def("set_time_dilatation_morpho",

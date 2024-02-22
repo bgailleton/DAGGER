@@ -20,10 +20,12 @@ public:
 
 	// CONSTANTS
 	f_t GRAVITY = 9.8;
-	f_t rho_sed = 1000;
+	f_t rho_water = 1000;
+	f_t rho_sed = 2300;
 
 	// Stuff I'll vary later
-	f_t tau_c = 4.;
+	f_t MPM_THETHA_C = 0.047;
+	f_t tau_c = 2.;
 	f_t alpha = 1.5;
 
 	BOUNDARY_HW gf2Bmode = BOUNDARY_HW::FIXED_SLOPE;
@@ -42,6 +44,11 @@ public:
 	}
 	f_t get_time_dilatation_morpho() { return this->time_dilatation_morpho; }
 
+	// -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+	// -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+	// -~-~-~-~-~-~-~-~-~- ke is the E in MPM in me code -~-~-~-~-~-~-~-~-~
+	// -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
+	// -~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~-~
 	f_t _ke = 1e-3;
 	std::vector<f_t> _ke_v;
 	PARAMTYPE p_ke = PARAMTYPE::CTE;
@@ -62,6 +69,17 @@ public:
 		this->p_ke = PARAMTYPE::VAR;
 		auto arr = format_input<arrin_t>(tarr);
 		this->_ke_v = to_vec(arr);
+	}
+
+	void calculate_ke_tau_c_from_MPM(f_t D)
+	{
+		f_t R = this->rho_sed / this->rho_water - 1;
+		this->tau_c = this->rho_water * this->GRAVITY * R * D * this->MPM_THETHA_C;
+		f_t E = 8 / (std::sqrt(this->rho_water) *
+								 (this->rho_sed - this->rho_water) * this->GRAVITY);
+		this->set_ke(E / this->kd);
+		std::cout << "DEBUG:: tau_c = " << this->tau_c
+							<< " ke (erosion coeff) : " << E / this->kd << std::endl;
 	}
 
 	f_t kd = 10;

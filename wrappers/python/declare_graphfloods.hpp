@@ -46,6 +46,15 @@ declare_graphflood(py::module& m, std::string typestr)
 											int,
 											Hermes<int, double>,
 											ParamBag<int, double>>::run_subgraphflood)
+
+		.def("morphoton",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::morphoton)
+
 		.def("run_dynamic",
 				 &Graphflood2<int,
 											double,

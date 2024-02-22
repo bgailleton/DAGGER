@@ -522,4 +522,38 @@ compute_sources_D8(f_t Ath, CONNECTOR_T& con)
 	return format_output<decltype(out), out_t>(out);
 }
 
+/// Calculates the MFD graph, then replace the elevation with a slopped surface.
+/// Tries to homogeneify the slope for every links
+template<class i_t, class f_t, class CONNECTOR_T>
+void
+replace_with_slopped_surface(f_t slope, CONNECTOR_T& con)
+{
+
+	// preformatting the output
+	con.PFcompute_all(false);
+
+	std::array<f_t, 8> dxs;
+	std::array<i_t, 8> recs;
+
+	for (auto node : con.data->_stack) {
+
+		if (nodata(con.data->_boundaries[node]))
+			continue;
+
+		if (can_out(con.data->_boundaries[node])) {
+			con.data->_surface[node] = 0;
+			continue;
+		}
+
+		int nd = con.Receivers(node, recs);
+
+		con.ReceiversDx(node, dxs);
+
+		for (int j = 0; j < nd; ++j) {
+			con.data->_surface[node] = std::max(
+				con.data->_surface[node], con.data->_surface[recs[j]] + slope * dxs[j]);
+		}
+	}
+}
+
 }; // end of namespace
