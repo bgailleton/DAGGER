@@ -7,7 +7,10 @@ void
 declare_param(py::module& m)
 {
 	py::class_<ParamBag<int, double>>(m, "ParamBag")
+
 		.def(py::init<>())
+		.def("get_morphomode", &ParamBag<int, double>::get_morphomode)
+		.def("set_morphomode", &ParamBag<int, double>::set_morphomode)
 		.def("set_ke", &ParamBag<int, double>::set_ke)
 		.def("set_variable_ke",
 				 &ParamBag<int, double>::set_variable_ke<py::array_t<double, 1>>)
@@ -41,6 +44,12 @@ declare_param(py::module& m)
 		.def("disable_bank_erosion", &ParamBag<int, double>::disable_bank_erosion)
 		.def("set_gf2Bbval", &ParamBag<int, double>::set_gf2Bbval)
 		.def("get_gf2Bbval", &ParamBag<int, double>::get_gf2Bbval)
+		.def("set_minWeightQw", &ParamBag<int, double>::set_minWeightQw)
+		.def("get_minWeightQw", &ParamBag<int, double>::get_minWeightQw)
+		.def("set_capacityFacQs", &ParamBag<int, double>::set_capacityFacQs)
+		.def("get_capacityFacQs", &ParamBag<int, double>::get_capacityFacQs)
+		.def("set_capacityFacQw", &ParamBag<int, double>::set_capacityFacQw)
+		.def("get_capacityFacQw", &ParamBag<int, double>::get_capacityFacQw)
 
 		;
 }

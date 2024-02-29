@@ -7,6 +7,7 @@
 #include "declare_includes.hpp"
 #include "declare_parambag.hpp"
 #include "declare_popscapes.hpp"
+#include "declare_rivnets.hpp"
 #include "declare_trackscapes.hpp"
 
 using namespace DAGGER;
@@ -131,6 +132,7 @@ PYBIND11_MODULE(dagger, m)
 																	 DAGGER::D8connector<FLOATING_POINT_DAGGER>>,
 										 DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
 																																 "graphflood");
+	declare_rivnet(m);
 };
 ;
 

@@ -8,6 +8,9 @@ need that now
 - Only work with the python wrapper
 - Ain't got no time ATM
 
+
+Being slowly deprecated in favour of  RivNet1D.hpp, more generic
+
 */
 
 #include "D8connector.hpp"

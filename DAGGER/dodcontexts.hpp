@@ -123,6 +123,8 @@ public:
 	std::array<i_t, 8> neighbours;
 	std::array<BC, 8> neighboursCode;
 	std::array<f_t, 8> neighboursDx;
+	std::array<std::int8_t, 8> neighboursDxSign;
+	std::array<std::int8_t, 8> neighboursDySign;
 	std::array<f_t, 8> neighboursDy;
 
 	std::array<i_t, 8> receivers;
@@ -132,6 +134,7 @@ public:
 	std::array<f_t, 8> receiversSurfaces;
 	std::array<f_t, 8> receiversSlopes;
 	std::array<f_t, 8> receiversWeights;
+	std::array<std::int8_t, 8> receiversDxSign, receiversDySign;
 
 	bool allRecsDone = false;
 	bool allNeighsDone = false;
@@ -152,6 +155,8 @@ public:
 		this->nn = con.Neighbours(node, this->neighbours);
 		con.NeighboursDx(node, this->neighboursDx);
 		con.NeighboursDy(node, this->neighboursDy);
+		con.NeighboursDxSign(node, this->neighboursDxSign);
+		con.NeighboursDySign(node, this->neighboursDySign);
 
 		// Now dealing with receivers
 		this->nr = 0;
@@ -199,6 +204,8 @@ public:
 					this->receiversCode[nr] = this->neighboursCode[i];
 					this->receiversDx[nr] = this->neighboursDx[i];
 					this->receiversDy[nr] = this->neighboursDy[i];
+					this->receiversDxSign[nr] = this->neighboursDxSign[i];
+					this->receiversDySign[nr] = this->neighboursDySign[i];
 					this->receiversSurfaces[nr] = con.data->_surface[this->neighbours[i]];
 					this->receiversSlopes[nr] =
 						(this->surface - this->receiversSurfaces[nr]) /
@@ -263,6 +270,8 @@ public:
 	std::array<BC, 8> neighboursCode;
 	std::array<f_t, 8> neighboursDx;
 	std::array<f_t, 8> neighboursDy;
+	std::array<std::int8_t, 8> neighboursDxSign;
+	std::array<std::int8_t, 8> neighboursDySign;
 
 	bool canout = false;
 
@@ -279,6 +288,8 @@ public:
 		this->nn = con.Neighbours(node, this->neighbours);
 		con.NeighboursDx(node, this->neighboursDx);
 		con.NeighboursDy(node, this->neighboursDy);
+		con.NeighboursDxSign(node, this->neighboursDxSign);
+		con.NeighboursDySign(node, this->neighboursDySign);
 		this->canout = false;
 
 		// Processing neighbours

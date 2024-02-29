@@ -27,6 +27,15 @@ declare_dbag(py::module& m)
 		.def("set_Qsout", &Hermes<int, double>::set_Qsout<py::array_t<double, 1>>)
 		.def("get_Qsout", &Hermes<int, double>::get_Qsout<py::array_t<double, 1>>)
 
+		.def("set_theta_flow_in",
+				 &Hermes<int, double>::set_theta_flow_in<py::array_t<double, 1>>)
+		.def("get_theta_flow_in",
+				 &Hermes<int, double>::get_theta_flow_in<py::array_t<double, 1>>)
+		.def("set_theta_flow_out",
+				 &Hermes<int, double>::set_theta_flow_out<py::array_t<double, 1>>)
+		.def("get_theta_flow_out",
+				 &Hermes<int, double>::get_theta_flow_out<py::array_t<double, 1>>)
+
 		.def("set_boundaries",
 				 &Hermes<int, double>::set_boundaries<py::array_t<std::uint8_t, 1>>)
 		.def("get_boundaries",

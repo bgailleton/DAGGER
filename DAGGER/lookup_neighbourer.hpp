@@ -97,14 +97,27 @@ public:
 
 	std::array<std::array<i_t, 8>, NADDER> adders;
 	std::array<f_t, 8> dxer;
+	std::array<f_t, 8> dyer;
+
+	std::array<std::int8_t, 8> dxSigner;
+	std::array<std::int8_t, 8> dySigner;
 
 	std::array<std::array<i_t, 256>, NADDER> NeighbourerD8;
 	std::array<std::array<f_t, 256>, NADDER> NeighbourerD8dx;
+	std::array<std::array<f_t, 256>, NADDER> NeighbourerD8dy;
+	std::array<std::array<std::int8_t, 256>, NADDER> NeighbourerD8dxSign;
+	std::array<std::array<std::int8_t, 256>, NADDER> NeighbourerD8dySign;
+
 	std::array<std::array<std::uint8_t, 256>, NADDER> NeighbourerNN;
 	std::array<std::array<std::array<i_t, 8>, 256>, NADDER> Neighbourer;
 	std::array<std::array<std::array<std::uint8_t, 8>, 256>, NADDER>
 		NeighbourerBits;
 	std::array<std::array<std::array<f_t, 8>, 256>, NADDER> Neighbourerdx;
+	std::array<std::array<std::array<f_t, 8>, 256>, NADDER> Neighbourerdy;
+	std::array<std::array<std::array<std::int8_t, 8>, 256>, NADDER>
+		NeighbourerdxSign;
+	std::array<std::array<std::array<std::int8_t, 8>, 256>, NADDER>
+		NeighbourerdySign;
 
 	// Helps managing the shenanigans behind periodic conditions or other node
 	// changing thingies
@@ -180,6 +193,10 @@ public:
 												-(this->ny) * this->nx + 1 }; // IdAdderPerBottomRight
 
 		this->dxer = { dxy, dy, dxy, dx, dx, dxy, dy, dxy };
+		this->dyer = { dxy, dx, dxy, dy, dy, dxy, dx, dxy };
+
+		this->dxSigner = { -1, 0, 1, -1, 1, -1, 0, 1 };
+		this->dySigner = { 1, 1, 1, 0, 0, -1, -1, -1 };
 
 		this->_compute_lookup_tables();
 	};
@@ -187,6 +204,9 @@ public:
 	void _local_lookup(uint8_t indices,
 										 std::array<int, 8>& arr,
 										 std::array<f_t, 8>& arrdx,
+										 std::array<f_t, 8>& arrdy,
+										 std::array<std::int8_t, 8>& arrdxSign,
+										 std::array<std::int8_t, 8>& arrdySign,
 										 uint8_t& nn,
 										 std::array<std::uint8_t, 8>& arrBits,
 										 std::uint8_t idAdder)
@@ -198,7 +218,10 @@ public:
 				// Index `i` is set, process the corresponding value
 				arr[nn] = this->adders[idAdder][7 - i];
 				arrdx[nn] = this->dxer[7 - i];
+				arrdy[nn] = this->dyer[7 - i];
 				arrBits[nn] = NeighbourerMask8[7 - i];
+				arrdxSign[nn] = this->dxSigner[7 - i];
+				arrdySign[nn] = this->dySigner[7 - i];
 				// std::cout << this->adders[7 - i] << " vs " <<
 				// bits2str(NeighbourerMask8[7 - i]) << std::endl;; Just a reminder this
 				// checked the validity of Neighbourerbits
@@ -206,29 +229,6 @@ public:
 			}
 		}
 	}
-
-	// void _local_lookup_archives(uint8_t indices,
-	// 									 std::array<int, 8>& arr,
-	// 									 std::array<f_t, 8>& arrdx,
-	// 									 uint8_t& nn,
-	// 									 std::array<std::uint8_t, 8>& arrBits,
-	// 									 )
-	// {
-
-	// 	// Retrieve the indices specified by the bits set in the `indices` value
-	// 	for (uint8_t i = 0; i < 8; ++i) {
-	// 		if (indices & (1 << i)) {
-	// 			// Index `i` is set, process the corresponding value
-	// 			arr[nn] = this->adders[7 - i];
-	// 			arrdx[nn] = this->dxer[7 - i];
-	// 			arrBits[nn] = NeighbourerMask8[7 - i];
-	// 			// std::cout << this->adders[7 - i] << " vs " <<
-	// bits2str(NeighbourerMask8[7 - i]) << std::endl;; Just a reminder this
-	// checked the validity of Neighbourerbits
-	// 			++nn;
-	// 		}
-	// 	}
-	// }
 
 	void _compute_lookup_tables()
 	{
@@ -242,13 +242,28 @@ public:
 				this->_local_lookup(ti,
 														this->Neighbourer[idAdder][ti],
 														this->Neighbourerdx[idAdder][ti],
+														this->Neighbourerdy[idAdder][ti],
+														this->NeighbourerdxSign[idAdder][ti],
+														this->NeighbourerdySign[idAdder][ti],
 														this->NeighbourerNN[idAdder][ti],
 														this->NeighbourerBits[idAdder][ti],
 														idAdder);
+
 				if (this->NeighbourerNN[idAdder][ti] == 1) {
+
 					this->NeighbourerD8[idAdder][ti] = this->Neighbourer[idAdder][ti][0];
+
 					this->NeighbourerD8dx[idAdder][ti] =
 						this->Neighbourerdx[idAdder][ti][0];
+
+					this->NeighbourerD8dy[idAdder][ti] =
+						this->Neighbourerdy[idAdder][ti][0];
+
+					this->NeighbourerD8dxSign[idAdder][ti] =
+						this->NeighbourerdxSign[idAdder][ti][0];
+
+					this->NeighbourerD8dySign[idAdder][ti] =
+						this->NeighbourerdySign[idAdder][ti][0];
 				}
 			}
 	}
@@ -356,6 +371,31 @@ public:
 			return 5;
 		return 0;
 	}
+
+	// Keeping legacy things here in case - 03/2024
+
+	// void _local_lookup_archives(uint8_t indices,
+	// 									 std::array<int, 8>& arr,
+	// 									 std::array<f_t, 8>& arrdx,
+	// 									 uint8_t& nn,
+	// 									 std::array<std::uint8_t, 8>& arrBits,
+	// 									 )
+	// {
+
+	// 	// Retrieve the indices specified by the bits set in the `indices` value
+	// 	for (uint8_t i = 0; i < 8; ++i) {
+	// 		if (indices & (1 << i)) {
+	// 			// Index `i` is set, process the corresponding value
+	// 			arr[nn] = this->adders[7 - i];
+	// 			arrdx[nn] = this->dxer[7 - i];
+	// 			arrBits[nn] = NeighbourerMask8[7 - i];
+	// 			// std::cout << this->adders[7 - i] << " vs " <<
+	// bits2str(NeighbourerMask8[7 - i]) << std::endl;; Just a reminder this
+	// checked the validity of Neighbourerbits
+	// 			++nn;
+	// 		}
+	// 	}
+	// }
 
 }; // end of class lookup8
 

@@ -167,7 +167,34 @@ public:
 
 	std::shared_ptr<easyRand> randu = std::make_shared<easyRand>();
 
-	std::vector<RivNet1D<i_t, f_t>> river_networks;
+	// Specific to graphflood
+	std::vector<f_t> _theta_flow_in;
+	template<class arrin_t>
+	void set_theta_flow_in(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_theta_flow_in = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_theta_flow_in()
+	{
+		return format_output<decltype(this->_theta_flow_in), out_t>(
+			this->_theta_flow_in);
+	}
+
+	std::vector<f_t> _theta_flow_out;
+	template<class arrin_t>
+	void set_theta_flow_out(arrin_t& tarr)
+	{
+		auto arr = format_input<arrin_t>(tarr);
+		this->_theta_flow_out = to_vec(arr);
+	}
+	template<class out_t>
+	out_t get_theta_flow_out()
+	{
+		return format_output<decltype(this->_theta_flow_out), out_t>(
+			this->_theta_flow_out);
+	}
 
 }; // end of class Hermes
 

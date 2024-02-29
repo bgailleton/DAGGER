@@ -7,7 +7,7 @@
 namespace DAGGER {
 
 template<class i_t, class f_t>
-void
+RivNet1D<i_t, f_t>
 add_river_network_from_threshold(f_t Ath, Connector8<i_t, f_t>& con)
 {
 
@@ -26,10 +26,10 @@ add_river_network_from_threshold(f_t Ath, Connector8<i_t, f_t>& con)
 
 		int rec = con.Sreceivers(node);
 
-		if (rec == node)
+		if (can_out(con.data->_boundaries[node]))
 			continue;
 
-		DA[rec] += con.data->_DA[node];
+		DA[rec] += DA[node];
 	}
 
 	std::vector<i_t> outi;
@@ -41,7 +41,7 @@ add_river_network_from_threshold(f_t Ath, Connector8<i_t, f_t>& con)
 			continue;
 		int rec = con.Sreceivers(node);
 
-		if (rec == node)
+		if (can_out(con.data->_boundaries[node]))
 			continue;
 
 		if (DA[node] > Ath && isDone[rec] == false) {
@@ -57,10 +57,10 @@ add_river_network_from_threshold(f_t Ath, Connector8<i_t, f_t>& con)
 		}
 	}
 
-	RivNet1D<i_t, f_t> triv();
+	RivNet1D<i_t, f_t> triv(con, *con.data);
 	triv.build_from_sources(outi);
 
-	this->data->river_networks.emplace_back(triv);
+	return triv;
 }
 
 }

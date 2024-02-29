@@ -91,3 +91,12 @@ enum class RUN_GF2
 	NORMAL,
 	COMPUTEqr,
 };
+
+enum class MORPHOMODE : std::uint8_t
+{
+	NONE,
+	EROS,
+	MPM,
+	MPMVEC,
+
+};

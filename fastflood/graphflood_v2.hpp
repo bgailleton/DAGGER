@@ -185,6 +185,7 @@ public:
 
 		this->entry_node_PQ.clear();
 		this->input_node_Qw.clear();
+		this->input_Qs.clear();
 		this->input_Qw.clear();
 
 		// copying the bedrock elevation
@@ -231,6 +232,7 @@ public:
 					isdone[node] == false) {
 				this->input_node_Qw.emplace_back(node);
 				this->input_Qw.emplace_back(QW[node]);
+				this->input_Qs.emplace_back(0);
 				this->entry_node_PQ.emplace_back(node);
 
 				isdone[node] = true;
@@ -251,6 +253,7 @@ public:
 			if (nd == 0 && QW[node] >= Qw_threshold && isdone[node] == false) {
 				this->input_node_Qw.emplace_back(node);
 				this->input_Qw.emplace_back(QW[node]);
+				this->input_Qs.emplace_back(0);
 				this->entry_node_PQ.emplace_back(node);
 
 				isdone[node] = true;
@@ -453,6 +456,8 @@ public:
 		if (this->data->_timetracker.size() == 0) {
 			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
 			this->data->_debug = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_theta_flow_in = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->_theta_flow_out = std::vector<f_t>(this->con->nxy(), 0.);
 		}
 
 		if (this->param->gf2_morpho && this->data->_Qsin.size() == 0) {
@@ -472,6 +477,8 @@ public:
 		if (this->active_nodes.size() == 0) {
 
 			fillvec(this->data->_Qwin, 0.);
+			fillvec(this->data->_theta_flow_in, 0.);
+			fillvec(this->data->_theta_flow_out, 0.);
 			fillvec(this->xtraQwin, 0.);
 			fillvec(this->isInQ, false);
 			if (this->param->gf2_morpho) {
@@ -483,6 +490,8 @@ public:
 
 			fillvec(this->data->_Qwin, 0., this->active_nodes);
 			fillvec(this->xtraQwin, 0., this->active_nodes);
+			fillvec(this->data->_theta_flow_in, 0., this->active_nodes);
+			fillvec(this->data->_theta_flow_out, 0., this->active_nodes);
 			fillvec(this->isInQ, false, this->active_nodes);
 			if (this->param->gf2_morpho) {
 				fillvec(this->data->_Qsin, 0., this->active_nodes);
@@ -500,24 +509,18 @@ public:
 
 		CT_neighbours<i_t, f_t> ctx;
 
-		// int nndt = 0;
-		// for(auto v:this->data->_boundaries){
-		// 	if(nodata(v)) ++nndt;
-		// }
-		// std::cout << "I have " << nndt << "no data " << std::endl;
-
-		// fillvec(this->data->_vmot_hw,0.);
 		this->time += this->dt;
-		// std::vector<bool> isdone(this->con->nxy(), false);
-		// int ndone = 0;
-		// int nredone = 0;
+
+		std::vector<i_t> tempnodes, temprec;
+		tempnodes.reserve(this->con->_nx);
+		temprec.reserve(this->con->_nx);
 
 		std::array<i_t, 8> receivers;
 		std::array<f_t, 8> receiversWeights;
+		std::array<f_t, 8> receiversWeightsQs;
+		std::array<f_t, 8> receiversSlopes;
 
 		f_t sumout = 0.;
-
-		// std::cout << "Starting the process" << std::endl;
 
 		// nook.tok("init took ");
 		// nook.tik();
@@ -526,23 +529,12 @@ public:
 
 			// Getting the next node
 			auto next = this->_dstack_next<WaCell<i_t, f_t>>(dynastack);
-			// auto next = dynastack.top();
-			// dynastack.pop();
-			// std::cout << next.node << "|" << this->data->_surface[next.node] <<
-			// "||";
 
+			// deregistering it as being in the PQ stack
 			this->isInQ[next.node] = false;
 
+			// ispast is true if the node has not been processed yet
 			bool ispast = this->data->_timetracker[next.node] != this->time;
-
-			// if(isdone[next.node] == false){
-			// 	ndone++;
-			// 	isdone[next.node] = true;
-			// 	if(ndone % 100 == 0)
-			// 		std::cout << ndone << " vs " << nredone << " PQsizzla: " <<
-			// dynastack.size() << " this->debugyolo " << this->debugyolo <<
-			// std::endl; }else{ 	nredone++;
-			// }
 
 			// Updating the timer
 			this->data->_timetracker[next.node] = this->time;
@@ -583,10 +575,20 @@ public:
 			f_t SSdx = 1.;
 			f_t SSdy = 1.;
 
-			// std::cout << "A1" << std::endl;
-			this->update_receivers(
-				ctx, receivers, receiversWeights, nr, SS, SSdx, SSdy, SSi);
-			// std::cout << "A2" << std::endl;
+			this->update_receivers(ctx,
+														 receivers,
+														 receiversWeights,
+														 nr,
+														 SS,
+														 SSdx,
+														 SSdy,
+														 SSi,
+														 receiversSlopes);
+
+			if (ispast) {
+				temprec.emplace_back(nr >= 0 ? SSi : next.node);
+				tempnodes.emplace_back(next.node);
+			}
 
 			f_t& thw = this->data->_hw[next.node];
 			f_t& tsurf = this->data->_surface[next.node];
@@ -608,104 +610,187 @@ public:
 
 			this->data->_Qwout[ctx.node] = tQwout;
 
+			// Calculation of theta out
+			f_t vx = 0., vy = 0.;
+			for (int j = 0; j < nr; ++j) {
+				int ij = receivers[j];
+				vx +=
+					receiversWeights[j] * ctx.neighboursDx[ij] * ctx.neighboursDxSign[ij];
+				vy +=
+					receiversWeights[j] * ctx.neighboursDy[ij] * ctx.neighboursDySign[ij];
+			}
+
+			// if(nr>1)
+			// 	std::cout << "vx=" << vx << "|" << " vy=" << vy << std::endl;
+
+			VECD::cart2pol(vx, vy, this->data->_theta_flow_out[ctx.node]);
+
 			if (this->computor == RUN_GF2::COMPUTEqr)
 				qr_out[ctx.node] = thw * u_w;
 
 			// Manage the morphodynamics of the model
 			if (this->param->gf2_morpho) {
+
 				// Calculating shear stress
-				f_t tau = this->param->rho_water * this->param->GRAVITY * SS * thw;
+				f_t tau =
+					0.; // = this->param->rho_water * this->param->GRAVITY * SS * thw;
 
-				// rates
-				// # basal erosion
-				f_t edot = 0.;
-				// # lateral erosion
-				f_t eldot = 0;
-				// # basal dep
-				f_t ddot = 0.;
-				// # lateral dep
-				f_t dldot = 0.;
+				if (this->param->morphomode == MORPHOMODE::EROS) {
+					tau = this->param->rho_water * this->param->GRAVITY * SS * thw;
 
-				// erosion only happens if critical shear stress increases
-				if (tau > this->param->tau_c) {
+					// rates
+					// # basal erosion
+					f_t edot = 0.;
+					// # lateral erosion
+					f_t eldot = 0;
+					// # basal dep
+					f_t ddot = 0.;
+					// # lateral dep
+					f_t dldot = 0.;
 
-					// calculating basal erosion: ke x (shear - critshear) ^ alpha
-					edot = this->param->ke(ctx.node) *
-								 std::pow(tau - this->param->tau_c, this->param->alpha);
+					// erosion only happens if critical shear stress increases
+					if (tau > this->param->tau_c) {
 
-					// lateral erosion
-					if (this->param->bank_erosion) {
-						// Getting the highest neighbour to erode
-						int hni = ctx.idxHighestNeighbour(
+						// calculating basal erosion: ke x (shear - critshear) ^ alpha
+						edot = this->param->ke(ctx.node) *
+									 std::pow(tau - this->param->tau_c, this->param->alpha);
+
+						// lateral erosion
+						if (this->param->bank_erosion) {
+							// Getting the highest neighbour to erode
+							int hni = ctx.idxHighestNeighbour(
+								this->data->_surface, this->data->_hw, SSi);
+
+							// hni is -1 if there is no higher neighbours
+							if (hni >= 0) {
+
+								// neihbour ID
+								int hn = ctx.neighbours[hni];
+
+								// difference in substrate elevation defining the max lateral
+								// erosion rate
+								f_t delta_Z =
+									(this->data->_surface[hn] - this->data->_hw[hn] -
+									 this->data->_surface[ctx.node] + this->data->_hw[ctx.node]);
+
+								// Lateral gradient
+								f_t latslope = delta_Z / ctx.neighboursDx[hni];
+
+								// Actual rate
+								eldot = this->param->kel * latslope * edot;
+
+								// checking we do not erode too much
+								if (eldot * this->dt > delta_Z)
+									eldot = delta_Z / this->dt;
+
+								// applyin' stuff
+								this->xtraQsout[hn] += eldot * this->con->area(hn);
+							}
+						}
+					}
+
+					// TEMP DEACTIVATION
+					// ddot =
+					// 	this->data->_Qsin[ctx.node] / (this->param->kd * SSdy); //;
+
+					f_t latslope = 0.;
+					if (this->param->kd > 0) {
+						int hni = ctx.idxLowestNeighbour(
 							this->data->_surface, this->data->_hw, SSi);
 
 						// hni is -1 if there is no higher neighbours
 						if (hni >= 0) {
-
 							// neihbour ID
 							int hn = ctx.neighbours[hni];
 
 							// difference in substrate elevation defining the max lateral
 							// erosion rate
 							f_t delta_Z =
-								(this->data->_surface[hn] - this->data->_hw[hn] -
-								 this->data->_surface[ctx.node] + this->data->_hw[ctx.node]);
+								(this->data->_surface[ctx.node] - this->data->_hw[ctx.node] -
+								 this->data->_surface[hn] + this->data->_hw[hn]);
 
-							// Lateral gradient
 							f_t latslope = delta_Z / ctx.neighboursDx[hni];
 
-							// Actual rate
-							eldot = this->param->kel * latslope * edot;
+							dldot = latslope * this->param->kdl *
+											this->data->_Qsin[ctx.node] / SSdy;
 
-							// checking we do not erode too much
-							if (eldot * this->dt > delta_Z)
-								eldot = delta_Z / this->dt;
-
-							// applyin' stuff
-							this->xtraQsout[hn] += eldot * this->con->area(hn);
+							this->xtraQsout[hn] += dldot * this->con->area(hn);
 						}
 					}
-				}
 
-				// TEMP DEACTIVATION
-				// ddot =
-				// 	this->data->_Qsin[ctx.node] / (this->param->kd * SSdy); //;
+					double K = (1. / this->param->kd + this->param->kdl * latslope);
 
-				f_t latslope = 0.;
-				if (this->param->kd > 0) {
-					int hni =
-						ctx.idxLowestNeighbour(this->data->_surface, this->data->_hw, SSi);
+					double edotpsy = (edot + eldot) / K;
+					double C1 = this->data->_Qsin[ctx.node] / SSdy - edotpsy;
 
-					// hni is -1 if there is no higher neighbours
-					if (hni >= 0) {
-						// neihbour ID
-						int hn = ctx.neighbours[hni];
+					this->data->_Qsout[ctx.node] =
+						SSdy * (edotpsy + C1 * std::exp(-SSdx * K));
 
-						// difference in substrate elevation defining the max lateral
-						// erosion rate
-						f_t delta_Z =
-							(this->data->_surface[ctx.node] - this->data->_hw[ctx.node] -
-							 this->data->_surface[hn] + this->data->_hw[hn]);
+					if (this->data->_Qsout[ctx.node] < 0)
+						throw std::runtime_error("Qso < 0");
+				} else if (this->param->morphomode == MORPHOMODE::MPM) {
 
-						f_t latslope = delta_Z / ctx.neighboursDx[hni];
+					f_t correction_factor = 0., sumtaus = 0.;
 
-						dldot =
-							latslope * this->param->kdl * this->data->_Qsin[ctx.node] / SSdy;
+					for (int j = 0; j < nr; ++j) {
+						receiversWeightsQs[j] = 0.;
+						f_t ttau = this->param->rho_water * this->param->GRAVITY *
+											 receiversSlopes[j] * thw;
+						ttau = std::pow(ttau - this->param->tau_c, 1.5) *
+									 ctx.neighboursDy[receivers[j]];
 
-						this->xtraQsout[hn] += dldot * this->con->area(hn);
+						if (ttau > this->param->tau_c) {
+							tau += ttau;
+							ttau *= this->data->randu->get();
+							sumtaus += ttau;
+							receiversWeightsQs[j] = ttau;
+						}
+					}
+
+					if (tau > 0) {
+						for (int j = 0; j < nr; ++j) {
+							receiversWeightsQs[j] /= sumtaus;
+						}
+
+						correction_factor = std::pow(this->param->rho_water *
+																						 this->param->GRAVITY * SS * thw -
+																					 this->param->tau_c,
+																				 1.5) *
+																SSdy / tau;
+					}
+
+					f_t capacity = 0;
+
+					// Alrady tau - tau_c ed!
+					// if(tau>this->param->tau_c)
+					capacity = this->param->E * tau;
+
+					// if(this->data->_Qsin[ctx.node] >= capacity)
+					this->data->_Qsout[ctx.node] = capacity;
+					// else{
+					// 	this->data->_Qsout[ctx.node] = capacity -
+					// this->data->_Qsin[ctx.node];
+					// }
+
+					// if(std::isfinite(this->data->_Qsout[ctx.node]) == false) std::cout
+					// << this->param->E << "|" << SSdy << "|" << std::pow(tau -
+					// this->param->tau_c, this->param->alpha) << std::endl;
+				} else if (this->param->morphomode == MORPHOMODE::MPMVEC) {
+
+					tau = this->param->rho_water * this->param->GRAVITY * SS * thw;
+					f_t capacity = 0.;
+					if (tau > this->param->tau_c) {
+						capacity =
+							std::pow(tau - this->param->tau_c, 1.5) * this->param->E * SSdy;
+						i_t n1, n2;
+						f_t w1, w2;
+						con->NeighboursTheta2(
+							ctx.node, this->data->_theta_flow_out[ctx.node], n1, n2, w1, w2);
+						this->data->_Qsin[n1] += capacity * w1;
+						this->data->_Qsin[n2] += capacity * w2;
+						this->data->_Qsout[ctx.node] = capacity;
 					}
 				}
-
-				double K = (1. / this->param->kd + this->param->kdl * latslope);
-
-				double edotpsy = (edot + eldot) / K;
-				double C1 = this->data->_Qsin[ctx.node] / SSdy - edotpsy;
-
-				this->data->_Qsout[ctx.node] =
-					SSdy * (edotpsy + C1 * std::exp(-SSdx * K));
-
-				if (this->data->_Qsout[ctx.node] < 0)
-					throw std::runtime_error("Qso < 0");
 			}
 
 			this->data->_Qwin[ctx.node] = next.Qw + this->xtraQwin[ctx.node];
@@ -716,16 +801,25 @@ public:
 			if (this->param->gf2_morpho)
 				baseQs = (ispast) ? this->data->_Qsout[next.node] : next.Qs;
 
+			if (this->param->morphomode == MORPHOMODE::EROS)
+				receiversWeightsQs = receiversWeights;
+			// if(this->param->morphomode != MORPHOMODE::NONE) receiversWeightsQs =
+			// receiversWeights;
+
 			for (int j = 0; j < nr; ++j) {
 				int i = receivers[j];
 				int rec = ctx.neighbours[i];
+				if (receiversWeights[j] == 0 && receiversWeightsQs[j] == 0)
+					continue;
+
 				if (nodata(this->data->_boundaries[rec]))
 					throw std::runtime_error("fasdgfdgkhfgkdhsfg");
 
 				bool tizdone = this->data->_timetracker[rec] == this->time;
 
 				if (tizdone) {
-					if (this->param->gf2_morpho) {
+					if (this->param->gf2_morpho &&
+							this->param->morphomode != MORPHOMODE::MPMVEC) {
 						if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
 							if (this->isInQ[rec])
 								this->xtraQwin[rec] += baseQw * receiversWeights[j];
@@ -734,7 +828,7 @@ public:
 									WaCell<i_t, f_t>(rec,
 																	 this->data->_surface[rec],
 																	 baseQw * receiversWeights[j],
-																	 baseQs * receiversWeights[j]));
+																	 baseQs * receiversWeightsQs[j]));
 
 							this->isInQ[rec] = true;
 						} else
@@ -767,8 +861,9 @@ public:
 					}
 
 					this->xtraQwin[rec] += baseQw * receiversWeights[j];
-					if (this->param->gf2_morpho)
-						this->data->_Qsin[rec] += baseQs * receiversWeights[j];
+					if (this->param->gf2_morpho &&
+							this->param->morphomode != MORPHOMODE::MPMVEC)
+						this->data->_Qsin[rec] += baseQs * receiversWeightsQs[j];
 				}
 			}
 		}
@@ -782,6 +877,23 @@ public:
 		// nook.tok("PQ took ");
 		// nook.tik();
 
+		// if(this->param->gf2_morpho && this->param->morphomode ==
+		// MORPHOMODE::MPM){
+
+		// 	for(size_t i=0;i<tempnodes.size(); ++i){
+		// 		int node = tempnodes[i];
+		// 		this->data->_Qsin[node] += this->data->_Qsout[node];
+		// 	}
+		// 	for(size_t i=0;i<tempnodes.size(); ++i){
+		// 		int node = tempnodes[i];
+		// 		int rec  = temprec[i];
+
+		// 		this->data->_Qsout[node] = this->data->_Qsin[rec];
+		// 	}
+
+		// }
+
+		// OLD WAY OF CHECKING DISCONNECTED NODES
 		// CT_neighbourer_WaCell<i_t, f_t> ctx2;
 
 		// for (int i = 0; i < this->con->nxy(); ++i) {
@@ -816,20 +928,20 @@ public:
 
 		int NN = 0;
 
-		for (int i = 0; i < this->con->nxy(); ++i) {
+		for (int i = 0; i < tempnodes.size(); ++i) {
 
 			// if (this->active_nodes.size() > 0 && i >= this->active_nodes.size())
 			// 	break;
 
 			// int node = (this->active_nodes.size() > 0) ? this->active_nodes[i] : i;
 
-			int node = i;
+			int node = tempnodes[i];
 
 			if (can_out(this->data->_boundaries[node])) {
 				this->MB_Qwin_out += this->data->_Qwin[node];
 			}
 
-			if (this->is_node_active(i) == false)
+			if (this->is_node_active(node) == false)
 				continue;
 
 			f_t& thw = this->data->_hw[node];
@@ -837,7 +949,8 @@ public:
 
 			f_t dhw = 0.;
 			if (this->sbg_method == SUBGRAPHMETHOD::V1) {
-				dhw = this->data->_Qwin[node] - this->data->_Qwout[node];
+				dhw = this->data->_Qwin[node] -
+							(this->data->_Qwout[node] * this->param->capacityFacQw);
 			} else if (this->sbg_method == SUBGRAPHMETHOD::FILLONLY) {
 				dhw = this->data->_Qwin[node];
 			}
@@ -853,7 +966,8 @@ public:
 
 			if (this->param->gf2_morpho) {
 				this->data->_Qsout[node] += xtraQsout[node];
-				f_t dz = this->data->_Qsin[node] - this->data->_Qsout[node];
+				f_t dz = this->data->_Qsin[node] -
+								 (this->data->_Qsout[node] * this->param->capacityFacQs);
 				dz *= this->dt * this->param->time_dilatation_morpho;
 				dz /= this->con->area(node);
 				tsurf += dz;
@@ -861,7 +975,8 @@ public:
 
 			if (std::isfinite(tsurf) == false) {
 				std::cout << this->data->_Qwout[node] << "|" << this->data->_Qwin[node]
-									<< std::endl;
+									<< "|" << this->data->_Qsin[node] << "|"
+									<< this->data->_Qsout[node] << std::endl;
 				;
 				throw std::runtime_error("blug");
 			}
@@ -1629,6 +1744,165 @@ public:
 			for (int j = 0; j < nr; ++j) {
 				receiversWeights[j] /= sumSdw;
 			}
+		} else {
+			for (int j = 0; j < nr; ++j) {
+				receiversWeights[j] /= nr;
+			}
+		}
+
+		if (SSn >= 0)
+			if (can_out(this->data->_boundaries[SSn]) &&
+					this->param->gf2Bmode == BOUNDARY_HW::FIXED_SLOPE) {
+				SS = std::min(this->param->gf2Bbval, SS);
+			}
+
+		// done
+	}
+
+	template<class CTX>
+	void update_receivers(CTX& ctx,
+												std::array<i_t, 8>& receivers,
+												std::array<f_t, 8>& receiversWeights,
+												int& nr,
+												f_t& SS,
+												f_t& SSdx,
+												f_t& SSdy,
+												i_t& SSn,
+												std::array<f_t, 8>& receiversSlopes,
+												bool stochaslope = false)
+	{
+		nr = 0;
+		bool recout;
+		bool recdone;
+
+		bool allout;
+		bool alldone;
+
+		f_t sumSdw = 0.;
+		SS = 0.;
+		f_t SSstoch = 0.;
+
+		// pass 1: check the receivers, if no receivers fill up
+		while (nr == 0) {
+			recout = false;
+			recdone = false;
+			allout = true;
+			alldone = true;
+
+			for (int i = 0; i < ctx.nn; ++i) {
+
+				if (nodata(ctx.neighboursCode[i]))
+					continue;
+
+				if (this->data->_surface[ctx.node] >
+						this->data->_surface[ctx.neighbours[i]]) {
+					if (can_receive(ctx.neighboursCode[i])) {
+						receivers[nr] = i;
+						if (can_out(ctx.neighboursCode[i])) {
+							recout = true;
+						} else {
+							allout = false;
+						}
+						if (this->time == this->data->_timetracker[ctx.neighbours[i]]) {
+							recdone = true;
+						} else {
+							alldone = false;
+						}
+						++nr;
+					}
+				}
+			}
+			if (nr == 0) {
+				f_t tinc = this->hw_increment_LM +
+									 (this->data->randu->get() * this->hw_increment_LM) / 2;
+				this->data->_surface[ctx.node] += tinc;
+				this->data->_hw[ctx.node] += tinc;
+			}
+			// std::cout << this->data->_surface[ctx.node] << "|";
+		}
+
+		// pass2: recast to only the that can out
+		if (recout) {
+			int nnr = 0;
+			for (int j = 0; j < nr; ++j) {
+				int i = receivers[j];
+				if (can_out(ctx.neighboursCode[i])) {
+					receivers[nnr] = receivers[j];
+					++nnr;
+				}
+			}
+			nr = nnr;
+		}
+		// Pass 3: if no out, some done but not all done
+		else if (recdone && !alldone) {
+			int nnr = 0;
+			for (int j = 0; j < nr; ++j) {
+				int i = receivers[j];
+				if (this->time != this->data->_timetracker[ctx.neighbours[i]]) {
+					receivers[nnr] = receivers[j];
+					++nnr;
+				}
+			}
+			nr = nnr;
+		}
+		// pass 4: all recs are done, I then choose a single one randomly
+		else if (alldone) {
+			int ti = static_cast<int>(this->data->randu->get() * nr);
+			nr = 1;
+			receivers[0] = receivers[ti];
+		}
+
+		// pass 5 precalculate SS and weights
+		for (int j = 0; j < nr; ++j) {
+			int i = receivers[j];
+			f_t tS = this->get_Sw(ctx.node, ctx.neighbours[i], ctx.neighboursDx[i]);
+			receiversSlopes[j] = tS;
+			f_t tSdwinc = tS * ctx.neighboursDy[i];
+			if (stochaslope)
+				tSdwinc *= this->data->randu->get();
+			// if(this->param->gf2_morpho)
+			// 	tSdwinc *= this->data->randu->get();
+			receiversWeights[j] = tSdwinc;
+
+			sumSdw += tSdwinc;
+			if (tS > SS && stochaslope == false) {
+				SS = tS;
+				SSdx = ctx.neighboursDx[i];
+				SSdy = ctx.neighboursDy[i];
+				SSn = ctx.neighbours[i];
+			} else if (stochaslope) {
+				if (tS > SS) {
+					SS = tS;
+				}
+
+				if (SSstoch < tSdwinc) {
+					SSstoch = tSdwinc;
+					SSdx = ctx.neighboursDx[i];
+					SSdy = ctx.neighboursDy[i];
+					SSn = ctx.neighbours[i];
+				}
+			}
+		}
+
+		// pass 6: calculate weights
+
+		bool needCorrection = false;
+		if (sumSdw > 0) {
+			for (int j = 0; j < nr; ++j) {
+				receiversWeights[j] /= sumSdw;
+				if (receiversWeights[j] < this->param->minWeightQw) {
+					needCorrection = true;
+					receiversWeights[j] = 0.;
+				}
+			}
+			if (needCorrection) {
+				sumSdw = 0;
+				for (int j = 0; j < nr; ++j)
+					sumSdw += receiversWeights[j];
+				for (int j = 0; j < nr; ++j)
+					receiversWeights[j] /= sumSdw;
+			}
+
 		} else {
 			for (int j = 0; j < nr; ++j) {
 				receiversWeights[j] /= nr;

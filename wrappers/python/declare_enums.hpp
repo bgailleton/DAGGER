@@ -69,4 +69,10 @@ delclare_enums(py::module& m)
 		.value("PEW", CONBOU::PEW)
 		.value("PNS", CONBOU::PNS)
 		.value("CUSTOM", CONBOU::CUSTOM);
+
+	py::enum_<MORPHOMODE>(m, "MORPHOMODE")
+		.value("NONE", MORPHOMODE::NONE)
+		.value("EROS", MORPHOMODE::EROS)
+		.value("MPM", MORPHOMODE::MPM)
+		.value("MPMVEC", MORPHOMODE::MPMVEC);
 }

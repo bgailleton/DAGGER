@@ -267,6 +267,77 @@ public:
 		return nn;
 	}
 
+	// Gets the neighbours from a polar coordinate (similar-ish to D infinity)
+	void NeighboursTheta2(i_t i, f_t theta, i_t& n1, i_t& n2, f_t& w1, f_t& w2)
+	{
+		f_t div = std::abs(theta) / (NPPI / 4.);
+		int quarter = std::floor(div);
+		f_t rem = div - quarter;
+		bool isneg = std::signbit(theta);
+
+		std::uint8_t cn1;
+		std::uint8_t cn2;
+
+		if (quarter == 4) {
+			cn1 = LeftMask8;
+			cn2 = TopLeftMask8;
+			w1 = 1.;
+			w2 = 0.;
+		} else if (quarter == 3) {
+			if (isneg) {
+				cn1 = BottomLeftMask8;
+				cn2 = LeftMask8;
+				w1 = 1 - div;
+				w2 = div;
+			} else {
+				cn1 = TopLeftMask8;
+				cn2 = LeftMask8;
+				w1 = 1 - div;
+				w2 = div;
+			}
+		} else if (quarter == 2) {
+			if (isneg) {
+				cn1 = BottomMask8;
+				cn2 = BottomLeftMask8;
+				w1 = 1 - div;
+				w2 = div;
+			} else {
+				cn1 = TopMask8;
+				cn2 = TopLeftMask8;
+				w1 = 1 - div;
+				w2 = div;
+			}
+		} else if (quarter == 1) {
+			if (isneg) {
+				cn1 = BottomRightMask8;
+				cn2 = BottomMask8;
+				w1 = 1 - div;
+				w2 = div;
+			} else {
+				cn1 = TopRightMask8;
+				cn2 = TopMask8;
+				w1 = 1 - div;
+				w2 = div;
+			}
+		} else {
+			if (isneg) {
+				cn1 = RightMask8;
+				cn2 = BottomRightMask8;
+				w1 = 1 - div;
+				w2 = div;
+			} else {
+				cn1 = RightMask8;
+				cn2 = TopRightMask8;
+				w1 = 1 - div;
+				w2 = div;
+			}
+		}
+
+		auto adder = this->data->LK8.BC2idAdder(i, this->data->_boundaries[i]);
+		n1 = this->data->LK8.NeighbourerD8[adder][cn1];
+		n2 = this->data->LK8.NeighbourerD8[adder][cn2];
+	}
+
 	// Access to steepest rec of node i but reprocessed on the spot (as opposed to
 	// preprocessed from a compute() operation)
 	int Sreceivers_raw(i_t i,
@@ -321,31 +392,113 @@ public:
 		return nn;
 	}
 
-	// Access to dy to each neighbours (distance to orthogonal nodes) of node i
-	i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t NeighboursDxSign(i_t i, std::array<std::int8_t, 8>& arr) const
 	{
-		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+		arr = this->data->LK8.NeighbourerdxSign[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
 		i_t nn = this->nNeighbours(i);
-		for (int j = 0; j < nn; ++j)
-			arr[j] = (arr[j] == this->_dx)
-								 ? this->_dy
-								 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
 		return nn;
 	}
 
-	// Access to dy to each neighbours (distance to orthogonal nodes) of node i
-	i_t ReceiversDy(i_t i, std::array<f_t, 8>& arr) const
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t ReceiversDxSign(i_t i, std::array<std::int8_t, 8>& arr) const
 	{
-		arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+		arr = this->data->LK8.NeighbourerdxSign[this->data->LK8.BC2idAdder(
 			i, this->data->_boundaries[i])][this->data->_receivers[i]];
 		i_t nn = this->nReceivers(i);
-		for (int j = 0; j < nn; ++j)
-			arr[j] = (arr[j] == this->_dx)
-								 ? this->_dy
-								 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
 		return nn;
 	}
+
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t DonorsDxSign(i_t i, std::array<std::int8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerdxSign[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		return nn;
+	}
+
+	// Access to dx to each neighbours (distance to nodes) of node i
+	i_t NeighboursDySign(i_t i, std::array<std::int8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerdySign[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to nodes) of node i
+	i_t ReceiversDySign(i_t i, std::array<std::int8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerdySign[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to nodes) of node i
+	i_t DonorsDySign(i_t i, std::array<std::int8_t, 8>& arr) const
+	{
+		arr = this->data->LK8.NeighbourerdySign[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to nodes) of node i
+	i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdy[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+		i_t nn = this->nNeighbours(i);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to nodes) of node i
+	i_t ReceiversDy(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdy[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_receivers[i]];
+		i_t nn = this->nReceivers(i);
+		return nn;
+	}
+
+	// Access to dy to each neighbours (distance to nodes) of node i
+	i_t DonorsDy(i_t i, std::array<f_t, 8>& arr) const
+	{
+		arr = this->data->LK8.Neighbourerdy[this->data->LK8.BC2idAdder(
+			i, this->data->_boundaries[i])][this->data->_donors[i]];
+		i_t nn = this->nDonors(i);
+		return nn;
+	}
+
+	// Older versions without direct access
+	// // Access to dy to each neighbours (distance to orthogonal nodes) of node i
+	// i_t NeighboursDy(i_t i, std::array<f_t, 8>& arr) const
+	// {
+	// 	arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+	// 		i, this->data->_boundaries[i])][this->data->_neighbours[i]];
+	// 	i_t nn = this->nNeighbours(i);
+	// 	for (int j = 0; j < nn; ++j)
+	// 		arr[j] = (arr[j] == this->_dx)
+	// 							 ? this->_dy
+	// 							 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
+	// 	return nn;
+	// }
+
+	// // Access to dy to each neighbours (distance to orthogonal nodes) of node i
+	// i_t ReceiversDy(i_t i, std::array<f_t, 8>& arr) const
+	// {
+	// 	arr = this->data->LK8.Neighbourerdx[this->data->LK8.BC2idAdder(
+	// 		i, this->data->_boundaries[i])][this->data->_receivers[i]];
+	// 	i_t nn = this->nReceivers(i);
+	// 	for (int j = 0; j < nn; ++j)
+	// 		arr[j] = (arr[j] == this->_dx)
+	// 							 ? this->_dy
+	// 							 : ((arr[j] == this->_dy) ? this->_dx : this->_dxy);
+	// 	return nn;
+	// }
 
 	// Access to Neighbours' bitcodes of node i
 	i_t NeighboursBits(i_t i, std::array<std::uint8_t, 8>& arr) const
