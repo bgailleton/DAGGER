@@ -270,9 +270,19 @@ public:
 	// Gets the neighbours from a polar coordinate (similar-ish to D infinity)
 	void NeighboursTheta2(i_t i, f_t theta, i_t& n1, i_t& n2, f_t& w1, f_t& w2)
 	{
+		// correcting if theta > pi or <=pi
+		if (std::abs(theta) > NPPI) {
+			theta /= NPPI;
+			if (std::signbit(theta))
+				theta = NPPI - (std::abs(theta) - 1) * NPPI;
+			else
+				theta = -NPPI + (std::abs(theta) - 1) * NPPI;
+		}
+
+		// get a quadran between 0 (right) and 4 (left)
 		f_t div = std::abs(theta) / (NPPI / 4.);
 		int quarter = std::floor(div);
-		f_t rem = div - quarter;
+		div = div - quarter;
 		bool isneg = std::signbit(theta);
 
 		std::uint8_t cn1;
@@ -334,8 +344,10 @@ public:
 		}
 
 		auto adder = this->data->LK8.BC2idAdder(i, this->data->_boundaries[i]);
-		n1 = this->data->LK8.NeighbourerD8[adder][cn1];
-		n2 = this->data->LK8.NeighbourerD8[adder][cn2];
+		n1 = i + this->data->LK8.NeighbourerD8[adder][cn1];
+		n2 = i + this->data->LK8.NeighbourerD8[adder][cn2];
+		if (std::abs(1 - w1 - w2) > 1e-4)
+			throw std::runtime_error(std::to_string(w1) + "|" + std::to_string(w2));
 	}
 
 	// Access to steepest rec of node i but reprocessed on the spot (as opposed to

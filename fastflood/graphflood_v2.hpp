@@ -446,6 +446,16 @@ public:
 		this->computor = RUN_GF2::NORMAL;
 	}
 
+	void run()
+	{
+		if (this->param->gf2_morpho == false ||
+				this->param->morphomode == MORPHOMODE::NONE)
+			this->run_hydro_mfd();
+		else {
+			this->run_subgraphflood();
+		}
+	}
+
 	void run_subgraphflood()
 	{
 
@@ -458,6 +468,9 @@ public:
 			this->data->_debug = std::vector<f_t>(this->con->nxy(), 0.);
 			this->data->_theta_flow_in = std::vector<f_t>(this->con->nxy(), 0.);
 			this->data->_theta_flow_out = std::vector<f_t>(this->con->nxy(), 0.);
+
+			this->data->fbag["rc"] = std::vector<f_t>(this->con->nxy(), 0.);
+			this->data->fbag["latel"] = std::vector<f_t>(this->con->nxy(), 0.);
 		}
 
 		if (this->param->gf2_morpho && this->data->_Qsin.size() == 0) {
@@ -610,20 +623,69 @@ public:
 
 			this->data->_Qwout[ctx.node] = tQwout;
 
+			// Flux in coprrection
+			this->data->_Qwin[ctx.node] = next.Qw + this->xtraQwin[ctx.node];
+			this->xtraQwin[ctx.node] = 0.;
+
 			// Calculation of theta out
 			f_t vx = 0., vy = 0.;
 			for (int j = 0; j < nr; ++j) {
 				int ij = receivers[j];
-				vx +=
-					receiversWeights[j] * ctx.neighboursDx[ij] * ctx.neighboursDxSign[ij];
-				vy +=
-					receiversWeights[j] * ctx.neighboursDy[ij] * ctx.neighboursDySign[ij];
+				int rec = ctx.neighbours[ij];
+				f_t tvx, tvy;
+				tvx = ctx.neighboursDx[ij] * ctx.neighboursDxSign[ij];
+				tvy = ctx.neighboursDy[ij] * ctx.neighboursDySign[ij];
+				vx += receiversWeights[j] * tvx;
+				vy += receiversWeights[j] * tvy;
+
+				f_t ttheta;
+				VEC2D::cart2pol(tvx, tvy, ttheta);
+				if (this->data->_Qwin[rec] + this->xtraQwin[rec] != 0)
+					this->data->_theta_flow_in[rec] =
+						VEC2D::mean_theta(this->data->_Qwin[rec] + this->xtraQwin[rec],
+															this->data->_theta_flow_in[rec],
+															receiversWeights[j] * this->data->_Qwin[ctx.node],
+															ttheta);
+				else {
+					this->data->_theta_flow_in[rec] = ttheta;
+				}
+				// if(nr>1)
+				// 	std::cout << "vx=" << tvx << "|" << " vy=" << tvy << "|" << ttheta
+				// << "|" << this->data->_theta_flow_in[rec] << std::endl;
 			}
 
-			// if(nr>1)
-			// 	std::cout << "vx=" << vx << "|" << " vy=" << vy << std::endl;
+			VEC2D::cart2pol(vx, vy, this->data->_theta_flow_out[ctx.node]);
 
-			VECD::cart2pol(vx, vy, this->data->_theta_flow_out[ctx.node]);
+			// if(nr>1)
+			// 	std::cout << "vx=" << vx << "|" << " vy=" << vy << "|" <<  <<
+			// std::endl;
+
+			f_t radius =
+				VEC2D::radius_of_curvature_theta(this->data->_theta_flow_in[ctx.node],
+																				 this->data->_theta_flow_out[ctx.node]);
+			// std::cout << this->data->_theta_flow_in[ctx.node] << "|" <<
+			// this->data->_theta_flow_out[ctx.node]<<"|"<<rc << std::endl;
+			// this->data->fbag["rc"][ctx.node] = rc;
+
+			// TEST IN PROGRESS TO ASSESS VECTOR REP
+			// if(true && nr > 1 && ctx.canout == false && ispast){
+			// 	i_t n1, n2;
+			// 	f_t w1, w2;
+			// 	con->NeighboursTheta2(
+			// 		ctx.node, this->data->_theta_flow_out[ctx.node] * (1 +
+			// this->data->randu->get() * 0.4 - 0.2), n1, n2, w1, w2);
+			// 	if(can_receive(this->data->_boundaries[n1]) &&
+			// can_receive(this->data->_boundaries[n2]))
+			// 	{
+			// 		nr = 2;
+			// 		receivers[0] = 0;
+			// 		receivers[1] = 1;
+			// 		ctx.neighbours[0] = n1;
+			// 		ctx.neighbours[1] = n2;
+			// 		receiversWeights[0] = w1;
+			// 		receiversWeights[1] = w2;
+			// 	}
+			// }
 
 			if (this->computor == RUN_GF2::COMPUTEqr)
 				qr_out[ctx.node] = thw * u_w;
@@ -762,19 +824,9 @@ public:
 					f_t capacity = 0;
 
 					// Alrady tau - tau_c ed!
-					// if(tau>this->param->tau_c)
 					capacity = this->param->E * tau;
-
-					// if(this->data->_Qsin[ctx.node] >= capacity)
 					this->data->_Qsout[ctx.node] = capacity;
-					// else{
-					// 	this->data->_Qsout[ctx.node] = capacity -
-					// this->data->_Qsin[ctx.node];
-					// }
 
-					// if(std::isfinite(this->data->_Qsout[ctx.node]) == false) std::cout
-					// << this->param->E << "|" << SSdy << "|" << std::pow(tau -
-					// this->param->tau_c, this->param->alpha) << std::endl;
 				} else if (this->param->morphomode == MORPHOMODE::MPMVEC) {
 
 					tau = this->param->rho_water * this->param->GRAVITY * SS * thw;
@@ -784,22 +836,124 @@ public:
 							std::pow(tau - this->param->tau_c, 1.5) * this->param->E * SSdy;
 						i_t n1, n2;
 						f_t w1, w2;
-						con->NeighboursTheta2(
-							ctx.node, this->data->_theta_flow_out[ctx.node], n1, n2, w1, w2);
+						con->NeighboursTheta2(ctx.node,
+																	this->data->_theta_flow_out[ctx.node] *
+																		(1 + this->data->randu->get() * 0.4 - 0.2),
+																	n1,
+																	n2,
+																	w1,
+																	w2);
 						this->data->_Qsin[n1] += capacity * w1;
 						this->data->_Qsin[n2] += capacity * w2;
 						this->data->_Qsout[ctx.node] = capacity;
+
+						// if(this->data->_surface[n1] > this->data->_surface[ctx.node])
+						// std::cout << "ping" << std::endl;
 					}
+				} else if (this->param->morphomode == MORPHOMODE::EROSVEC) {
+					tau = this->param->rho_water * this->param->GRAVITY * SS * thw;
+
+					// rates
+					// # basal erosion
+					f_t edot = 0.;
+					// # lateral erosion
+					f_t eldot = 0;
+					// # basal dep
+					f_t ddot = 0.;
+					// # lateral dep
+					f_t dldot = 0.;
+
+					// erosion only happens if critical shear stress increases
+					if (tau > this->param->tau_c) {
+
+						// calculating basal erosion: ke x (shear - critshear) ^ alpha
+						edot = this->param->ke(ctx.node) *
+									 std::pow(tau - this->param->tau_c, this->param->alpha);
+					}
+
+					// Lateral wrosion from Langston and Tucker
+					if (this->data->_theta_flow_in[ctx.node] != 0 &&
+							this->param->kel > 0) {
+						f_t theta_lat, rlat, wl1, wl2, x1, x2, y1, y2, xr, yr, xn, yn;
+						i_t nl1, nl2;
+
+						VEC2D::pol2cart(this->data->_theta_flow_in[ctx.node], x1, y1);
+						VEC2D::pol2cart(this->data->_theta_flow_out[ctx.node], x2, y2);
+
+						// VEC2D::add_pol(1.,this->data->_theta_flow_in[ctx.node],1.,this->data->_theta_flow_out[ctx.node],
+						// rlat, theta_lat);
+						VEC2D::add(x1, y1, x2, y2, xr, yr);
+
+						f_t cross = VEC2D::cross(x1, y1, x2, y2);
+
+						VEC2D::normal(xr, yr, xn, yn, cross > 0);
+
+						VEC2D::cart2pol(xn, yn, rlat, theta_lat);
+
+						con->NeighboursTheta2(ctx.node, theta_lat, nl1, nl2, wl1, wl2);
+
+						f_t omega_c;
+						if (radius > 1e-6)
+							this->param->rho_water* SSdy* std::pow(u_w, 3) / radius;
+						f_t teldot = this->param->kel * this->param->ke(ctx.node) * omega_c;
+
+						f_t tbed =
+							this->data->_surface[ctx.node] - this->data->_hw[ctx.node];
+
+						if (this->data->_surface[nl1] - this->data->_hw[nl1] > tbed) {
+							f_t tteldot = std::min(
+								wl1 * teldot,
+								(this->data->_surface[nl1] - this->data->_hw[nl1] - tbed) /
+									(this->dt * this->param->time_dilatation_morpho));
+							this->xtraQsout[nl1] += tteldot * this->con->area(ctx.node);
+							eldot += tteldot;
+							this->data->fbag["latel"][nl1] += tteldot;
+						}
+						if (this->data->_surface[nl2] - this->data->_hw[nl2] > tbed) {
+							f_t tteldot = std::min(
+								wl2 * teldot,
+								(this->data->_surface[nl2] - this->data->_hw[nl2] - tbed) /
+									(this->dt * this->param->time_dilatation_morpho));
+							this->xtraQsout[nl2] += tteldot * this->con->area(ctx.node);
+							eldot += tteldot;
+							this->data->fbag["latel"][nl2] += tteldot;
+						}
+					}
+
+					this->data->fbag["rc"][ctx.node] = radius;
+
+					f_t latslope = 0.;
+
+					double K = (1. / this->param->kd + this->param->kdl * latslope);
+
+					double edotpsy = (edot + eldot) / K;
+					double C1 = this->data->_Qsin[ctx.node] / SSdy - edotpsy;
+
+					this->data->_Qsout[ctx.node] =
+						SSdy * (edotpsy + C1 * std::exp(-SSdx * K));
+
+					i_t n1, n2;
+					f_t w1, w2;
+					con->NeighboursTheta2(ctx.node,
+																this->data->_theta_flow_out[ctx.node] *
+																	(1 + this->data->randu->get() * 0.4 - 0.2),
+																n1,
+																n2,
+																w1,
+																w2);
+					this->data->_Qsin[n1] += this->data->_Qsout[ctx.node] * w1;
+					this->data->_Qsin[n2] += this->data->_Qsout[ctx.node] * w2;
+
+					if (this->data->_Qsout[ctx.node] < 0)
+						throw std::runtime_error("Qso < 0");
 				}
 			}
-
-			this->data->_Qwin[ctx.node] = next.Qw + this->xtraQwin[ctx.node];
-			this->xtraQwin[ctx.node] = 0.;
 
 			f_t baseQw = this->data->_Qwin[ctx.node];
 			f_t baseQs;
 			if (this->param->gf2_morpho)
 				baseQs = (ispast) ? this->data->_Qsout[next.node] : next.Qs;
+			// baseQs += this->extra
 
 			if (this->param->morphomode == MORPHOMODE::EROS)
 				receiversWeightsQs = receiversWeights;
@@ -819,7 +973,8 @@ public:
 
 				if (tizdone) {
 					if (this->param->gf2_morpho &&
-							this->param->morphomode != MORPHOMODE::MPMVEC) {
+							this->param->morphomode != MORPHOMODE::MPMVEC &&
+							this->param->morphomode != MORPHOMODE::EROSVEC) {
 						if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
 							if (this->isInQ[rec])
 								this->xtraQwin[rec] += baseQw * receiversWeights[j];
@@ -862,7 +1017,8 @@ public:
 
 					this->xtraQwin[rec] += baseQw * receiversWeights[j];
 					if (this->param->gf2_morpho &&
-							this->param->morphomode != MORPHOMODE::MPMVEC)
+							this->param->morphomode != MORPHOMODE::MPMVEC &&
+							this->param->morphomode != MORPHOMODE::EROSVEC)
 						this->data->_Qsin[rec] += baseQs * receiversWeightsQs[j];
 				}
 			}
@@ -995,6 +1151,346 @@ public:
 		this->data->ibag["labels"] = labels;
 
 		// std::cout << "Sumout: " << sumout << std::endl; ;
+	}
+
+	void run_hydro_mfd()
+	{
+
+		// ###################################
+		// Initialising the data structures if needed
+		// ###################################
+
+		// In case I am computing the discharge per unit width
+		std::vector<f_t> qr_out;
+		if (this->computor == RUN_GF2::COMPUTEqr)
+			qr_out = std::vector<f_t>(this->con->nxy(), 0.);
+
+		// In case it is the first run
+		if (this->data->_timetracker.size() == 0) {
+			this->data->_timetracker = std::vector<f_t>(this->con->nxy(), 0.);
+		}
+
+		// The priority queue is the dynamic stack popping/storing nodes in the
+		// right way
+		std::priority_queue<WaCell<i_t, f_t>,
+												std::vector<WaCell<i_t, f_t>>,
+												std::less<WaCell<i_t, f_t>>>
+			dynastack;
+
+		// ctx is the context neighbourer (helps nabigating through neighbours as
+		// the stack is not computed)
+		CT_neighbours<i_t, f_t> ctx;
+
+		// Creating local stacks to speed up some operations
+		std::vector<i_t> tempnodes, temprec;
+		tempnodes.reserve(this->con->_nx);
+		temprec.reserve(this->con->_nx);
+
+		// placeholder for receiver data
+		std::array<i_t, 8> receivers; // id of rec in the contextual neighbours
+		std::array<f_t, 8> receiversWeights;
+		std::array<f_t, 8> receiversWeightsQs;
+		std::array<f_t, 8> receiversSlopes;
+
+		// ###################################
+		// Reinitialising the vectors to 0 if not furst run
+		// ###################################
+
+		// If active_nodes is activated, I only work on a subset of nodes
+		if (this->active_nodes.size() == 0) {
+
+			fillvec(this->data->_Qwin, 0.);
+			fillvec(this->xtraQwin, 0.);
+			fillvec(this->isInQ, false);
+			// else I work on all the nodes
+		} else {
+			fillvec(this->data->_Qwin, 0., this->active_nodes);
+			fillvec(this->xtraQwin, 0., this->active_nodes);
+			fillvec(this->isInQ, false, this->active_nodes);
+		}
+
+		// ###################################
+		// State variables
+		// ###################################
+
+		// Mass balance checker
+		this->MB_Qwin_out = 0.;
+		// increment water checker
+		this->meandhstar = 0.;
+		f_t sumout = 0.;
+
+		// ###################################
+		// Step 1: Preparing the inputs
+		// ###################################
+
+		// initialising the dynamic stack and the input points of water
+		this->init_dstack<WaCell<i_t, f_t>, decltype(dynastack)>(dynastack);
+
+		// Incrementing the timer
+		this->time += this->dt;
+
+		// ###################################
+		// Step 2: Traversing the landscape
+		// ###################################
+
+		// Timer stuff
+		// nook.tok("init took ");
+		// nook.tik();
+
+		// the main loop is running as long as there are still nodes in the priority
+		// queue
+		while (dynastack.empty() == false) {
+
+			// Getting the next node
+			auto next = this->_dstack_next<WaCell<i_t, f_t>>(dynastack);
+
+			// deregistering it as being in the PQ stack
+			this->isInQ[next.node] = false;
+
+			// ispast is true if the node has not been processed yet
+			bool ispast = this->data->_timetracker[next.node] != this->time;
+
+			// Updating the timer
+			this->data->_timetracker[next.node] = this->time;
+
+			// Updating the context (fetching local neighbours index and otehr info)
+			ctx.update(next.node, *this->con);
+
+			// If the node is outletting the model I skip it
+			if (can_out(ctx.boundary)) {
+				continue;
+			}
+
+			// If the node is no_data I skip it
+			if (nodata(ctx.boundary)) {
+				continue;
+			}
+
+			// ###################################
+			// Local state variables
+			// ###################################
+
+			// Number of receivers
+			int nr = 0;
+			// Index of the steepest receiver
+			int SSi = 0;
+			// Steepest slope
+			f_t SS = 0;
+			// dx in the steepest direction
+			f_t SSdx = 1.;
+			// dy in the steepest direction
+			f_t SSdy = 1.;
+
+			// Fectching local hw and hydraulic surface
+			f_t& thw = this->data->_hw[next.node];
+			f_t& tsurf = this->data->_surface[next.node];
+
+			// ###################################
+			// Computing the local graph
+			// ###################################
+
+			// This function takes care of filtering, selecting and calculating the
+			// receivers' characteristics
+			this->update_receivers(ctx,
+														 receivers,
+														 receiversWeights,
+														 nr,
+														 SS,
+														 SSdx,
+														 SSdy,
+														 SSi,
+														 receiversSlopes);
+
+			// Local stack
+			if (ispast) {
+				temprec.emplace_back(nr >= 0 ? SSi : next.node);
+				tempnodes.emplace_back(next.node);
+			}
+
+			// Adding unprocessed upstream neighbours to the Queue to connect
+			// disconnected node
+			for (int j = 0; j < ctx.nn; ++j) {
+				int tn = ctx.neighbours[j];
+				if (this->data->_surface[tn] > tsurf && this->data->_hw[tn] > 0 &&
+						this->data->_timetracker[tn] != this->time &&
+						this->isInQ[tn] == false) {
+					dynastack.emplace(
+						WaCell<i_t, f_t>(tn, this->data->_surface[tn], 0., 0.));
+				}
+			}
+
+			// ###################################
+			// Computing Water fluxes
+			// ###################################
+
+			// Flow velocity u using manning Equation
+			// Note I am recasting the slope to a minimum value to avoid numerical
+			// instabilities
+			f_t u_w = std::pow(thw, (2. / 3.)) / this->mannings *
+								std::sqrt(std::max(1e-6, SS));
+
+			// Converting to output volumetric discharge
+			f_t tQwout = thw * u_w * SSdy;
+
+			// Registering local output Volumetric discharge
+			this->data->_Qwout[ctx.node] = tQwout;
+
+			// Calculating the input Volumetric Discharge
+			// Some water is transmitted via the dynamic cells (for example if they
+			// have been in a local minima) rest of the water is in a temp vector
+			// storing them
+			this->data->_Qwin[ctx.node] = next.Qw + this->xtraQwin[ctx.node];
+			this->xtraQwin[ctx.node] = 0.;
+
+			// ###################################
+			// Optional Computations
+			// ###################################
+
+			if (this->computor == RUN_GF2::COMPUTEqr)
+				qr_out[ctx.node] = thw * u_w;
+
+			// ###################################
+			// Transferring water to the neighbours
+			// ###################################
+
+			// For clarity
+			f_t baseQw = this->data->_Qwin[ctx.node];
+
+			// Iterating through the receivers
+			for (int j = 0; j < nr; ++j) {
+
+				// local id in the array of neighbours in the context
+				int i = receivers[j];
+				// actual index of the receivers
+				int rec = ctx.neighbours[i];
+
+				// Skipping if 0 to avoid  adding useless nodes to the Q
+				if (receiversWeights[j] == 0 && receiversWeightsQs[j] == 0)
+					continue;
+
+				// Debug checker catching cases where I have a receivers that shoud not
+				// be one. Keeping it cause I am still playing with receivers selection
+				if (nodata(this->data->_boundaries[rec]))
+					throw std::runtime_error(
+						"Fraphflood2::run::run_hydro_mfd::receiver is no data");
+
+				// Checking if my receiver has already been processed or not (Am I in
+				// the process of solving a LM)
+				bool tizdone = this->data->_timetracker[rec] == this->time;
+				// Checking if my receiver is already in the Q
+				bool inDaQ = this->isInQ[rec];
+
+				if (inDaQ) {
+					// Then I add the extra water to the bucket vector as it will come
+					// later
+					this->xtraQwin[rec] += baseQw * receiversWeights[j];
+				}
+				// If this is the sace
+				else if (tizdone) {
+					// Emplcing the cell and storing the watter within to be transmitted
+					// out of the area
+					dynastack.emplace(WaCell<i_t, f_t>(
+						rec, this->data->_surface[rec], baseQw * receiversWeights[j]));
+
+					// node is in the Q
+					this->isInQ[rec] = true;
+
+				} else {
+					// Otherwise I just need to check if I don't fall out of the node
+					// masks (Is it a part of the landscape I want to process)
+					if (this->param->TSG_dist == false || this->tsg.xtraMask[rec]) {
+						dynastack.emplace(WaCell<i_t, f_t>(
+							rec, this->data->_surface[rec], baseQw * receiversWeights[j]));
+						this->isInQ[rec] = true;
+					}
+				}
+			}
+		}
+
+		// #######################################
+		//  End of the traversal loop
+		//  Beginning of the post-process stage
+		// #######################################
+
+		// Registering the discharge per unit width if required to compute
+		if (this->computor == RUN_GF2::COMPUTEqr)
+			this->data->fbag["qr_out"] = std::move(qr_out);
+
+		// Stopping the process here if computing a given metric
+		if (this->computor != RUN_GF2::NORMAL)
+			return;
+
+		// nook.tok("PQ took ");
+		// nook.tik();
+
+		// #######################################
+		//  Here there used to be a section checking and processing disconnected
+		//  nodes These were nodes not belonging to the local stack yet with water
+		//  For example nodes on a less frequent path.
+		//  These are now caught when looping local neighbours and adding
+		//  unprocessed upper ones to the queue a tiny number of nodes might still
+		//  be sometiems uncaught but the speed gain is worth it
+		// #######################################
+
+		// #######################################
+		//  Last step: incrementing flow depth
+		// #######################################
+
+		// Tacking N nodes have been incremented
+		int NN = 0;
+
+		// Looping through local stack
+		for (int i = 0; i < tempnodes.size(); ++i) {
+
+			// Local node
+			int node = tempnodes[i];
+
+			// double checking if I need to process it
+			if (this->is_node_active(node) == false)
+				continue;
+
+			// Ref to water height and hydraulic surface
+			f_t& thw = this->data->_hw[node];
+			f_t& tsurf = this->data->_surface[node];
+
+			// calculating increment
+			f_t dhw = 0.;
+			// Increment is equal to the divergence of the discharge...
+			dhw = this->data->_Qwin[node] -		// input discharge adds water
+						(this->data->_Qwout[node] * // output discharge removes water
+						 this->param
+							 ->capacityFacQw); // playing with the output discahrge can be
+																 // used to speed up the iterative process
+			dhw *= this->dt;					 // rate to actual increment
+			dhw /= this->con->area(i); // Volume to height
+
+			// rate of incrementation
+			this->meandhstar += dhw / this->dt;
+			++NN;
+
+			// Applying it
+			// # To the flow depth
+			thw += dhw;
+			// and the hydraulic surface
+			tsurf += dhw;
+
+			// Correcting if hw < 0 (rare, but can happen in small spots where dt is
+			// slightly too high)
+			if (thw < 0) {
+				tsurf -= thw;
+				thw = 0;
+			}
+		}
+
+		// Computing the average increment
+		if (NN > 0)
+			this->meandhstar /= NN;
+
+		// nook.tok("post took ");
+
+		// ##########################
+		//  Done
+		// ##########################
 	}
 
 	void morphoton(int N, f_t edt)

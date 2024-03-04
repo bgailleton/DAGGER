@@ -98,5 +98,6 @@ enum class MORPHOMODE : std::uint8_t
 	EROS,
 	MPM,
 	MPMVEC,
+	EROSVEC,
 
 };
