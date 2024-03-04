@@ -73,6 +73,7 @@ delclare_enums(py::module& m)
 	py::enum_<MORPHOMODE>(m, "MORPHOMODE")
 		.value("NONE", MORPHOMODE::NONE)
 		.value("EROS", MORPHOMODE::EROS)
+		.value("EROSVEC", MORPHOMODE::EROSVEC)
 		.value("MPM", MORPHOMODE::MPM)
 		.value("MPMVEC", MORPHOMODE::MPMVEC);
 }

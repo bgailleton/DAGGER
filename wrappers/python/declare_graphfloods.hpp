@@ -39,6 +39,13 @@ declare_graphflood(py::module& m, std::string typestr)
 											Hermes<int, double>,
 											ParamBag<int, double>>::compute_entry_points_sources)
 
+		.def("run",
+				 &Graphflood2<int,
+											double,
+											Connector8<int, double>,
+											int,
+											Hermes<int, double>,
+											ParamBag<int, double>>::run)
 		.def("run_subgraphflood",
 				 &Graphflood2<int,
 											double,
