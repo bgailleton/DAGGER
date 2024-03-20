@@ -76,4 +76,9 @@ delclare_enums(py::module& m)
 		.value("EROSVEC", MORPHOMODE::EROSVEC)
 		.value("MPM", MORPHOMODE::MPM)
 		.value("MPMVEC", MORPHOMODE::MPMVEC);
+
+	py::enum_<HYDROMODE>(m, "HYDROMODE")
+		.value("MFD", HYDROMODE::MFD)
+		.value("SFD", HYDROMODE::SFD)
+		.value("VEC", HYDROMODE::VEC);
 }

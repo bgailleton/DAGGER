@@ -11,6 +11,8 @@ declare_param(py::module& m)
 		.def(py::init<>())
 		.def("get_morphomode", &ParamBag<int, double>::get_morphomode)
 		.def("set_morphomode", &ParamBag<int, double>::set_morphomode)
+		.def("get_hydromode", &ParamBag<int, double>::get_hydromode)
+		.def("set_hydromode", &ParamBag<int, double>::set_hydromode)
 		.def("set_ke", &ParamBag<int, double>::set_ke)
 		.def("set_variable_ke",
 				 &ParamBag<int, double>::set_variable_ke<py::array_t<double, 1>>)

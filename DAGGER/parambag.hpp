@@ -47,6 +47,10 @@ public:
 	MORPHOMODE get_morphomode() { return this->morphomode; }
 	void set_morphomode(MORPHOMODE mode) { this->morphomode = mode; }
 
+	HYDROMODE hydromode = HYDROMODE::MFD;
+	HYDROMODE get_hydromode() { return this->hydromode; }
+	void set_hydromode(HYDROMODE mode) { this->hydromode = mode; }
+
 	BOUNDARY_HW gf2Bmode = BOUNDARY_HW::FIXED_SLOPE;
 	f_t gf2Bbval = 1e-2;
 	void set_gf2Bbval(f_t val) { this->gf2Bbval = val; }

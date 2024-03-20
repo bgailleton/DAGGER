@@ -2,6 +2,13 @@
 History
 =======
 
+0.0.12 (06/03/2024)
+-------------------
+
+* Many improvements on graphflood
+* Many bug fixes
+* Starting to add river analysis tools (early work)
+
 0.0.11 (05/01/2023)
 -------------------
 

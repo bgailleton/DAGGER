@@ -101,3 +101,10 @@ enum class MORPHOMODE : std::uint8_t
 	EROSVEC,
 
 };
+
+enum class HYDROMODE : std::uint8_t
+{
+	MFD,
+	SFD,
+	VEC
+};

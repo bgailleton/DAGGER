@@ -2,6 +2,7 @@
 #pragma once
 
 #include "npy.hpp"
+#include "vecutils.hpp"
 
 // STL imports
 #include <algorithm>
@@ -21,6 +22,8 @@
 #include <string.h>
 #include <string>
 #include <vector>
+
+const double NPPI = std::acos(-1.0);
 
 namespace DAGGER {
 
@@ -611,12 +614,27 @@ fillvec(std::vector<T>& vec, U val)
 		vec[i] = val;
 }
 
+template<class T, class U>
+void
+fillvec(std::vector<T>& vec, U val, std::vector<int>& nodes)
+{
+	for (size_t i = 0; i < nodes.size(); ++i)
+		vec[nodes[i]] = val;
+}
+
 template<class T>
 void
 fillvecrange(std::vector<T>& vec)
 {
 	for (size_t i = 0; i < vec.size(); ++i)
 		vec[i] = i;
+}
+
+template<class f_t>
+int
+sign(f_t x)
+{
+	return std::signbit(x) ? -1 : 1;
 }
 
 // template<T>
