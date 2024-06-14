@@ -50,6 +50,11 @@ B.G.
 				&set_BC_to_remove_seas<D8connector<FLOATING_POINT_DAGGER>,
 															 py::array_t<FLOATING_POINT_DAGGER, 1>,
 															 FLOATING_POINT_DAGGER>);
+	m.def("set_BC_to_remove_seas_EW_periodic_NS_out",
+				&set_BC_to_remove_seas_EW_periodic_NS_out<
+					D8connector<FLOATING_POINT_DAGGER>,
+					py::array_t<FLOATING_POINT_DAGGER, 1>,
+					FLOATING_POINT_DAGGER>);
 
 	m.def("label_depressions_PQ",
 				&label_depressions_PQ<py::array_t<FLOATING_POINT_DAGGER, 1>,

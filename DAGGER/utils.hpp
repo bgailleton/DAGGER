@@ -95,6 +95,44 @@ operator<(const PQ_helper<T, U>& lhs, const PQ_helper<T, U>& rhs)
 	return lhs.score < rhs.score;
 }
 
+// PQ_helper is a simple generic template class aiming to provide
+// a structure for priority queue elements made of an ID of type T sorted by
+// a score of type U.
+// A typical example would be node ID sorted by elevation
+template<class T, class U>
+class PQ_helper2D
+{
+public:
+	// empty constructor
+	PQ_helper2D() = default;
+	// Constructor by default
+	PQ_helper2D(T row, T col, U score)
+	{
+		this->row = row;
+		this->col = col;
+		this->score = score;
+	};
+	// Node index
+	T row;
+	T col;
+	// Score data
+	U score;
+};
+
+// Custom operator sorting the nodes by scores
+template<class T, class U>
+inline bool
+operator>(const PQ_helper2D<T, U>& lhs, const PQ_helper2D<T, U>& rhs)
+{
+	return lhs.score > rhs.score;
+}
+template<class T, class U>
+inline bool
+operator<(const PQ_helper2D<T, U>& lhs, const PQ_helper2D<T, U>& rhs)
+{
+	return lhs.score < rhs.score;
+}
+
 // Utility function allowing to access the container behind the priority queue
 // Totally unsafe if hte priority queue has to be used again, but quite handy if
 // you simply need to iterate through its elements

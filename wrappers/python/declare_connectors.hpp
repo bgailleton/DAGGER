@@ -234,6 +234,10 @@ declare_D8connector(py::module& m, std::string typestr)
 				 &D8connector<FLOATING_POINT_DAGGER>::get_boundary_at_node,
 				 py::arg("node_idx"),
 				 R"pdoc(Returns the boundary code at node index)pdoc")
+		.def("get_boundary_at_node_int",
+				 &D8connector<FLOATING_POINT_DAGGER>::get_boundary_at_node_int,
+				 py::arg("node_idx"),
+				 R"pdoc(Returns the boundary code at node index)pdoc")
 
 		.def(
 			"get_rowcol_Sreceivers",
