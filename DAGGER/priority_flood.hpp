@@ -122,7 +122,10 @@ PriorityFlood(std::vector<fT>& topography, Connector_t& connector)
 
 template<class CONTAINER_T, class fT, class GRID_T, class CONTAINER_T_BCs>
 void
-_PriorityFlood_D4(CONTAINER_T& topography, GRID_T& grid, CONTAINER_T_BCs& BCs)
+_PriorityFlood_D4(CONTAINER_T& topography,
+									GRID_T& grid,
+									CONTAINER_T_BCs& BCs,
+									fT step)
 {
 	/*
 		Runs priority flood on a DEM using the D4 directions and assuming your DEM
@@ -216,10 +219,10 @@ _PriorityFlood_D4(CONTAINER_T& topography, GRID_T& grid, CONTAINER_T_BCs& BCs)
 				// Processing it
 				closed[n] = true;
 
-				if (topography(rn, cn) <= ttopo + 1e-3) {
+				if (topography(rn, cn) <= ttopo + step) {
 
 					// Incresing its topography
-					fT tttopo = ttopo + randu.get() * 1e-4 + 1.01e-3;
+					fT tttopo = ttopo + randu.get() * 1e-4 + step;
 					// fT tttopo = ttopo +
 					// std::nextafter(ttopo,std::numeric_limits<fT>::infinity()); In case
 					// it has been raised before I keep the max
