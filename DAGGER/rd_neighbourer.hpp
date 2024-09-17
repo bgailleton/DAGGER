@@ -18,9 +18,16 @@ enum class boundaries : std::uint8_t
 	customs = 3
 };
 
+// template<class i_t>
+
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_top_row_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_top_row_normal(I_T i,
+											I_T j,
+											I_T k,
+											CONTAINER_BCs_T& BCs,
+											PAR* par,
+											bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the top
@@ -34,13 +41,11 @@ _check_top_row_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 		- B.G. (last modification 30/04/2024)
 	*/
 
-	bool valid = true;
 	// # Only checking if it actually is on the fretnei[0]st row
 
 	if (i == 0) {
 		// # Checking all the different cases: fretnei[0]s, last cols && the middle
-		if ((j == 0 && k <= 1) || (j == par->nx - 1 && (k == 0 || k == 2)) ||
-				(k == 0))
+		if (k == 0)
 			valid = false;
 	}
 
@@ -50,7 +55,12 @@ _check_top_row_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_leftest_col_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_leftest_col_normal(I_T i,
+													I_T j,
+													I_T k,
+													CONTAINER_BCs_T& BCs,
+													PAR* par,
+													bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the
@@ -64,8 +74,6 @@ _check_leftest_col_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 30/04/2024)
 	*/
-	// # I assume it's good
-	bool valid = true;
 
 	// # Only checking if it actually is on the fretnei[0]st col
 	if (j == 0)
@@ -77,7 +85,12 @@ _check_leftest_col_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_rightest_col_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_rightest_col_normal(I_T i,
+													 I_T j,
+													 I_T k,
+													 CONTAINER_BCs_T& BCs,
+													 PAR* par,
+													 bool valid)
 {
 
 	/*
@@ -92,19 +105,24 @@ _check_rightest_col_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 30/04/2024)
 	*/
-	// # I assume it's good
-	bool valid = true;
 	// # Only checking if it actually is on the fretnei[0]st col
-	if (j == par->nx - 1)
-		if (k == 2)
+	if (j == par->nx - 1) {
+		if (k == 2) {
 			valid = false;
+		}
+	}
 	// # Done
 	return valid;
 }
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_bottom_row_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_bottom_row_normal(I_T i,
+												 I_T j,
+												 I_T k,
+												 CONTAINER_BCs_T& BCs,
+												 PAR* par,
+												 bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the bottom
@@ -119,14 +137,12 @@ _check_bottom_row_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 		- B.G. (last modification 30/04/2024)
 	*/
 
-	// # I assume it's good
-	bool valid = true;
 	// # Only checking if it actually is on the fretnei[0]st row
-	if (i == par->ny - 1)
+	if (i == par->ny - 1) {
 		// # Checking all the different cases: fretnei[0]s, last cols && the middle
-		if ((j == 0 && (k == 1 || k == 3)) ||
-				(j == par->nx - 1 && (k == 3 || k == 2)) || (k == 3))
+		if (k == 3)
 			valid = false;
+	}
 	// # Done
 	return valid;
 }
@@ -202,10 +218,10 @@ _neighbours_normal(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	bool valid = true;
 
 	// # Breaking down the checks
-	valid = _check_top_row_normal(i, j, k, BCs, par);
-	valid = _check_leftest_col_normal(i, j, k, BCs, par);
-	valid = _check_rightest_col_normal(i, j, k, BCs, par);
-	valid = _check_bottom_row_normal(i, j, k, BCs, par);
+	valid = _check_top_row_normal(i, j, k, BCs, par, valid);
+	valid = _check_leftest_col_normal(i, j, k, BCs, par, valid);
+	valid = _check_rightest_col_normal(i, j, k, BCs, par, valid);
+	valid = _check_bottom_row_normal(i, j, k, BCs, par, valid);
 
 	// # getting the actual neighbours
 	return _cast_neighbour_normal(i, j, k, valid, BCs, par);
@@ -332,7 +348,12 @@ PERIODIC_BORDER = 9
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_top_row_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_top_row_customs(I_T i,
+											 I_T j,
+											 I_T k,
+											 CONTAINER_BCs_T& BCs,
+											 PAR* par,
+											 bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the top
@@ -345,9 +366,6 @@ _check_top_row_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 02/05/2024)
 	*/
-
-	// # I assume it's good
-	bool valid = true;
 
 	// # Only checking if it actually is on the fretnei[0]st row
 	if (i == 0) {
@@ -362,7 +380,12 @@ _check_top_row_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_leftest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_leftest_col_customs(I_T i,
+													 I_T j,
+													 I_T k,
+													 CONTAINER_BCs_T& BCs,
+													 PAR* par,
+													 bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the
@@ -376,8 +399,7 @@ _check_leftest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 02/05/2024)
 	*/
-	// # I assume it's good
-	bool valid = true;
+
 	// # Only checking if it actually is on the fretnei[0]st col
 	if (j == 0)
 		if (k == 1)
@@ -387,7 +409,12 @@ _check_leftest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 }
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_rightest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_rightest_col_customs(I_T i,
+														I_T j,
+														I_T k,
+														CONTAINER_BCs_T& BCs,
+														PAR* par,
+														bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the
@@ -401,8 +428,7 @@ _check_rightest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 02/05/2024)
 	*/
-	// # I assume it's good
-	bool valid = true;
+
 	// # Only checking if it actually is on the fretnei[0]st col
 	if (j == par->nx - 1)
 		if (k == 2)
@@ -413,7 +439,12 @@ _check_rightest_col_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 
 template<class I_T, class CONTAINER_BCs_T, class PAR>
 bool
-_check_bottom_row_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
+_check_bottom_row_customs(I_T i,
+													I_T j,
+													I_T k,
+													CONTAINER_BCs_T& BCs,
+													PAR* par,
+													bool valid)
 {
 	/*
 	Internal function to check if neighbouring is possible for nodes at the bottom
@@ -427,8 +458,7 @@ _check_bottom_row_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	Authors:
 		- B.G. (last modification 02/05/2024)
 	*/
-	// # I assume it's good
-	bool valid = true;
+
 	// # Only checking if it actually is on the fretnei[0]st row
 	if (i == par->ny - 1)
 		// # Checking all the different cases: fretnei[0]s, last cols && the middle
@@ -514,15 +544,13 @@ _neighbours_customs(I_T i, I_T j, I_T k, CONTAINER_BCs_T& BCs, PAR* par)
 	TODO:
 		- adding the Periodic boundary management in the checks
 	*/
-
-	// # I fretnei[0]st assume this mneighbour is valid
 	bool valid = true;
 
 	// # Breaking down the checks
-	valid = _check_top_row_customs(i, j, k, BCs, par);
-	valid = _check_leftest_col_customs(i, j, k, BCs, par);
-	valid = _check_rightest_col_customs(i, j, k, BCs, par);
-	valid = _check_bottom_row_customs(i, j, k, BCs, par);
+	valid = _check_top_row_customs(i, j, k, BCs, par, valid);
+	valid = _check_leftest_col_customs(i, j, k, BCs, par, valid);
+	valid = _check_rightest_col_customs(i, j, k, BCs, par, valid);
+	valid = _check_bottom_row_customs(i, j, k, BCs, par, valid);
 
 	// # getting the actual neighbours
 	return _cast_neighbour_customs(i, j, k, valid, BCs, par);
@@ -635,6 +663,7 @@ public:
 	F_T dx = 0.;
 	F_T dy = 0.;
 	I_T nxy = 0;
+	I_T nk = 4;
 
 	boundaries bound = boundaries::normal;
 
@@ -694,5 +723,18 @@ public:
 																					 CONTAINER_BCs_T,
 																					 GridCPP<I_T, F_T, CONTAINER_BCs_T>>;
 		}
+	}
+
+	template<class T>
+	void id2rowcol(T index, T& row, T& col)
+	{
+		col = index % this->nx;
+		row = std::floor(double(index) / this->nx);
+	}
+
+	template<class T>
+	T rowcol2index(T row, T col)
+	{
+		return row * this->nx + col;
 	}
 };

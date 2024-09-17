@@ -1506,6 +1506,11 @@ public:
 
 	BC get_boundary_at_node(int i) { return this->boundaries.codes[i]; }
 
+	int get_boundary_at_node_int(int i)
+	{
+		return static_cast<int>(this->boundaries.codes[i]);
+	}
+
 	bool is_in_bound(int i)
 	{
 		return (i >= 0 && i < this->nnodes) ? true : false;
@@ -1607,6 +1612,19 @@ public:
 		tin[5] = this->get_topleft_idx_links(i);
 		tin[6] = this->get_top_idx_links(i);
 		tin[7] = this->get_topright_idx_links(i);
+		return 8;
+	}
+
+	int get_neighbour_idx_nochecks(int i, std::array<int, 8>& tin)
+	{
+		tin[0] = this->get_raw_right_idx(i);
+		tin[1] = this->get_raw_bottomright_idx(i);
+		tin[2] = this->get_raw_bottom_idx(i);
+		tin[3] = this->get_raw_bottomleft_idx(i);
+		tin[4] = this->get_raw_left_idx(i);
+		tin[5] = this->get_raw_topleft_idx(i);
+		tin[6] = this->get_raw_top_idx(i);
+		tin[7] = this->get_raw_topright_idx(i);
 		return 8;
 	}
 
@@ -3768,6 +3786,60 @@ set_BC_to_remove_seas(Connector_t& connector, topo_t& ttopography, fT sea_level)
 			if (connector.boundaries.no_data(neighbours[j]))
 				connector.boundaries.codes[i] = BC::OUT;
 	}
+};
+
+template<class Connector_t, class topo_t, class fT>
+void
+set_BC_to_remove_seas_EW_periodic_NS_out(Connector_t& connector,
+																				 topo_t& ttopography,
+																				 fT sea_level)
+{
+	auto topography = format_input(ttopography);
+	// # first label the no-data
+	for (int i = 0; i < connector.nnodes; ++i) {
+		if (topography[i] <= sea_level)
+			connector.boundaries.codes[i] = BC::NO_FLOW;
+		else
+			connector.boundaries.codes[i] = BC::FLOW;
+	}
+
+	auto neighbours = connector.get_empty_neighbour();
+	for (int i = 0; i < connector.nnodes; ++i) {
+
+		if (connector.boundaries.no_data(i))
+			continue;
+
+		int nn = connector.get_neighbour_idx_nochecks(i, neighbours);
+
+		for (int j = 0; j < nn; ++j) {
+			if (connector.boundaries.no_data(neighbours[j])) {
+				connector.boundaries.codes[i] = BC::OUT;
+			}
+		}
+	}
+
+	for (int i = 0; i < connector.nnodes; ++i) {
+		if (connector.boundaries.no_data(i) ||
+				connector.boundaries.codes[i] == BC::OUT)
+			continue;
+
+		if (connector.is_on_bottom_row(i) || connector.is_on_top_row(i))
+			connector.boundaries.codes[i] = BC::OUT;
+		else if (connector.is_on_leftest_col(i) || connector.is_on_rightest_col(i))
+			connector.boundaries.codes[i] = BC::PERIODIC_BORDER;
+	}
+
+	for (int i = 0; i < connector.nnodes; ++i) {
+		if (connector.boundaries.codes[i] != BC::PERIODIC_BORDER)
+			continue;
+
+		int nn = connector.get_neighbour_idx_nochecks(i, neighbours);
+		for (int j = 0; j < nn; ++j)
+			if (connector.boundaries.no_data(neighbours[j]))
+				connector.boundaries.codes[i] = BC::OUT;
+	}
+
+	connector.precompute_links();
 };
 
 //  DEPRECATED AND MOVED OUTSIDE OF THE CONNECTOR

@@ -33,14 +33,20 @@
 
 namespace DAGGER {
 
-template <typename in_t> auto format_input(in_t &tin) {
-  auto ret = _format_input(tin);
-  return ret;
+template<typename in_t>
+auto
+format_input(in_t& tin)
+{
+	auto ret = _format_input(tin);
+	return ret;
 }
 
-template <class in_t, class out_t> out_t format_output(in_t &tin) {
-  out_t ret = _format_output(tin);
-  return ret;
+template<class in_t, class out_t>
+out_t
+format_output(in_t& tin)
+{
+	out_t ret = _format_output(tin);
+	return ret;
 }
 
 } // namespace DAGGER

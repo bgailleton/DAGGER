@@ -1,5 +1,5 @@
-% PAth to the folder containing the library built with builder.m
-        addpath("../DAGGER");
+% PAth to the folder containing the library built with
+		builder.m addpath("../DAGGER");
 system('ldd ../DAGGER/DAGGERInterface.so');
 % topo = clib.DAGGER.daggerFD_double_Int_;
 
@@ -16,9 +16,9 @@ gut = rand(1, (nx * nx));
 
 % sqrt(size(topo.double)) size(topo.double)
 
-        size(gut)
+		size(gut)
 
-            topor = topo + gut;
+			topor = topo + gut;
 
 % daggerFD = clib.DAGGER.daggerFD_double_Int_();
 % daggerFD.init(nx, ny, dx, dy, xmin, ymin, "periodic_EW");

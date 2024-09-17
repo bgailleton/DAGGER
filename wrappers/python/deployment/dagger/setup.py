@@ -6,9 +6,43 @@
 from pybind11.setup_helpers import Pybind11Extension, build_ext
 from setuptools import setup, find_packages
 import os
+import sys
 import platform
 
-__version__ = "0.0.12"
+__version__ = "0.0.13"
+
+
+
+class get_pybind_include(object):
+    """Helper class to determine the pybind11 include path
+
+    The purpose of this class is to postpone importing pybind11
+    until it is actually installed, so that the ``get_include()``
+    method can be invoked. """
+
+    def __init__(self, user=False):
+        self.user = user
+
+    def __str__(self):
+        import pybind11
+        return pybind11.get_include(self.user)
+
+
+class get_numpy_include(object):
+    """Helper class to determine the numpy include path
+
+    The purpose of this class is to postpone importing numpy
+    until it is actually installed, so that the ``get_include()``
+    method can be invoked. """
+
+    def __init__(self):
+        pass
+
+    def __str__(self):
+        import numpy as np
+        return np.get_include()
+
+
 
 
 
@@ -61,7 +95,7 @@ ext_modules = [
         Pybind11Extension(
                     "dagger",
                     ["main.cpp"], # DAGGER is header-only, so only the main cpp file containing definitions has to be compiled
-                    include_dirs = ["includes"], # Deployment process fetch all the required headers and gather them in `includes`
+                    include_dirs = ["includes", get_pybind_include(), get_pybind_include(user=True), get_numpy_include(),os.path.join(sys.prefix, 'include'), os.path.join(sys.prefix, 'Library', 'include')], # Deployment process fetch all the required headers and gather them in `includes`
                     libraries = LIBBR, # Additional libraries
                     define_macros = MACROS, # -D stuff
                     cxx_std=17, # I need c++17 standard for most of my tools

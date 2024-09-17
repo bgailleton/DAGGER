@@ -11,6 +11,8 @@
 #include "declare_trackscapes.hpp"
 
 #include "rd_neighbourer.hpp"
+#include "rd_graph.hpp"
+#include "rd_select_watershed.hpp"
 
 #include "pybind11/pybind11.h"
 
@@ -180,7 +182,43 @@ PYBIND11_MODULE(dagger, m)
 													 float,
 													 GridCPP<int, float, xt::pytensor<std::uint8_t, 2>>,
 													 xt::pytensor<std::uint8_t, 2>>);
+
+//   template<class GRID_T, class ARR_INT, class ARR_FT, class ARR_BCs>
+	m.def("compute_SF_stack_D4_full_f32",
+				&compute_full_SF_graph< GridCPP<int, float, xt::pytensor<std::uint8_t, 2>>,
+										float>);
+
+	m.def("compute_SF_stack_D4_full_f64",
+				&compute_full_SF_graph< GridCPP<int, double, xt::pytensor<std::uint8_t, 2>>,
+										double>);
+
+	m.def("BCs_to_mask_f64", &BCs_to_mask< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("BCs_to_mask_f32", &BCs_to_mask< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("mask_to_BCs_f64", &mask_to_BCs< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("mask_to_BCs_f32", &mask_to_BCs< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("mask_watersheds_above_elevations_f64", &mask_watersheds_above_elevations< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("mask_watersheds_above_elevations_f32", &mask_watersheds_above_elevations< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("label_watersheds_mask_f32", &label_watersheds_mask< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("label_watersheds_mask_f64", &label_watersheds_mask< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("mask_watersheds_min_area_f32", &mask_watersheds_min_area< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("mask_watersheds_min_area_f64", &mask_watersheds_min_area< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("correct_Sreceivers_from_mask_f32", &correct_Sreceivers_from_mask< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("correct_Sreceivers_from_mask_f64", &correct_Sreceivers_from_mask< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("bounding_box_from_label_f32", &bounding_box_from_label< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("bounding_box_from_label_f64", &bounding_box_from_label< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+	m.def("mask_upstream_MFD_f32", &mask_upstream_MFD< GridCPP<int,float,xt::pytensor<std::uint8_t,2>>,float>);
+	m.def("mask_upstream_MFD_f64", &mask_upstream_MFD< GridCPP<int,double,xt::pytensor<std::uint8_t,2>>,double>);
+
+
+
+
+
+
 };
 ;
+
+
+
+
 
 // end of file

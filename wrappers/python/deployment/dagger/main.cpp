@@ -10,10 +10,30 @@
 #include "declare_rivnets.hpp"
 #include "declare_trackscapes.hpp"
 
+#include "rd_neighbourer.hpp"
+
+#include "pybind11/pybind11.h"
+
+#include "xtensor/xadapt.hpp"
+#include "xtensor/xarray.hpp"
+#include "xtensor/xmath.hpp"
+#include "xtensor/xtensor.hpp"
+
+#define FORCE_IMPORT_ARRAY
+#include "xtensor-python/pyarray.hpp"
+#include "xtensor-python/pytensor.hpp"
+#include "xtensor-python/pyvectorize.hpp"
+
+#include <cmath>
+#include <iostream>
+#include <numeric>
+
 using namespace DAGGER;
 
 PYBIND11_MODULE(dagger, m)
 {
+
+	xt::import_numpy();
 	m.doc() = R"pbdoc(
 		DAGGER - python API
 		===================
@@ -133,6 +153,33 @@ PYBIND11_MODULE(dagger, m)
 										 DAGGER::D8connector<FLOATING_POINT_DAGGER>>(m,
 																																 "graphflood");
 	declare_rivnet(m);
+
+	// Xtensor-python backend
+
+	py::enum_<boundaries>(m, "boundaries")
+		.value("normal", boundaries::normal)
+		.value("periodicEW", boundaries::periodicEW)
+		.value("periodicNS", boundaries::periodicNS)
+		.value("customs", boundaries::customs);
+
+	py::class_<GridCPP<int, float, xt::pytensor<std::uint8_t, 2>>>(m,
+																																 "GridCPP_f32")
+		.def(py::init<int, int, float, float, std::uint8_t>());
+
+	py::class_<GridCPP<int, double, xt::pytensor<std::uint8_t, 2>>>(m,
+																																	"GridCPP_f64")
+		.def(py::init<int, int, double, double, std::uint8_t>());
+
+	m.def("_PriorityFlood_D4_f64",
+				&_PriorityFlood_D4<xt::pytensor<double, 2>,
+													 double,
+													 GridCPP<int, float, xt::pytensor<std::uint8_t, 2>>,
+													 xt::pytensor<std::uint8_t, 2>>);
+	m.def("_PriorityFlood_D4_f32",
+				&_PriorityFlood_D4<xt::pytensor<float, 2>,
+													 float,
+													 GridCPP<int, float, xt::pytensor<std::uint8_t, 2>>,
+													 xt::pytensor<std::uint8_t, 2>>);
 };
 ;
 

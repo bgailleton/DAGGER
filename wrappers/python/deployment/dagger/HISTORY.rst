@@ -2,6 +2,15 @@
 History
 =======
 
+0.0.13 (04/07/2024)
+-------------------
+
+* Refactoring some accessors
+* Adding helpers for riverdale
+* starting to add xtensor-python
+* D4 standalone priority_flood
+* Labour voted in parlement
+
 0.0.12 (06/03/2024)
 -------------------
 

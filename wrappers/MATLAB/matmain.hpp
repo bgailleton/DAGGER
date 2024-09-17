@@ -21,66 +21,78 @@
 // template<class fT>
 // matlab::data::TypedArray<double> quick_fluvial_topo(int ncycles, std::string
 // boundaries)
-std::vector<double> quick_fluvial_topo(int ncycles, std::string boundaries) {
-  return DAGGER::_quick_fluvial_topo<double>(ncycles, boundaries);
-  // return DAGGER::format_output<decltype(ttopo),
-  //                            matlab::data::TypedArray<double>>(ttopo);
+std::vector<double>
+quick_fluvial_topo(int ncycles, std::string boundaries)
+{
+	return DAGGER::_quick_fluvial_topo<double>(ncycles, boundaries);
+	// return DAGGER::format_output<decltype(ttopo),
+	//                            matlab::data::TypedArray<double>>(ttopo);
 }
 
 // fT is the generic floating point type
 // int_t is the generic floating point type
-template <class fT, class int_t> class daggerFD {
+template<class fT, class int_t>
+class daggerFD
+{
 public:
-  int_t nx, ny, nxy;
-  fT dx, dy, xmin, ymin;
-  std::vector<int_t> ix, ixc;
-  std::vector<fT> fraction, distances;
-  // DAGGER::D8connector<fT> connector;
+	int_t nx, ny, nxy;
+	fT dx, dy, xmin, ymin;
+	std::vector<int_t> ix, ixc;
+	std::vector<fT> fraction, distances;
+	// DAGGER::D8connector<fT> connector;
 
-  daggerFD() { ; }
-  void init(int_t nx, int_t ny, fT dx, fT dy, fT xmin, fT ymin,
-            std::string boundary_condition) {
-    this->nx = nx;
-    this->ny = ny;
-    this->nxy = ny * nx;
-    this->dx = dx;
-    this->dy = dy;
-    this->xmin = xmin;
-    this->ymin = ymin;
-    this->connector = DAGGER::D8connector<fT>(nx, ny, dx, dy, xmin, ymin);
-    this->connector.set_default_boundaries(boundary_condition);
-    this->graph = DAGGER::graph<fT, DAGGER::D8connector<fT>>(this->connector);
-  }
+	daggerFD() { ; }
+	void init(int_t nx,
+						int_t ny,
+						fT dx,
+						fT dy,
+						fT xmin,
+						fT ymin,
+						std::string boundary_condition)
+	{
+		this->nx = nx;
+		this->ny = ny;
+		this->nxy = ny * nx;
+		this->dx = dx;
+		this->dy = dy;
+		this->xmin = xmin;
+		this->ymin = ymin;
+		this->connector = DAGGER::D8connector<fT>(nx, ny, dx, dy, xmin, ymin);
+		this->connector.set_default_boundaries(boundary_condition);
+		this->graph = DAGGER::graph<fT, DAGGER::D8connector<fT>>(this->connector);
+	}
 
-  std::vector<double> compute(std::vector<double> &ttopo, bool SFD) {
-    // std::vector<fT> topo = DAGGER::to_vec(ttopo);
-    std::vector<double> ret =
-        this->graph
-            .template compute_graph<std::vector<double>, std::vector<double>>(
-                ttopo, SFD, false);
-    if (SFD) {
-      this->ix = std::vector<int_t>(this->nxy, 0);
-      this->ixc = std::vector<int_t>(this->nxy, 0);
-      this->fraction = std::vector<fT>(this->nxy, 1.);
-      this->distances = std::vector<fT>(this->connector.Sdistance2receivers);
-      for (int i = 0; i < this->nxy; ++i) {
-        this->ix[i] = this->graph.Sstack[i];
-        this->ixc[i] = this->connector.Sreceivers[this->graph.Sstack[i]];
-      }
-    }
+	std::vector<double> compute(std::vector<double>& ttopo, bool SFD)
+	{
+		// std::vector<fT> topo = DAGGER::to_vec(ttopo);
+		std::vector<double> ret =
+			this->graph
+				.template compute_graph<std::vector<double>, std::vector<double>>(
+					ttopo, SFD, false);
+		if (SFD) {
+			this->ix = std::vector<int_t>(this->nxy, 0);
+			this->ixc = std::vector<int_t>(this->nxy, 0);
+			this->fraction = std::vector<fT>(this->nxy, 1.);
+			this->distances = std::vector<fT>(this->connector.Sdistance2receivers);
+			for (int i = 0; i < this->nxy; ++i) {
+				this->ix[i] = this->graph.Sstack[i];
+				this->ixc[i] = this->connector.Sreceivers[this->graph.Sstack[i]];
+			}
+		}
 
-    return ret;
-  }
+		return ret;
+	}
 
-  std::vector<fT> get_DA() {
-    return this->graph
-        .template accumulate_constant_downstream_SFD<std::vector<fT>>(this->dx *
-                                                                      this->dy);
-  }
+	std::vector<fT> get_DA()
+	{
+		return this->graph
+			.template accumulate_constant_downstream_SFD<std::vector<fT>>(this->dx *
+																																		this->dy);
+	}
 
 private:
-  DAGGER::D8connector<fT> connector;
-  DAGGER::graph<fT, DAGGER::D8connector<fT>> graph;
+	DAGGER::D8connector<fT> connector;
+	DAGGER::graph<fT, DAGGER::D8connector<fT>> graph;
 };
 
 // template<class fT>
