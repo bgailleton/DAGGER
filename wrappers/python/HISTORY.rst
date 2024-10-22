@@ -2,6 +2,14 @@
 History
 =======
 
+0.0.14 (15/10/2024)
+-------------------
+
+* Refactoring the install process
+* DAGGER becomes primarily a support library to Python
+* Last update before 0.1.0 which will add a lot of cleaning?
+
+
 0.0.13 (04/07/2024)
 -------------------
 
