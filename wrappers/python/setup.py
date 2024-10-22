@@ -96,10 +96,8 @@ ext_modules = [
             "main.cpp"
         ],  # DAGGER is header-only, so only the main cpp file containing definitions has to be compiled
         include_dirs=[
-            "includes",
-            get_pybind_include(),
-            get_pybind_include(user=True),
-            get_numpy_include(),
+            "../../DAGGER", "../../fastflood", "../../popscape",
+            get_pybind_include(), get_pybind_include(user=True), get_numpy_include(),
             os.path.join(sys.prefix, "include"),
             os.path.join(sys.prefix, "Library", "include"),
         ],  # Deployment process fetch all the required headers and gather them in `includes`
