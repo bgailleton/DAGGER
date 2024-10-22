@@ -9,7 +9,7 @@ import os
 import sys
 import platform
 
-__version__ = "0.0.13"
+__version__ = "0.0.14"
 
 
 
@@ -64,7 +64,7 @@ with open('HISTORY.rst') as history_file:
 
 # Need click for common CLI (although there are not any yet)
 # Need pybind11 for compilation
-requirements = ['Click>=7.0', 'pybind11']
+requirements = ['Click>=7.0', 'pybind11', 'numpy']
 
 # Testing happens internally before deployment
 test_requirements = [ ]
@@ -81,10 +81,10 @@ MACROS = [('VERSION_INFO', __version__), ("DAGGER_FT_PYTHON", None)]
 
 # Platform specific flags
 if(os_name == 'Windows'):
-    EXTRA_COMPILE = ['/Ox']
+    EXTRA_COMPILE = ['/Ox', '/EHsc', '/std:c++17']
     EXTRA_LINK = ['/Ox']
 else:
-    EXTRA_COMPILE = ['-O3', '-Wall', '-Wextra']
+    EXTRA_COMPILE = ['-O3', '-Wall', '-Wextra', '-std=c++17']
     EXTRA_LINK = ['-O3']
 
 # Extra libaries to fetch. I'd like to keep that minimal but we never know
