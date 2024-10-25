@@ -9,7 +9,7 @@ import os
 import sys
 import platform
 
-__version__ = "0.0.14"
+__version__ = "0.0.15"
 
 
 class get_pybind_include(object):
@@ -62,7 +62,7 @@ with open("HISTORY.rst") as history_file:
 
 # Need click for common CLI (although there are not any yet)
 # Need pybind11 for compilation
-requirements = ["Click>=7.0", "pybind11", "numpy"]
+requirements = ["Click>=7.0", "pybind11", "numpy>=2"]
 
 # Testing happens internally before deployment
 test_requirements = []
