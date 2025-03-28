@@ -9,7 +9,7 @@ import os
 import sys
 import platform
 
-__version__ = "0.0.15"
+__version__ = "0.0.16"
 
 
 class get_pybind_include(object):
