@@ -1187,7 +1187,7 @@ graph, links, nodes and local minima The core of the code in other words.
 			if (this->connector->boundaries.no_data(node))
 				continue;
 
-			out[node] += var + this->connector->get_area_at_node(node);
+			out[node] += var * this->connector->get_area_at_node(node);
 
 			if (this->connector->flow_out_or_pit(node)) {
 				continue;
@@ -1238,7 +1238,7 @@ graph, links, nodes and local minima The core of the code in other words.
 			if (this->connector->boundaries.no_data(node))
 				continue;
 
-			out[node] += var[node] + this->connector->get_area_at_node(node);
+			out[node] += var[node] * this->connector->get_area_at_node(node);
 
 			if (this->connector->flow_out_or_pit(node))
 				continue;
@@ -1299,7 +1299,7 @@ graph, links, nodes and local minima The core of the code in other words.
 			if (this->connector->boundaries.no_data(node))
 				continue;
 
-			out[node] += var + this->connector->get_area_at_node(node);
+			out[node] += var * this->connector->get_area_at_node(node);
 
 			if (this->connector->flow_out_or_pit(node))
 				continue;
@@ -1366,7 +1366,8 @@ graph, links, nodes and local minima The core of the code in other words.
 			if (this->connector->boundaries.no_data(node))
 				continue;
 
-			out[node] += var[node] + this->connector->get_area_at_node(node);
+			out[node] += var[node] * this->connector->get_area_at_node(node);
+			// std::cout << var[node] << std::endl;
 
 			if (this->connector->flow_out_or_pit(node))
 				continue;

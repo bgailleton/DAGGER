@@ -2,6 +2,12 @@
 History
 =======
 
+0.0.17 (04/07/2024)
+-------------------
+
+* Forgot a couple of updates fixing the migration to xtensor (will I keep it? - it adds a lot of complexity and dependencies for OK gain)
+* Fixing a bug in the precipitation
+
 0.0.13 (04/07/2024)
 -------------------
 
