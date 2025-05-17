@@ -143,6 +143,12 @@ public:
 			return this->_n[i];
 	}
 
+	void set_m(fT val) { this->_m[0] = val; }
+
+	void set_n(fT val) { this->_n[0] = val; }
+
+	void set_Kbase(fT val) { this->_Kbase[0] = val; }
+
 	// Parameters:
 	fT precip(int i)
 	{

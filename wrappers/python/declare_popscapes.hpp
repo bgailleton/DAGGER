@@ -34,6 +34,18 @@ declare_popscape(py::module& m, std::string typestr)
 				FLOATING_POINT_DAGGER,
 				DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 				CONNECTOR_T>::template set_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_m",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_m)
+		.def("set_n",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_n)
+		.def("set_Kbase",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_Kbase)
 		.def(
 			"get_topo",
 			&popscape<
