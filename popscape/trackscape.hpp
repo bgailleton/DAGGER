@@ -280,6 +280,12 @@ public:
 		this->_internal_friction = { 0.55 };
 	};
 
+	~trackscape()
+	{
+		delete this->connector;
+		delete this->graph;
+	}
+
 	// constructor 1:
 	// -> DEPRECATED: NOW THIS FUNCTION ONLY DOES WHITE NOISE noise type is from
 	// the RANDOISE enum (white, red, perlin, ...)
