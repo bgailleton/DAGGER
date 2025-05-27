@@ -40,7 +40,7 @@
 
 namespace DAGGER {
 
-enum class PARAM_MODE
+enum class PARAM_MODE_POP
 {
 	CONSTANT,
 	VARIABLE,
@@ -58,18 +58,18 @@ public:
 	std::vector<fT> QA;
 	std::vector<fT> topography;
 
-	PARAM_MODE Kbase_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP Kbase_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _Kbase = { 1e-3 };
-	PARAM_MODE Kmod_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP Kmod_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _Kmod = { 1. };
-	PARAM_MODE m_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP m_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _m = { 0.45 };
-	PARAM_MODE n_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP n_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _n = { 1. };
-	PARAM_MODE precip_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP precip_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _precip = { 1. };
 
-	PARAM_MODE UE_mode = PARAM_MODE::CONSTANT;
+	PARAM_MODE_POP UE_mode = PARAM_MODE_POP::CONSTANT;
 	std::vector<fT> _UE = { 1e-3 };
 
 	std::string boundary_string = "periodic_EW";
@@ -113,7 +113,7 @@ public:
 	// Parameters:
 	fT Kbase(int i)
 	{
-		if (this->Kbase_mode == PARAM_MODE::CONSTANT)
+		if (this->Kbase_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_Kbase[0];
 		else
 			return this->_Kbase[i];
@@ -121,7 +121,7 @@ public:
 
 	fT Kmod(int i)
 	{
-		if (this->Kmod_mode == PARAM_MODE::CONSTANT)
+		if (this->Kmod_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_Kmod[0];
 		else
 			return this->_Kmod[i];
@@ -129,7 +129,7 @@ public:
 
 	fT m(int i)
 	{
-		if (this->m_mode == PARAM_MODE::CONSTANT)
+		if (this->m_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_m[0];
 		else
 			return this->_m[i];
@@ -137,7 +137,7 @@ public:
 
 	fT n(int i)
 	{
-		if (this->n_mode == PARAM_MODE::CONSTANT)
+		if (this->n_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_n[0];
 		else
 			return this->_n[i];
@@ -147,22 +147,71 @@ public:
 
 	void set_n(fT val) { this->_n[0] = val; }
 
-	void set_Kbase(fT val) { this->_Kbase[0] = val; }
+	void set_Kbase(fT val)
+	{
+		this->Kbase_mode = PARAM_MODE_POP::CONSTANT;
+		this->_Kbase[0] = val;
+	}
+
+	void set_Kmod(fT val)
+	{
+		this->Kmod_mode = PARAM_MODE_POP::CONSTANT;
+		this->_Kmod[0] = val;
+	}
+
+	template<class in_t>
+	void set_Kmod_variable(in_t& ival)
+	{
+		this->Kmod_mode = PARAM_MODE_POP::VARIABLE;
+		auto fval = DAGGER::format_input(ival);
+		this->_Kmod = to_vec(fval);
+	}
 
 	// Parameters:
 	fT precip(int i)
 	{
-		if (this->precip_mode == PARAM_MODE::CONSTANT)
+		if (this->precip_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_precip[0];
 		else
 			return this->_precip[i];
 	}
+
+	void set_precip(fT val)
+	{
+		this->precip_mode = PARAM_MODE_POP::CONSTANT;
+		this->_precip[0] = val;
+	}
+
+	template<class in_t>
+	void set_precip_variable(in_t& ival)
+	{
+		this->precip_mode = PARAM_MODE_POP::VARIABLE;
+		auto fval = DAGGER::format_input(ival);
+		this->_precip = to_vec(fval);
+	}
+
+	// # Uplift parameters -> UE stands for Uplift Erosion, as it equilibrates to
+	// a static field of either erosion or uplift
 	fT UE(int i)
 	{
-		if (this->UE_mode == PARAM_MODE::CONSTANT)
+		if (this->UE_mode == PARAM_MODE_POP::CONSTANT)
 			return this->_UE[0];
 		else
 			return this->_UE[i];
+	}
+
+	void set_UE(fT val)
+	{
+		this->UE_mode = PARAM_MODE_POP::CONSTANT;
+		this->_UE[0] = val;
+	}
+
+	template<class in_t>
+	void set_UE_variable(in_t& ival)
+	{
+		this->UE_mode = PARAM_MODE_POP::VARIABLE;
+		auto fval = DAGGER::format_input(ival);
+		this->_UE = to_vec(fval);
 	}
 
 	void _init_vecs() { this->QA = std::vector<fT>(this->connector.nnodes, 0.); }
@@ -174,8 +223,15 @@ public:
 			this->graph.depression_resolver = DAGGER::DEPRES::cordonnier_carve;
 			this->graph._compute_graph(this->topography, true, false);
 			this->_init_vecs();
-			this->QA = this->graph._accumulate_constant_downstream_SFD(
-				this->connector.get_area_at_node(0));
+
+			if (this->precip_mode == PARAM_MODE_POP::CONSTANT) {
+				this->QA = this->graph._accumulate_constant_downstream_SFD(
+					this->connector.get_area_at_node(0));
+			} else {
+				this->QA =
+					this->graph._accumulate_variable_downstream_area_SFD(this->_precip);
+			}
+
 			for (int i = 0; i < this->graph.nnodes; ++i) {
 				int node = this->graph.Sstack[i];
 
@@ -338,7 +394,7 @@ public:
 
 		auto chistar = this->_chi_star();
 
-		this->Kmod_mode = PARAM_MODE::VARIABLE;
+		this->Kmod_mode = PARAM_MODE_POP::VARIABLE;
 		this->_Kmod = std::vector<fT>(this->graph.nnodes, 1.);
 		for (int i = 0; i < this->graph.nnodes; ++i) {
 			if (chistar[i] > chimin && chistar[i] < chimax)
@@ -347,7 +403,7 @@ public:
 
 		this->StSt(1);
 
-		this->Kmod_mode = PARAM_MODE::CONSTANT;
+		this->Kmod_mode = PARAM_MODE_POP::CONSTANT;
 		this->_Kmod = { 1 };
 	}
 
@@ -356,7 +412,7 @@ public:
 
 		auto zstar = this->_z_star();
 
-		this->Kmod_mode = PARAM_MODE::VARIABLE;
+		this->Kmod_mode = PARAM_MODE_POP::VARIABLE;
 		this->_Kmod = std::vector<fT>(this->graph.nnodes, 1.);
 		for (int i = 0; i < this->graph.nnodes; ++i) {
 			if (zstar[i] > zmin && zstar[i] < zmax)
@@ -365,7 +421,7 @@ public:
 
 		this->StSt(1);
 
-		this->Kmod_mode = PARAM_MODE::CONSTANT;
+		this->Kmod_mode = PARAM_MODE_POP::CONSTANT;
 		this->_Kmod = { 1 };
 	}
 

@@ -34,6 +34,22 @@ declare_popscape(py::module& m, std::string typestr)
 				FLOATING_POINT_DAGGER,
 				DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 				CONNECTOR_T>::template set_topo<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_Kmod_variable",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::
+					 template set_Kmod_variable<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_precip_variable",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::
+					 template set_precip_variable<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+		.def("set_UE_variable",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::
+					 template set_UE_variable<py::array_t<FLOATING_POINT_DAGGER, 1>>)
+
 		.def("set_m",
 				 &popscape<FLOATING_POINT_DAGGER,
 									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
@@ -46,6 +62,18 @@ declare_popscape(py::module& m, std::string typestr)
 				 &popscape<FLOATING_POINT_DAGGER,
 									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 									 CONNECTOR_T>::template set_Kbase)
+		.def("set_Kmod",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_Kmod)
+		.def("set_precip",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_precip)
+		.def("set_UE",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template set_UE)
 		.def(
 			"get_topo",
 			&popscape<
