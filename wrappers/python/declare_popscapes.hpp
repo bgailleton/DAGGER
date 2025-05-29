@@ -54,6 +54,15 @@ declare_popscape(py::module& m, std::string typestr)
 				 &popscape<FLOATING_POINT_DAGGER,
 									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
 									 CONNECTOR_T>::template set_m)
+		.def("get_active_ny",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template get_active_ny)
+		.def("get_active_nx",
+				 &popscape<FLOATING_POINT_DAGGER,
+									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
+									 CONNECTOR_T>::template get_active_nx)
+
 		.def("set_n",
 				 &popscape<FLOATING_POINT_DAGGER,
 									 DAGGER::graph<FLOATING_POINT_DAGGER, CONNECTOR_T>,
