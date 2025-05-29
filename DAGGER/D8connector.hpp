@@ -79,6 +79,8 @@ public:
 	T Ymax;
 	int not_a_node;
 
+	std::string boundary_string = "4edges";
+
 	bool stochastic_slope_on = false;
 	T stochastic_slope_coeff = 1.; // (0 -> deactivates)
 	void set_stochaticiy_for_SFD(T val)
@@ -1478,6 +1480,8 @@ public:
 		}
 
 		this->precompute_links();
+
+		this->boundary_string = bountype;
 	}
 
 	// Set all the out boundaries to 3, meaning they can now give to lower

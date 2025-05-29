@@ -116,9 +116,12 @@ public:
 		// Create a new connector with same dimensions and spacing as input
 		this->connector =
 			_create_connector(con.nx, con.ny, con.dx, con.dy, fT(0.), fT(0.));
+		this->connector.set_default_boundaries(con.boundary_string);
 
 		// Initialize graph with the number of nodes and new connector
 		_create_graph(graph.nnodes, this->connector, this->graph);
+
+		this->boundary_string = this->connector.boundary_string;
 
 		// Store original grid dimensions for reference
 		this->OG_nx = con.nx;
