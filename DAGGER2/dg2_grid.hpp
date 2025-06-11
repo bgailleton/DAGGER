@@ -1,0 +1,5 @@
+/*
+
+Neighbouring operations on a regular grid
+
+*/
