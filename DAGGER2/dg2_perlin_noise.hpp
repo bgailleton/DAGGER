@@ -196,8 +196,6 @@ public:
 		const T dx = world_width / static_cast<T>(cols);
 		const T dy = world_height / static_cast<T>(rows);
 
-		std::cout << "DEBUG::5" << std::endl;
-
 		for (size_t r = 0; r < rows; ++r) {
 			for (size_t c = 0; c < cols; ++c) {
 				T x = world_x + static_cast<T>(c) * dx;
@@ -525,11 +523,8 @@ public:
 															T world_width = 1,
 															T world_height = 1) const
 	{
-		std::cout << "DEBUG::3.5" << std::endl;
 		std::vector<T> data(rows * cols);
-		std::cout << "DEBUG::3.6" << std::endl;
 		Grid2D<T> grid(data, rows, cols);
-		std::cout << "DEBUG::4" << std::endl;
 		generate(grid, world_x, world_y, world_width, world_height);
 		return grid;
 	}
