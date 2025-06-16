@@ -138,8 +138,7 @@ public:
 	 */
 	static bool allows_outflow(NodeType type)
 	{
-		return type == NodeType::HAS_TO_OUT || type == NodeType::CAN_OUT ||
-					 type == NodeType::PERIODIC;
+		return type == NodeType::HAS_TO_OUT || type == NodeType::CAN_OUT;
 	}
 
 	/**
