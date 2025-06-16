@@ -149,24 +149,34 @@ private:
 	// Basin graph structures
 	mutable std::vector<Basin<T>> basins_;
 	mutable std::vector<BasinLink<T>> basin_links_;
-	mutable std::unordered_map<std::pair<size_t, size_t>,
-														 size_t,
-														 std::hash<std::pair<size_t, size_t>>>
+	// REPLACE IT WITH:
+	struct PairHash
+	{
+		std::size_t operator()(const std::pair<size_t, size_t>& p) const noexcept
+		{
+			auto h1 = std::hash<size_t>{}(p.first);
+			auto h2 = std::hash<size_t>{}(p.second);
+			return h1 ^ (h2 << 1);
+		}
+	};
+
+	// Then declare the map with the custom hasher:
+	mutable std::unordered_map<std::pair<size_t, size_t>, size_t, PairHash>
 		link_map_;
 
 	// MST results
 	mutable std::vector<size_t> mst_links_; // Indices of links in MST
 	mutable std::vector<T> water_levels_;		// Water level for each node
 
-	// Hash function for pair
-	struct PairHash
-	{
-		size_t operator()(const std::pair<size_t, size_t>& p) const
-		{
-			return std::hash<size_t>()(p.first) ^
-						 (std::hash<size_t>()(p.second) << 1);
-		}
-	};
+	// // Hash function for pair
+	// struct PairHash
+	// {
+	// 	size_t operator()(const std::pair<size_t, size_t>& p) const
+	// 	{
+	// 		return std::hash<size_t>()(p.first) ^
+	// 					 (std::hash<size_t>()(p.second) << 1);
+	// 	}
+	// };
 
 public:
 	/**

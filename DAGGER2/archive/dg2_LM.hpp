@@ -80,8 +80,9 @@ struct FillingConfig
 	T slope_threshold;					// Minimum slope to maintain
 	T flow_accumulation_weight; // Weight for flow-based decisions
 	T morphological_weight;			// Weight for morphological preservation
-	bool use_flow_barriers;			// Respect flow barriers in BCs
-	bool adaptive_epsilon;			// Adjust epsilon based on local conditions
+	T min_gradient;
+	bool use_flow_barriers; // Respect flow barriers in BCs
+	bool adaptive_epsilon;	// Adjust epsilon based on local conditions
 
 	FillingConfig()
 		: method(FillingMethod::PRIORITY_FLOOD_EPSILON)
@@ -99,8 +100,10 @@ struct FillingConfig
 		, slope_threshold(1e-6)
 		, flow_accumulation_weight(1.0)
 		, morphological_weight(0.5)
+		, min_gradient(static_cast<T>(1e-6))
 		, use_flow_barriers(true)
 		, adaptive_epsilon(false)
+
 	{
 	}
 };
@@ -637,6 +640,53 @@ private:
 	}
 
 	/**
+	 * Carve depression path - missing function
+	 */
+	void carve_depression_path(const Depression<T>& depression,
+														 FillingResult<T>& result) const
+	{
+		if (depression.breach_path.empty()) {
+			return;
+		}
+
+		// Calculate target elevations along path
+		T start_elev = depression.min_elevation;
+		T end_elev = working_elevation_[depression.outlet_index];
+
+		if (depression.breach_path.size() < 2) {
+			return;
+		}
+
+		// Ensure minimum gradient
+		T total_distance = static_cast<T>(depression.breach_path.size() - 1);
+		T min_drop = config_.min_gradient * total_distance;
+		T actual_drop = start_elev - end_elev;
+
+		if (actual_drop < min_drop) {
+			end_elev = start_elev - min_drop;
+		}
+
+		// Carve along the path
+		for (size_t i = 0; i < depression.breach_path.size(); ++i) {
+			size_t cell_idx = depression.breach_path[i];
+
+			// Calculate target elevation with gradient
+			T progress = static_cast<T>(i) / (depression.breach_path.size() - 1);
+			T target_elev = start_elev - progress * (start_elev - end_elev);
+
+			if (target_elev < working_elevation_[cell_idx]) {
+				T volume_carved = working_elevation_[cell_idx] - target_elev;
+				working_elevation_[cell_idx] = target_elev;
+
+				result.total_volume_carved += volume_carved;
+				result.cells_modified++;
+				result.max_modification =
+					std::max(result.max_modification, volume_carved);
+			}
+		}
+	}
+
+	/**
 	 * Sloped Facets Method (Zhou et al. 2016)
 	 * Creates gradual slopes instead of flat areas
 	 */
@@ -1111,37 +1161,302 @@ private:
 	/**
 	 * Identify all depressions in the current elevation data
 	 */
+	// void identify_depressions() const
+	// {
+	// 	depressions_.clear();
+	// 	cell_to_depression_.clear();
+
+	// 	std::vector<bool> visited(size_, false);
+	// 	size_t depression_id = 0;
+
+	// 	for (size_t i = 0; i < size_; ++i) {
+	// 		if (!connector_->is_active_node(i) || visited[i])
+	// 			continue;
+
+	// 		// Check if this is a local minimum
+	// 		if (is_local_minimum(i)) {
+	// 			Depression<T> depression;
+	// 			depression.id = depression_id++;
+	// 			depression.min_elevation = working_elevation_[i];
+
+	// 			// Flood fill to find entire depression
+	// 			flood_fill_depression(i, depression, visited);
+
+	// 			if (depression.area > 0) {
+	// 				depressions_.push_back(depression);
+	// 			}
+	// 		}
+	// 	}
+
+	// 	// Calculate depression characteristics
+	// 	for (auto& depression : depressions_) {
+	// 		calculate_depression_properties(depression);
+	// 	}
+	// }
+
+	/**
+	 * Improved depression identification using priority queue approach
+	 * This method properly identifies depressions and their spill elevations
+	 */
 	void identify_depressions() const
 	{
 		depressions_.clear();
 		cell_to_depression_.clear();
 
+		// Arrays for the identification process
 		std::vector<bool> visited(size_, false);
-		size_t depression_id = 0;
+		std::vector<bool> is_boundary_or_processed(size_, false);
+		std::vector<T> spill_elevation(size_, std::numeric_limits<T>::max());
+		std::vector<size_t> depression_id(size_, SIZE_MAX);
 
-		for (size_t i = 0; i < size_; ++i) {
-			if (!connector_->is_active_node(i) || visited[i])
+		// Priority queue for processing cells from low to high elevation
+		std::priority_queue<QueueElement> pq;
+
+		// Step 1: Initialize with boundary cells and cells that can drain
+		initialize_boundary_queue(pq);
+
+		// Mark boundary cells as processed
+		while (!pq.empty()) {
+			QueueElement current = pq.top();
+			pq.pop();
+
+			if (is_boundary_or_processed[current.index])
 				continue;
 
-			// Check if this is a local minimum
-			if (is_local_minimum(i)) {
-				Depression<T> depression;
-				depression.id = depression_id++;
-				depression.min_elevation = working_elevation_[i];
+			is_boundary_or_processed[current.index] = true;
+			spill_elevation[current.index] = working_elevation_[current.index];
 
-				// Flood fill to find entire depression
-				flood_fill_depression(i, depression, visited);
-
-				if (depression.area > 0) {
-					depressions_.push_back(depression);
+			// Add unprocessed neighbors to queue
+			auto neighbors = connector_->get_valid_neighbors(current.index);
+			for (const auto& neighbor : neighbors) {
+				if (!is_boundary_or_processed[neighbor.index]) {
+					T neighbor_elev = working_elevation_[neighbor.index];
+					// Can drain to current cell if neighbor is higher or equal
+					if (neighbor_elev >= working_elevation_[current.index]) {
+						pq.emplace(neighbor.index, neighbor_elev);
+					}
 				}
 			}
 		}
 
-		// Calculate depression characteristics
-		for (auto& depression : depressions_) {
-			calculate_depression_properties(depression);
+		// Step 2: Identify remaining cells as potential depression cells
+		std::vector<size_t> depression_candidates;
+		for (size_t i = 0; i < size_; ++i) {
+			if (connector_->is_active_node(i) && !is_boundary_or_processed[i]) {
+				depression_candidates.push_back(i);
+			}
 		}
+
+		if (depression_candidates.empty()) {
+			return; // No depressions found
+		}
+
+		// Step 3: Process depression candidates to find spill elevations
+		std::fill(visited.begin(), visited.end(), false);
+		size_t current_depression_id = 0;
+
+		for (size_t candidate_idx : depression_candidates) {
+			if (visited[candidate_idx])
+				continue;
+
+			// Start a new depression from this candidate
+			Depression<T> depression;
+			depression.id = current_depression_id++;
+			depression.min_elevation = std::numeric_limits<T>::max();
+			depression.outlet_elevation = std::numeric_limits<T>::max();
+			depression.outlet_index = SIZE_MAX;
+
+			// Use flood-fill to find all cells in this depression
+			std::queue<size_t> flood_queue;
+			flood_queue.push(candidate_idx);
+			visited[candidate_idx] = true;
+
+			// Track potential outlets (boundary between depression and drained areas)
+			std::vector<std::pair<size_t, T>> potential_outlets;
+
+			while (!flood_queue.empty()) {
+				size_t current = flood_queue.front();
+				flood_queue.pop();
+
+				T current_elev = working_elevation_[current];
+				depression.cells.push_back(current);
+				depression.area++;
+				depression.min_elevation =
+					std::min(depression.min_elevation, current_elev);
+				cell_to_depression_[current] = depression.id;
+				depression_id[current] = depression.id;
+
+				auto neighbors = connector_->get_valid_neighbors(current);
+				for (const auto& neighbor : neighbors) {
+					T neighbor_elev = working_elevation_[neighbor.index];
+
+					if (is_boundary_or_processed[neighbor.index]) {
+						// This neighbor can drain - it's a potential outlet
+						T spill_elev = std::max(current_elev, neighbor_elev);
+						potential_outlets.emplace_back(neighbor.index, spill_elev);
+					} else if (!visited[neighbor.index]) {
+						// Check if neighbor should be part of same depression
+						if (can_flow_between_cells(current, neighbor.index)) {
+							visited[neighbor.index] = true;
+							flood_queue.push(neighbor.index);
+						} else {
+							// Different depression or higher area
+							T spill_elev = std::max(current_elev, neighbor_elev);
+							potential_outlets.emplace_back(neighbor.index, spill_elev);
+						}
+					}
+				}
+			}
+
+			// Step 4: Find the true outlet (lowest spill elevation)
+			if (!potential_outlets.empty()) {
+				auto min_outlet = *std::min_element(
+					potential_outlets.begin(),
+					potential_outlets.end(),
+					[](const auto& a, const auto& b) { return a.second < b.second; });
+				depression.outlet_index = min_outlet.first;
+				depression.outlet_elevation = min_outlet.second;
+				depression.fill_level = depression.outlet_elevation;
+			} else {
+				// No outlet found - this shouldn't happen if boundary initialization
+				// worked
+				depression.outlet_elevation =
+					depression.min_elevation + config_.epsilon;
+				depression.fill_level = depression.outlet_elevation;
+			}
+
+			// Only add non-trivial depressions
+			if (depression.area > 0 &&
+					depression.fill_level > depression.min_elevation + config_.epsilon) {
+				depressions_.push_back(depression);
+			}
+		}
+
+		// Step 5: Calculate final depression properties
+		for (auto& depression : depressions_) {
+			calculate_depression_properties_corrected(depression);
+		}
+	}
+
+	/**
+	 * Helper function to determine if flow can occur between two adjacent cells
+	 */
+	bool can_flow_between_cells(size_t from_idx, size_t to_idx) const
+	{
+		T from_elev = working_elevation_[from_idx];
+		T to_elev = working_elevation_[to_idx];
+
+		// Cells are in same depression if:
+		// 1. Elevations are very similar (within epsilon)
+		// 2. OR there's no significant barrier between them
+		T elevation_diff = std::abs(from_elev - to_elev);
+
+		if (elevation_diff <= config_.epsilon) {
+			return true;
+		}
+
+		// Check for monotonic flow path
+		if (from_elev <= to_elev) {
+			return true; // Water can flow from lower to equal/higher with epsilon
+		}
+
+		return false;
+	}
+
+	/**
+	 * Corrected depression properties calculation
+	 */
+	void calculate_depression_properties_corrected(
+		Depression<T>& depression) const
+	{
+		depression.volume = 0;
+		depression.min_elevation = std::numeric_limits<T>::max();
+
+		// Recalculate min elevation and volume
+		for (size_t cell_idx : depression.cells) {
+			T cell_elev = working_elevation_[cell_idx];
+			depression.min_elevation = std::min(depression.min_elevation, cell_elev);
+		}
+
+		// Calculate volume based on correct fill level
+		for (size_t cell_idx : depression.cells) {
+			T cell_elev = working_elevation_[cell_idx];
+			if (depression.fill_level > cell_elev) {
+				depression.volume += (depression.fill_level - cell_elev);
+			}
+		}
+
+		// Determine breaching strategy
+		depression.should_breach = should_breach_depression(depression);
+
+		// Find breach path if needed
+		if (depression.should_breach && depression.outlet_index != SIZE_MAX) {
+			depression.breach_path = find_breach_path_corrected(depression);
+		}
+	}
+
+	/**
+	 * Improved breach path finding that ensures valid path
+	 */
+	std::vector<size_t> find_breach_path_corrected(
+		const Depression<T>& depression) const
+	{
+		if (depression.outlet_index == SIZE_MAX || depression.cells.empty()) {
+			return {};
+		}
+
+		// Find the depression cell closest to the outlet
+		size_t start_idx = depression.cells[0];
+		T min_distance =
+			connector_->euclidean_distance(start_idx, depression.outlet_index);
+
+		for (size_t cell_idx : depression.cells) {
+			T distance =
+				connector_->euclidean_distance(cell_idx, depression.outlet_index);
+			if (distance < min_distance) {
+				min_distance = distance;
+				start_idx = cell_idx;
+			}
+		}
+
+		// Use A* pathfinding to outlet, but ensure path goes through depression
+		// boundary
+		auto path = find_astar_path(start_idx, depression.outlet_index);
+
+		// Validate path doesn't go through other depressions inappropriately
+		if (!path.empty() && is_valid_breach_path(path, depression)) {
+			return path;
+		}
+
+		return {}; // No valid breach path found
+	}
+
+	/**
+	 * Validate that breach path is reasonable
+	 */
+	bool is_valid_breach_path(const std::vector<size_t>& path,
+														const Depression<T>& depression) const
+	{
+		if (path.size() < 2) {
+			return false;
+		}
+
+		// Check path doesn't go through significantly higher elevations
+		T max_allowed_elevation =
+			depression.outlet_elevation + config_.breach_threshold;
+
+		for (size_t cell_idx : path) {
+			if (working_elevation_[cell_idx] > max_allowed_elevation) {
+				return false;
+			}
+		}
+
+		// Path should start in depression and end at outlet
+		bool starts_in_depression =
+			std::find(depression.cells.begin(), depression.cells.end(), path[0]) !=
+			depression.cells.end();
+
+		return starts_in_depression && path.back() == depression.outlet_index;
 	}
 
 	/**
@@ -1443,6 +1758,16 @@ private:
 			T f_cost() const { return g_cost + h_cost; }
 			size_t parent;
 
+			// Default constructor - THIS WAS MISSING
+			AStarNode()
+				: index(SIZE_MAX)
+				, g_cost(static_cast<T>(0))
+				, h_cost(static_cast<T>(0))
+				, parent(SIZE_MAX)
+			{
+			}
+
+			// Parameterized constructor
 			AStarNode(size_t idx, T g, T h, size_t p)
 				: index(idx)
 				, g_cost(g)
@@ -1462,8 +1787,9 @@ private:
 		std::unordered_map<size_t, AStarNode> nodes;
 
 		T h_start = static_cast<T>(connector_->euclidean_distance(start, goal));
-		open_set.emplace(start, 0.0, h_start, SIZE_MAX);
-		nodes.emplace(start, AStarNode(start, 0.0, h_start, SIZE_MAX));
+		open_set.emplace(start, static_cast<T>(0), h_start, SIZE_MAX);
+		nodes.emplace(start,
+									AStarNode(start, static_cast<T>(0), h_start, SIZE_MAX));
 
 		while (!open_set.empty()) {
 			AStarNode current = open_set.top();
@@ -1492,8 +1818,8 @@ private:
 				T elevation_cost = std::max(static_cast<T>(0),
 																		working_elevation_[neighbor.index] -
 																			working_elevation_[current.index]);
-				T tentative_g =
-					current.g_cost + neighbor.distance + elevation_cost * 10.0;
+				T tentative_g = current.g_cost + neighbor.distance +
+												elevation_cost * static_cast<T>(10);
 				T h =
 					static_cast<T>(connector_->euclidean_distance(neighbor.index, goal));
 
@@ -2587,9 +2913,9 @@ public:
 	/**
 	 * Simple priority flood with epsilon
 	 */
-	static std::vector<T> priority_flood(std::shared_ptr<Connector<T>> connector,
-																			 const ArrayRef<T>& elevation,
-																			 T epsilon = 1e-4)
+	static ArrayRef<T> priority_flood(std::shared_ptr<Connector<T>> connector,
+																		const ArrayRef<T>& elevation,
+																		T epsilon = 1e-4)
 	{
 		auto elevation_ref = std::make_shared<ArrayRef<T>>(elevation);
 
@@ -2604,7 +2930,7 @@ public:
 			throw std::runtime_error("Depression filling failed");
 		}
 
-		return filler.get_filled_elevation();
+		return filler.get_filled_elevation_ref();
 	}
 
 	/**

@@ -1,14 +1,10 @@
 #pragma once
 
 #include "dg2_BCs.hpp"
+#include "dg2_LM.hpp"
 #include "dg2_array.hpp"
 #include "dg2_connector.hpp"
-#include "dg2_cordonnier_method_part1.hpp"
-#include "dg2_cordonnier_method_part2.hpp"
-#include "dg2_cordonnier_method_part3.hpp"
-#include "dg2_cordonnier_method_part4.hpp"
-#include "dg2_cordonnier_method_part5.hpp"
-#include "dg2_depression_filling.hpp"
+#include "dg2_cordonnier_method.hpp"
 #include <algorithm>
 #include <chrono>
 #include <iomanip>
@@ -88,24 +84,120 @@ template<typename T>
 struct FlowRoutingResult
 {
 	bool success;
-	std::vector<size_t> receivers;					 // Single flow receivers
-	std::vector<std::vector<size_t>> donors; // Multiple donors per node
-	std::vector<size_t> stack_order;				 // Topological order
-	std::vector<size_t> flow_accumulation;	 // Flow accumulation
-	std::vector<T> drainage_area;						 // Drainage area
-	std::vector<T> flow_weights;						 // Flow weights (for MFD)
-	std::vector<T> gradients;								 // Flow gradients
-	FillingResult<T> depression_result;			 // Depression filling results
+	std::shared_ptr<ArrayRef<size_t>> receivers; // Single flow receivers
+	std::shared_ptr<ArrayRef<std::vector<size_t>>>
+		donors;																			 // Multiple donors per node
+	std::shared_ptr<ArrayRef<size_t>> stack_order; // Topological order
+	std::shared_ptr<ArrayRef<size_t>> flow_accumulation; // Flow accumulation
+	std::shared_ptr<ArrayRef<T>> drainage_area;					 // Drainage area
+	std::shared_ptr<ArrayRef<T>> flow_weights;					 // Flow weights (for MFD)
+	std::shared_ptr<ArrayRef<T>> gradients;							 // Flow gradients
+	FillingResult<T> depression_result; // Depression filling results
 	std::chrono::milliseconds processing_time;
 
 	// Multiple flow results (for MFD methods)
-	std::vector<std::vector<std::pair<size_t, T>>>
+	std::shared_ptr<ArrayRef<std::vector<std::pair<size_t, T>>>>
 		mfd_receivers; // (receiver, weight) pairs
+
+	// 2D versions (when using Grid2D input)
+	std::shared_ptr<Grid2D<size_t>> receivers_2d;
+	std::shared_ptr<Grid2D<std::vector<size_t>>> donors_2d;
+	std::shared_ptr<Grid2D<size_t>> stack_order_2d;
+	std::shared_ptr<Grid2D<size_t>> flow_accumulation_2d;
+	std::shared_ptr<Grid2D<T>> drainage_area_2d;
+	std::shared_ptr<Grid2D<T>> flow_weights_2d;
+	std::shared_ptr<Grid2D<T>> gradients_2d;
+	std::shared_ptr<Grid2D<std::vector<std::pair<size_t, T>>>> mfd_receivers_2d;
+
+	bool is_2d = false;
+	size_t rows = 0;
+	size_t cols = 0;
 
 	FlowRoutingResult()
 		: success(false)
 		, processing_time(0)
 	{
+	}
+
+	// Convenience methods for accessing data
+	size_t get_receiver(size_t idx) const
+	{
+		return receivers ? (*receivers)[idx] : SIZE_MAX;
+	}
+
+	size_t get_receiver_2d(size_t row, size_t col) const
+	{
+		return receivers_2d ? (*receivers_2d)(row, col) : SIZE_MAX;
+	}
+
+	size_t get_flow_accumulation(size_t idx) const
+	{
+		return flow_accumulation ? (*flow_accumulation)[idx] : 1;
+	}
+
+	size_t get_flow_accumulation_2d(size_t row, size_t col) const
+	{
+		return flow_accumulation_2d ? (*flow_accumulation_2d)(row, col) : 1;
+	}
+
+	T get_drainage_area(size_t idx) const
+	{
+		return drainage_area ? (*drainage_area)[idx] : static_cast<T>(1);
+	}
+
+	T get_drainage_area_2d(size_t row, size_t col) const
+	{
+		return drainage_area_2d ? (*drainage_area_2d)(row, col) : static_cast<T>(1);
+	}
+
+	// Convert between 1D and 2D indices
+	size_t to_1d(size_t row, size_t col) const { return row * cols + col; }
+
+	std::pair<size_t, size_t> to_2d(size_t idx) const
+	{
+		return { idx / cols, idx % cols };
+	}
+
+	// Sync 1D and 2D data
+	void sync_to_2d()
+	{
+		if (!is_2d || rows == 0 || cols == 0)
+			return;
+
+		// Create 2D versions if they don't exist
+		if (receivers && !receivers_2d) {
+			receivers_2d = std::make_shared<Grid2D<size_t>>(rows, cols);
+			for (size_t i = 0; i < receivers->size(); ++i) {
+				auto [r, c] = to_2d(i);
+				(*receivers_2d)(r, c) = (*receivers)[i];
+			}
+		}
+
+		if (flow_accumulation && !flow_accumulation_2d) {
+			flow_accumulation_2d = std::make_shared<Grid2D<size_t>>(rows, cols);
+			for (size_t i = 0; i < flow_accumulation->size(); ++i) {
+				auto [r, c] = to_2d(i);
+				(*flow_accumulation_2d)(r, c) = (*flow_accumulation)[i];
+			}
+		}
+
+		if (drainage_area && !drainage_area_2d) {
+			drainage_area_2d = std::make_shared<Grid2D<T>>(rows, cols);
+			for (size_t i = 0; i < drainage_area->size(); ++i) {
+				auto [r, c] = to_2d(i);
+				(*drainage_area_2d)(r, c) = (*drainage_area)[i];
+			}
+		}
+
+		if (gradients && !gradients_2d) {
+			gradients_2d = std::make_shared<Grid2D<T>>(rows, cols);
+			for (size_t i = 0; i < gradients->size(); ++i) {
+				auto [r, c] = to_2d(i);
+				(*gradients_2d)(r, c) = (*gradients)[i];
+			}
+		}
+
+		// Add other arrays as needed...
 	}
 };
 
@@ -123,15 +215,17 @@ private:
 	// Core components
 	std::shared_ptr<Connector<T>> connector_;
 	std::shared_ptr<ArrayRef<T>> elevation_;
+	std::shared_ptr<Grid2D<T>> elevation_2d_;
 	FlowRoutingConfig<T> config_;
 
 	// Grid properties
 	size_t rows_;
 	size_t cols_;
 	size_t size_;
+	bool is_2d_;
 
 	// Working elevation (after depression filling)
-	mutable std::vector<T> working_elevation_;
+	mutable std::shared_ptr<ArrayRef<T>> working_elevation_;
 
 	// Depression filler and Cordonnier router
 	mutable std::unique_ptr<DepressionFiller<T>> depression_filler_;
@@ -142,7 +236,7 @@ private:
 
 public:
 	/**
-	 * Constructor
+	 * Constructor for 1D ArrayRef input
 	 */
 	FlowRouter(std::shared_ptr<Connector<T>> connector,
 						 std::shared_ptr<ArrayRef<T>> elevation,
@@ -150,9 +244,9 @@ public:
 		: connector_(connector)
 		, elevation_(elevation)
 		, config_(config)
+		, is_2d_(false)
 		, rng_(config.random_seed)
 	{
-
 		if (!connector_) {
 			throw std::invalid_argument("Connector cannot be null");
 		}
@@ -170,10 +264,49 @@ public:
 		}
 
 		// Initialize working elevation
-		working_elevation_.resize(size_);
-		for (size_t i = 0; i < size_; ++i) {
-			working_elevation_[i] = (*elevation_)[i];
+		working_elevation_ = std::make_shared<ArrayRef<T>>(*elevation_);
+	}
+
+	/**
+	 * Constructor for 2D Grid2D input
+	 */
+	FlowRouter(std::shared_ptr<Connector<T>> connector,
+						 std::shared_ptr<Grid2D<T>> elevation,
+						 const FlowRoutingConfig<T>& config = FlowRoutingConfig<T>())
+		: connector_(connector)
+		, elevation_2d_(elevation)
+		, config_(config)
+		, is_2d_(true)
+		, rng_(config.random_seed)
+	{
+		if (!connector_) {
+			throw std::invalid_argument("Connector cannot be null");
 		}
+
+		if (!elevation) {
+			throw std::invalid_argument("Elevation grid cannot be null");
+		}
+
+		rows_ = connector_->rows();
+		cols_ = connector_->cols();
+		size_ = connector_->size();
+
+		if (elevation_2d_->rows() != rows_ || elevation_2d_->cols() != cols_) {
+			throw std::invalid_argument(
+				"Elevation grid dimensions must match connector");
+		}
+
+		// Convert Grid2D to ArrayRef for internal processing
+		std::vector<T> temp_data(size_);
+		for (size_t i = 0; i < rows_; ++i) {
+			for (size_t j = 0; j < cols_; ++j) {
+				temp_data[i * cols_ + j] = (*elevation_2d_)(i, j);
+			}
+		}
+		elevation_ = std::make_shared<ArrayRef<T>>(temp_data);
+
+		// Initialize working elevation
+		working_elevation_ = std::make_shared<ArrayRef<T>>(*elevation_);
 	}
 
 	// ======================
@@ -196,6 +329,11 @@ public:
 		config_.depression_method = method;
 	}
 
+	bool is_2d() const { return is_2d_; }
+	size_t rows() const { return rows_; }
+	size_t cols() const { return cols_; }
+	size_t size() const { return size_; }
+
 	// ======================
 	// MAIN FLOW ROUTING
 	// ======================
@@ -208,6 +346,9 @@ public:
 		auto start_time = std::chrono::high_resolution_clock::now();
 
 		FlowRoutingResult<T> result;
+		result.is_2d = is_2d_;
+		result.rows = rows_;
+		result.cols = cols_;
 
 		try {
 			// Step 1: Handle depressions if enabled
@@ -237,6 +378,11 @@ public:
 				compute_drainage_area(result);
 			}
 
+			// Step 4: Create 2D versions if input was 2D
+			if (is_2d_) {
+				result.sync_to_2d();
+			}
+
 			result.success = true;
 
 		} catch (const std::exception& e) {
@@ -258,7 +404,7 @@ public:
 	/**
 	 * Quick flow accumulation computation
 	 */
-	std::vector<size_t> compute_flow_accumulation() const
+	std::shared_ptr<ArrayRef<size_t>> compute_flow_accumulation_quick() const
 	{
 		FlowRoutingConfig<T> quick_config = config_;
 		quick_config.compute_accumulation = true;
@@ -273,7 +419,7 @@ public:
 	/**
 	 * Quick drainage area computation
 	 */
-	std::vector<T> compute_drainage_area() const
+	std::shared_ptr<ArrayRef<T>> compute_drainage_area_quick() const
 	{
 		FlowRoutingConfig<T> quick_config = config_;
 		quick_config.compute_accumulation = false;
@@ -288,7 +434,7 @@ public:
 	/**
 	 * Quick single flow receivers
 	 */
-	std::vector<size_t> compute_receivers() const
+	std::shared_ptr<ArrayRef<size_t>> compute_receivers() const
 	{
 		FlowRoutingConfig<T> quick_config = config_;
 		quick_config.compute_accumulation = false;
@@ -348,6 +494,8 @@ public:
 		report << "\n=== RESULTS SUMMARY ===\n";
 		report << "Processing Time: " << result.processing_time.count() << " ms\n";
 		report << "Success: " << (result.success ? "Yes" : "No") << "\n";
+		report << "Data Format: " << (result.is_2d ? "2D Grid" : "1D Array")
+					 << "\n";
 
 		if (result.success) {
 			// Flow statistics
@@ -355,20 +503,22 @@ public:
 			size_t source_nodes = 0;
 			size_t sink_nodes = 0;
 
-			for (size_t i = 0; i < size_; ++i) {
-				if (!connector_->is_active_node(i))
-					continue;
+			if (result.receivers) {
+				for (size_t i = 0; i < size_; ++i) {
+					if (!connector_->is_active_node(i))
+						continue;
 
-				if (!result.receivers.empty() && result.receivers[i] != SIZE_MAX) {
-					nodes_with_receivers++;
-				}
+					if ((*result.receivers)[i] != SIZE_MAX) {
+						nodes_with_receivers++;
+					}
 
-				if (!result.donors.empty() && result.donors[i].empty()) {
-					source_nodes++;
-				}
+					if (result.donors && (*result.donors)[i].empty()) {
+						source_nodes++;
+					}
 
-				if (!result.receivers.empty() && result.receivers[i] == SIZE_MAX) {
-					sink_nodes++;
+					if ((*result.receivers)[i] == SIZE_MAX) {
+						sink_nodes++;
+					}
 				}
 			}
 
@@ -377,28 +527,32 @@ public:
 			report << "Sink Nodes: " << sink_nodes << "\n";
 
 			// Accumulation statistics
-			if (!result.flow_accumulation.empty()) {
-				auto [min_it, max_it] = std::minmax_element(
-					result.flow_accumulation.begin(), result.flow_accumulation.end());
+			if (result.flow_accumulation) {
+				auto min_it = std::min_element(result.flow_accumulation->begin(),
+																			 result.flow_accumulation->end());
+				auto max_it = std::max_element(result.flow_accumulation->begin(),
+																			 result.flow_accumulation->end());
 				report << "Flow Accumulation Range: " << *min_it << " - " << *max_it
 							 << "\n";
 
 				// Calculate total accumulated flow
-				size_t total_flow = std::accumulate(result.flow_accumulation.begin(),
-																						result.flow_accumulation.end(),
+				size_t total_flow = std::accumulate(result.flow_accumulation->begin(),
+																						result.flow_accumulation->end(),
 																						static_cast<size_t>(0));
 				report << "Total Accumulated Flow: " << total_flow << "\n";
 			}
 
 			// Drainage area statistics
-			if (!result.drainage_area.empty()) {
-				auto [min_it, max_it] = std::minmax_element(
-					result.drainage_area.begin(), result.drainage_area.end());
+			if (result.drainage_area) {
+				auto min_it = std::min_element(result.drainage_area->begin(),
+																			 result.drainage_area->end());
+				auto max_it = std::max_element(result.drainage_area->begin(),
+																			 result.drainage_area->end());
 				report << "Drainage Area Range: " << *min_it << " - " << *max_it
 							 << "\n";
 
-				T total_area = std::accumulate(result.drainage_area.begin(),
-																			 result.drainage_area.end(),
+				T total_area = std::accumulate(result.drainage_area->begin(),
+																			 result.drainage_area->end(),
 																			 static_cast<T>(0));
 				report << "Total Drainage Area: " << total_area << "\n";
 			}
@@ -431,26 +585,25 @@ public:
 			return false;
 
 		// Check array sizes
-		if (result.receivers.size() != size_ && !result.receivers.empty())
+		if (result.receivers && result.receivers->size() != size_)
 			return false;
-		if (result.donors.size() != size_ && !result.donors.empty())
+		if (result.donors && result.donors->size() != size_)
 			return false;
-		if (result.flow_accumulation.size() != size_ &&
-				!result.flow_accumulation.empty())
+		if (result.flow_accumulation && result.flow_accumulation->size() != size_)
 			return false;
-		if (result.drainage_area.size() != size_ && !result.drainage_area.empty())
+		if (result.drainage_area && result.drainage_area->size() != size_)
 			return false;
 
 		// Check flow consistency
-		if (!result.receivers.empty() && !result.donors.empty()) {
+		if (result.receivers && result.donors) {
 			for (size_t i = 0; i < size_; ++i) {
 				if (!connector_->is_active_node(i))
 					continue;
 
-				size_t receiver = result.receivers[i];
+				size_t receiver = (*result.receivers)[i];
 				if (receiver != SIZE_MAX) {
 					// Check that receiver has this node as donor
-					const auto& receiver_donors = result.donors[receiver];
+					const auto& receiver_donors = (*result.donors)[receiver];
 					if (std::find(receiver_donors.begin(), receiver_donors.end(), i) ==
 							receiver_donors.end()) {
 						return false;
@@ -460,7 +613,7 @@ public:
 		}
 
 		// Check that all active nodes eventually reach a boundary
-		if (!result.receivers.empty()) {
+		if (result.receivers) {
 			for (size_t i = 0; i < size_; ++i) {
 				if (!connector_->is_active_node(i))
 					continue;
@@ -478,7 +631,7 @@ public:
 						break;
 					}
 
-					current = result.receivers[current];
+					current = (*result.receivers)[current];
 				}
 
 				if (!reaches_boundary)
@@ -492,21 +645,22 @@ public:
 	/**
 	 * Export flow directions as direction map
 	 */
-	std::vector<uint8_t> export_flow_directions(
+	std::shared_ptr<ArrayRef<uint8_t>> export_flow_directions(
 		const FlowRoutingResult<T>& result) const
 	{
-		std::vector<uint8_t> directions(size_,
-																		static_cast<uint8_t>(Direction::INVALID));
+		std::vector<uint8_t> directions_vec(
+			size_, static_cast<uint8_t>(Direction::INVALID));
+		auto directions = std::make_shared<ArrayRef<uint8_t>>(directions_vec);
 
-		if (result.receivers.empty())
+		if (!result.receivers)
 			return directions;
 
 		for (size_t i = 0; i < size_; ++i) {
-			if (!connector_->is_active_node(i) || result.receivers[i] == SIZE_MAX)
+			if (!connector_->is_active_node(i) || (*result.receivers)[i] == SIZE_MAX)
 				continue;
 
 			auto [from_row, from_col] = connector_->to_2d(i);
-			auto [to_row, to_col] = connector_->to_2d(result.receivers[i]);
+			auto [to_row, to_col] = connector_->to_2d((*result.receivers)[i]);
 
 			int dr = static_cast<int>(to_row) - static_cast<int>(from_row);
 			int dc = static_cast<int>(to_col) - static_cast<int>(from_col);
@@ -529,7 +683,7 @@ public:
 			else if (dr == -1 && dc == -1)
 				dir = Direction::NORTHWEST;
 
-			directions[i] = static_cast<uint8_t>(dir);
+			(*directions)[i] = static_cast<uint8_t>(dir);
 		}
 
 		return directions;
@@ -538,18 +692,19 @@ public:
 	/**
 	 * Export flow weights for MFD methods
 	 */
-	std::vector<std::vector<T>> export_flow_weights(
+	std::shared_ptr<ArrayRef<std::vector<T>>> export_flow_weights(
 		const FlowRoutingResult<T>& result) const
 	{
-		std::vector<std::vector<T>> weights(size_);
+		std::vector<std::vector<T>> weights_vec(size_);
+		auto weights = std::make_shared<ArrayRef<std::vector<T>>>(weights_vec);
 
-		if (result.mfd_receivers.empty())
+		if (!result.mfd_receivers)
 			return weights;
 
 		for (size_t i = 0; i < size_; ++i) {
-			weights[i].reserve(result.mfd_receivers[i].size());
-			for (const auto& [receiver, weight] : result.mfd_receivers[i]) {
-				weights[i].push_back(weight);
+			(*weights)[i].reserve((*result.mfd_receivers)[i].size());
+			for (const auto& [receiver, weight] : (*result.mfd_receivers)[i]) {
+				(*weights)[i].push_back(weight);
 			}
 		}
 
@@ -581,7 +736,7 @@ private:
 		if (result.success) {
 			// Update working elevation with filled results
 			auto filled_elevation = depression_filler_->get_filled_elevation();
-			working_elevation_ = filled_elevation;
+			working_elevation_ = std::make_shared<ArrayRef<T>>(filled_elevation);
 		}
 
 		return result;
@@ -631,17 +786,21 @@ private:
 					break;
 			}
 
-			auto working_elevation_ref =
-				std::make_shared<ArrayRef<T>>(working_elevation_);
 			cordonnier_router_ = std::make_unique<CordonnierFlowRouter<T>>(
-				connector_, working_elevation_ref, strategy);
+				connector_, working_elevation_, strategy);
 		}
 
 		cordonnier_router_->compute_flow_routing();
 
-		result.receivers = cordonnier_router_->get_receivers();
-		result.donors = cordonnier_router_->get_donors();
-		result.stack_order = cordonnier_router_->get_stack_order();
+		// Convert results to ArrayRef
+		auto receivers_vec = cordonnier_router_->get_receivers();
+		result.receivers = std::make_shared<ArrayRef<size_t>>(receivers_vec);
+
+		auto donors_vec = cordonnier_router_->get_donors();
+		result.donors = std::make_shared<ArrayRef<std::vector<size_t>>>(donors_vec);
+
+		auto stack_vec = cordonnier_router_->get_stack_order();
+		result.stack_order = std::make_shared<ArrayRef<size_t>>(stack_vec);
 	}
 
 	/**
@@ -649,13 +808,18 @@ private:
 	 */
 	void compute_sfd_flow_routing(FlowRoutingResult<T>& result) const
 	{
-		result.receivers.resize(size_, SIZE_MAX);
-		result.donors.resize(size_);
-		result.gradients.resize(size_, 0);
+		std::vector<size_t> receivers_vec(size_, SIZE_MAX);
+		result.receivers = std::make_shared<ArrayRef<size_t>>(receivers_vec);
+
+		std::vector<std::vector<size_t>> donors_vec(size_);
+		result.donors = std::make_shared<ArrayRef<std::vector<size_t>>>(donors_vec);
+
+		std::vector<T> gradients_vec(size_, static_cast<T>(0));
+		result.gradients = std::make_shared<ArrayRef<T>>(gradients_vec);
 
 		// Clear donors
-		for (auto& donor_list : result.donors) {
-			donor_list.clear();
+		for (size_t i = 0; i < size_; ++i) {
+			(*result.donors)[i].clear();
 		}
 
 		// Compute receivers
@@ -664,20 +828,20 @@ private:
 				continue;
 
 			auto receiver_info = compute_single_receiver(i);
-			result.receivers[i] = receiver_info.first;
-			result.gradients[i] = receiver_info.second;
+			(*result.receivers)[i] = receiver_info.first;
+			(*result.gradients)[i] = receiver_info.second;
 		}
 
 		// Build donors from receivers
 		for (size_t i = 0; i < size_; ++i) {
-			if (result.receivers[i] != SIZE_MAX) {
-				result.donors[result.receivers[i]].push_back(i);
+			if ((*result.receivers)[i] != SIZE_MAX) {
+				(*result.donors)[(*result.receivers)[i]].push_back(i);
 			}
 		}
 
 		// Compute topological order
 		result.stack_order =
-			compute_topological_order(result.receivers, result.donors);
+			compute_topological_order(*result.receivers, *result.donors);
 	}
 
 	/**
@@ -685,16 +849,22 @@ private:
 	 */
 	void compute_mfd_flow_routing(FlowRoutingResult<T>& result) const
 	{
-		result.mfd_receivers.resize(size_);
-		result.donors.resize(size_);
-		result.gradients.resize(size_, 0);
+		// Create ArrayRef objects with proper initialization
+		std::vector<std::vector<std::pair<size_t, T>>> mfd_receivers_vec(size_);
+		result.mfd_receivers =
+			std::make_shared<ArrayRef<std::vector<std::pair<size_t, T>>>>(
+				mfd_receivers_vec);
+
+		std::vector<std::vector<size_t>> donors_vec(size_);
+		result.donors = std::make_shared<ArrayRef<std::vector<size_t>>>(donors_vec);
+
+		std::vector<T> gradients_vec(size_, static_cast<T>(0));
+		result.gradients = std::make_shared<ArrayRef<T>>(gradients_vec);
 
 		// Clear arrays
-		for (auto& receiver_list : result.mfd_receivers) {
-			receiver_list.clear();
-		}
-		for (auto& donor_list : result.donors) {
-			donor_list.clear();
+		for (size_t i = 0; i < size_; ++i) {
+			(*result.mfd_receivers)[i].clear();
+			(*result.donors)[i].clear();
 		}
 
 		// Compute MFD receivers
@@ -702,32 +872,35 @@ private:
 			if (!connector_->is_active_node(i))
 				continue;
 
-			compute_mfd_receivers(i, result.mfd_receivers[i], result.gradients[i]);
+			compute_mfd_receivers(
+				i, (*result.mfd_receivers)[i], (*result.gradients)[i]);
 		}
 
 		// Build donors from MFD receivers
 		for (size_t i = 0; i < size_; ++i) {
-			for (const auto& [receiver, weight] : result.mfd_receivers[i]) {
-				result.donors[receiver].push_back(i);
+			for (const auto& [receiver, weight] : (*result.mfd_receivers)[i]) {
+				(*result.donors)[receiver].push_back(i);
 			}
 		}
 
 		// For compatibility, set primary receiver as steepest
-		result.receivers.resize(size_, SIZE_MAX);
+		std::vector<size_t> receivers_vec(size_, SIZE_MAX);
+		result.receivers = std::make_shared<ArrayRef<size_t>>(receivers_vec);
+
 		for (size_t i = 0; i < size_; ++i) {
-			if (!result.mfd_receivers[i].empty()) {
+			if (!(*result.mfd_receivers)[i].empty()) {
 				// Find receiver with highest weight
 				auto max_it = std::max_element(
-					result.mfd_receivers[i].begin(),
-					result.mfd_receivers[i].end(),
+					(*result.mfd_receivers)[i].begin(),
+					(*result.mfd_receivers)[i].end(),
 					[](const auto& a, const auto& b) { return a.second < b.second; });
-				result.receivers[i] = max_it->first;
+				(*result.receivers)[i] = max_it->first;
 			}
 		}
 
 		// Compute topological order using primary receivers
 		result.stack_order =
-			compute_topological_order(result.receivers, result.donors);
+			compute_topological_order(*result.receivers, *result.donors);
 	}
 
 	/**
@@ -735,14 +908,14 @@ private:
 	 */
 	std::pair<size_t, T> compute_single_receiver(size_t index) const
 	{
-		T center_elev = working_elevation_[index];
+		T center_elev = (*working_elevation_)[index];
 		auto neighbors = get_valid_flow_neighbors(index);
 
 		size_t best_receiver = SIZE_MAX;
 		T max_gradient = -std::numeric_limits<T>::infinity();
 
 		for (const auto& neighbor : neighbors) {
-			T neighbor_elev = working_elevation_[neighbor.index];
+			T neighbor_elev = (*working_elevation_)[neighbor.index];
 			T gradient = (center_elev - neighbor_elev) / neighbor.distance;
 
 			if (gradient > max_gradient && gradient > config_.min_gradient) {
@@ -779,12 +952,13 @@ private:
 	/**
 	 * Compute topological order for flow processing
 	 */
-	std::vector<size_t> compute_topological_order(
-		const std::vector<size_t>& receivers,
-		const std::vector<std::vector<size_t>>& donors) const
+	std::shared_ptr<ArrayRef<size_t>> compute_topological_order(
+		const ArrayRef<size_t>& receivers,
+		const ArrayRef<std::vector<size_t>>& donors) const
 	{
-		std::vector<size_t> stack_order;
-		stack_order.reserve(size_);
+		std::vector<size_t> stack_order_vec(size_);
+		auto stack_order = std::make_shared<ArrayRef<size_t>>(stack_order_vec);
+		size_t stack_index = 0;
 
 		std::vector<size_t> in_degree(size_, 0);
 		std::queue<size_t> queue;
@@ -805,7 +979,7 @@ private:
 		while (!queue.empty()) {
 			size_t current = queue.front();
 			queue.pop();
-			stack_order.push_back(current);
+			(*stack_order)[stack_index++] = current;
 
 			size_t receiver = receivers[current];
 			if (receiver != SIZE_MAX && connector_->is_active_node(receiver)) {
@@ -829,7 +1003,7 @@ private:
 		receivers.clear();
 		max_gradient = 0;
 
-		T center_elev = working_elevation_[index];
+		T center_elev = (*working_elevation_)[index];
 		auto neighbors = get_valid_flow_neighbors(index);
 
 		// Find all downslope neighbors
@@ -838,7 +1012,7 @@ private:
 		T total_weight = 0;
 
 		for (const auto& neighbor : neighbors) {
-			T neighbor_elev = working_elevation_[neighbor.index];
+			T neighbor_elev = (*working_elevation_)[neighbor.index];
 			T gradient = (center_elev - neighbor_elev) / neighbor.distance;
 
 			if (gradient > config_.min_gradient) {
@@ -950,7 +1124,9 @@ private:
 	 */
 	void compute_flow_accumulation(FlowRoutingResult<T>& result) const
 	{
-		result.flow_accumulation.resize(size_, 1);
+		std::vector<size_t> accumulation_vec(size_, 1);
+		result.flow_accumulation =
+			std::make_shared<ArrayRef<size_t>>(accumulation_vec);
 
 		if (is_mfd_method(config_.method)) {
 			compute_mfd_flow_accumulation(result);
@@ -965,15 +1141,15 @@ private:
 	void compute_sfd_flow_accumulation(FlowRoutingResult<T>& result) const
 	{
 		// Process in reverse topological order
-		for (auto it = result.stack_order.rbegin(); it != result.stack_order.rend();
-				 ++it) {
-			size_t node = *it;
+		for (int i = static_cast<int>(size_) - 1; i >= 0; --i) {
+			size_t node = (*result.stack_order)[i];
 			if (!connector_->is_active_node(node))
 				continue;
 
-			size_t receiver = result.receivers[node];
+			size_t receiver = (*result.receivers)[node];
 			if (receiver != SIZE_MAX && connector_->is_active_node(receiver)) {
-				result.flow_accumulation[receiver] += result.flow_accumulation[node];
+				(*result.flow_accumulation)[receiver] +=
+					(*result.flow_accumulation)[node];
 			}
 		}
 	}
@@ -984,17 +1160,16 @@ private:
 	void compute_mfd_flow_accumulation(FlowRoutingResult<T>& result) const
 	{
 		// Process in reverse topological order
-		for (auto it = result.stack_order.rbegin(); it != result.stack_order.rend();
-				 ++it) {
-			size_t node = *it;
+		for (int i = static_cast<int>(size_) - 1; i >= 0; --i) {
+			size_t node = (*result.stack_order)[i];
 			if (!connector_->is_active_node(node))
 				continue;
 
 			// Distribute flow to all receivers based on weights
-			for (const auto& [receiver, weight] : result.mfd_receivers[node]) {
+			for (const auto& [receiver, weight] : (*result.mfd_receivers)[node]) {
 				if (connector_->is_active_node(receiver)) {
-					result.flow_accumulation[receiver] +=
-						static_cast<size_t>(result.flow_accumulation[node] * weight);
+					(*result.flow_accumulation)[receiver] +=
+						static_cast<size_t>((*result.flow_accumulation)[node] * weight);
 				}
 			}
 		}
@@ -1005,7 +1180,8 @@ private:
 	 */
 	void compute_drainage_area(FlowRoutingResult<T>& result) const
 	{
-		result.drainage_area.resize(size_, config_.cell_area);
+		std::vector<T> drainage_area_vec(size_, config_.cell_area);
+		result.drainage_area = std::make_shared<ArrayRef<T>>(drainage_area_vec);
 
 		if (is_mfd_method(config_.method)) {
 			compute_mfd_drainage_area(result);
@@ -1020,15 +1196,14 @@ private:
 	void compute_sfd_drainage_area(FlowRoutingResult<T>& result) const
 	{
 		// Process in reverse topological order
-		for (auto it = result.stack_order.rbegin(); it != result.stack_order.rend();
-				 ++it) {
-			size_t node = *it;
+		for (int i = static_cast<int>(size_) - 1; i >= 0; --i) {
+			size_t node = (*result.stack_order)[i];
 			if (!connector_->is_active_node(node))
 				continue;
 
-			size_t receiver = result.receivers[node];
+			size_t receiver = (*result.receivers)[node];
 			if (receiver != SIZE_MAX && connector_->is_active_node(receiver)) {
-				result.drainage_area[receiver] += result.drainage_area[node];
+				(*result.drainage_area)[receiver] += (*result.drainage_area)[node];
 			}
 		}
 	}
@@ -1039,16 +1214,16 @@ private:
 	void compute_mfd_drainage_area(FlowRoutingResult<T>& result) const
 	{
 		// Process in reverse topological order
-		for (auto it = result.stack_order.rbegin(); it != result.stack_order.rend();
-				 ++it) {
-			size_t node = *it;
+		for (int i = static_cast<int>(size_) - 1; i >= 0; --i) {
+			size_t node = (*result.stack_order)[i];
 			if (!connector_->is_active_node(node))
 				continue;
 
 			// Distribute drainage area to all receivers based on weights
-			for (const auto& [receiver, weight] : result.mfd_receivers[node]) {
+			for (const auto& [receiver, weight] : (*result.mfd_receivers)[node]) {
 				if (connector_->is_active_node(receiver)) {
-					result.drainage_area[receiver] += result.drainage_area[node] * weight;
+					(*result.drainage_area)[receiver] +=
+						(*result.drainage_area)[node] * weight;
 				}
 			}
 		}
@@ -1069,7 +1244,7 @@ public:
 	/**
 	 * D8 flow accumulation with depression filling
 	 */
-	static std::vector<size_t> d8_flow_accumulation(
+	static std::shared_ptr<ArrayRef<size_t>> d8_flow_accumulation(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation)
 	{
@@ -1093,7 +1268,7 @@ public:
 	/**
 	 * D4 flow accumulation
 	 */
-	static std::vector<size_t> d4_flow_accumulation(
+	static std::shared_ptr<ArrayRef<size_t>> d4_flow_accumulation(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation)
 	{
@@ -1117,7 +1292,7 @@ public:
 	/**
 	 * Multiple flow direction (Freeman) accumulation
 	 */
-	static std::vector<size_t> mfd_flow_accumulation(
+	static std::shared_ptr<ArrayRef<size_t>> mfd_flow_accumulation(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation,
 		T flow_exponent = 1.1)
@@ -1143,7 +1318,7 @@ public:
 	/**
 	 * Drainage area computation
 	 */
-	static std::vector<T> drainage_area(
+	static std::shared_ptr<ArrayRef<T>> drainage_area(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation,
 		T cell_area = 1.0,
@@ -1170,7 +1345,7 @@ public:
 	/**
 	 * Flow receivers (single flow direction)
 	 */
-	static std::vector<size_t> flow_receivers(
+	static std::shared_ptr<ArrayRef<size_t>> flow_receivers(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation,
 		FlowRoutingMethod method = FlowRoutingMethod::D8_STEEPEST)
@@ -1196,7 +1371,7 @@ public:
 	/**
 	 * Cordonnier flow routing with depression handling
 	 */
-	static std::vector<size_t> cordonnier_flow(
+	static std::shared_ptr<ArrayRef<size_t>> cordonnier_flow(
 		std::shared_ptr<Connector<T>> connector,
 		const ArrayRef<T>& elevation,
 		bool use_filling = true)
@@ -1219,225 +1394,86 @@ public:
 
 		return result.flow_accumulation;
 	}
-};
 
-// ======================
-// FACTORY FUNCTIONS
-// ======================
+	// ======================
+	// 2D GRID VERSIONS
+	// ======================
 
-/**
- * Create flow router with pre-configured settings for specific applications
- */
-template<typename T = double>
-class FlowRouterFactory
-{
-public:
 	/**
-	 * Flow router optimized for hydrology applications
+	 * D8 flow accumulation with depression filling (Grid2D version)
 	 */
-	static FlowRouter<T> create_for_hydrology(
+	static std::shared_ptr<Grid2D<size_t>> d8_flow_accumulation_2d(
 		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
+		const Grid2D<T>& elevation)
 	{
+		auto elevation_ref = std::make_shared<Grid2D<T>>(elevation);
+
 		FlowRoutingConfig<T> config;
 		config.method = FlowRoutingMethod::D8_STEEPEST;
 		config.handle_depressions = true;
-		config.depression_method = FillingMethod::PRIORITY_FLOOD_EPSILON;
 		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-		config.enforce_monotonic = true;
 
-		return FlowRouter<T>(connector, elevation, config);
+		FlowRouter<T> router(connector, elevation_ref, config);
+		auto result = router.compute_flow_routing();
+
+		if (!result.success) {
+			throw std::runtime_error("D8 flow routing failed");
+		}
+
+		return result.flow_accumulation_2d;
 	}
 
 	/**
-	 * Flow router optimized for geomorphology applications
+	 * Flow receivers (Grid2D version)
 	 */
-	static FlowRouter<T> create_for_geomorphology(
+	static std::shared_ptr<Grid2D<size_t>> flow_receivers_2d(
 		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
+		const Grid2D<T>& elevation,
+		FlowRoutingMethod method = FlowRoutingMethod::D8_STEEPEST)
 	{
+		auto elevation_ref = std::make_shared<Grid2D<T>>(elevation);
+
 		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::MFD_QUINN;
-		config.flow_exponent = 1.1;
+		config.method = method;
 		config.handle_depressions = true;
-		config.depression_method = FillingMethod::HYBRID_FILL_BREACH;
-		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-
-		return FlowRouter<T>(connector, elevation, config);
-	}
-
-	/**
-	 * Flow router optimized for landscape evolution modeling
-	 */
-	static FlowRouter<T> create_for_landscape_evolution(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::CORDONNIER_FILLING;
-		config.handle_depressions = false; // Cordonnier handles internally
-		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-		config.enforce_monotonic = true;
-
-		return FlowRouter<T>(connector, elevation, config);
-	}
-
-	/**
-	 * High-performance flow router for large datasets
-	 */
-	static FlowRouter<T> create_for_performance(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::CORDONNIER_SIMPLE;
-		config.handle_depressions = false;
-		config.compute_accumulation = true;
+		config.compute_accumulation = false;
 		config.compute_drainage_area = false;
 
-		return FlowRouter<T>(connector, elevation, config);
+		FlowRouter<T> router(connector, elevation_ref, config);
+		auto result = router.compute_flow_routing();
+
+		if (!result.success) {
+			throw std::runtime_error("Flow receiver computation failed");
+		}
+
+		return result.receivers_2d;
 	}
 
 	/**
-	 * Multiple flow direction router for distributed flow modeling
+	 * Drainage area computation (Grid2D version)
 	 */
-	static FlowRouter<T> create_for_distributed_flow(
+	static std::shared_ptr<Grid2D<T>> drainage_area_2d(
 		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation,
-		T flow_exponent = 1.1)
+		const Grid2D<T>& elevation,
+		T cell_area = 1.0,
+		FlowRoutingMethod method = FlowRoutingMethod::D8_STEEPEST)
 	{
+		auto elevation_ref = std::make_shared<Grid2D<T>>(elevation);
+
 		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::MFD_FREEMAN;
-		config.flow_exponent = flow_exponent;
-		config.handle_depressions = true;
-		config.depression_method = FillingMethod::PRIORITY_FLOOD_EPSILON;
-		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-
-		return FlowRouter<T>(connector, elevation, config);
-	}
-
-	/**
-	 * Adaptive MFD router with variance-based flow partitioning
-	 */
-	static FlowRouter<T> create_adaptive_mfd(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::ADAPTIVE_MFD;
-		config.handle_depressions = true;
-		config.depression_method = FillingMethod::IMPACT_REDUCTION;
-		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-
-		return FlowRouter<T>(connector, elevation, config);
-	}
-
-	/**
-	 * Minimal modification router (preserves original DEM as much as possible)
-	 */
-	static FlowRouter<T> create_minimal_modification(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		FlowRoutingConfig<T> config;
-		config.method = FlowRoutingMethod::CORDONNIER_CARVING;
-		config.handle_depressions = false; // Cordonnier handles internally
-		config.compute_accumulation = true;
-		config.compute_drainage_area = true;
-		config.min_gradient = 1e-10; // Very small gradient threshold
-
-		return FlowRouter<T>(connector, elevation, config);
-	}
-};
-
-// ======================
-// WORKFLOW FUNCTIONS
-// ======================
-
-/**
- * Complete workflow examples for common scenarios
- */
-template<typename T = double>
-class FlowWorkflows
-{
-public:
-	/**
-	 * Complete hydrology workflow: depression filling + D8 routing + accumulation
-	 */
-	static FlowRoutingResult<T> hydrology_workflow(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation,
-		T cell_area = 1.0)
-	{
-		auto router =
-			FlowRouterFactory<T>::create_for_hydrology(connector, elevation);
-		auto config = router.get_config();
+		config.method = method;
 		config.cell_area = cell_area;
-		router.set_config(config);
+		config.handle_depressions = true;
+		config.compute_drainage_area = true;
 
-		return router.compute_flow_routing();
-	}
+		FlowRouter<T> router(connector, elevation_ref, config);
+		auto result = router.compute_flow_routing();
 
-	/**
-	 * Landscape evolution workflow: Cordonnier + efficient flow routing
-	 */
-	static FlowRoutingResult<T> landscape_evolution_workflow(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		auto router = FlowRouterFactory<T>::create_for_landscape_evolution(
-			connector, elevation);
-		return router.compute_flow_routing();
-	}
+		if (!result.success) {
+			throw std::runtime_error("Drainage area computation failed");
+		}
 
-	/**
-	 * Geomorphology workflow: MFD + comprehensive analysis
-	 */
-	static FlowRoutingResult<T> geomorphology_workflow(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation,
-		T flow_exponent = 1.1)
-	{
-		auto router =
-			FlowRouterFactory<T>::create_for_geomorphology(connector, elevation);
-		auto config = router.get_config();
-		config.flow_exponent = flow_exponent;
-		router.set_config(config);
-
-		return router.compute_flow_routing();
-	}
-
-	/**
-	 * Comparison workflow: compare multiple methods
-	 */
-	static std::vector<FlowRoutingResult<T>> comparison_workflow(
-		std::shared_ptr<Connector<T>> connector,
-		std::shared_ptr<ArrayRef<T>> elevation)
-	{
-		std::vector<FlowRoutingResult<T>> results;
-
-		// D8 routing
-		auto d8_router =
-			FlowRouterFactory<T>::create_for_hydrology(connector, elevation);
-		results.push_back(d8_router.compute_flow_routing());
-
-		// MFD routing
-		auto mfd_router =
-			FlowRouterFactory<T>::create_for_distributed_flow(connector, elevation);
-		results.push_back(mfd_router.compute_flow_routing());
-
-		// Cordonnier routing
-		auto cordonnier_router =
-			FlowRouterFactory<T>::create_for_landscape_evolution(connector,
-																													 elevation);
-		results.push_back(cordonnier_router.compute_flow_routing());
-
-		return results;
+		return result.drainage_area_2d;
 	}
 };
 

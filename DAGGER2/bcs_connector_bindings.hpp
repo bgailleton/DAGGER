@@ -25,7 +25,7 @@ bind_array_types(py::module& m, const std::string& suffix)
 	using G2D = Grid2D<T>;
 	using G3D = Grid3D<T>;
 
-	py::class_<AR>(m, ("ArrayRef" + suffix).c_str())
+	py::class_<AR, std::shared_ptr<AR>>(m, ("ArrayRef" + suffix).c_str())
 		.def(py::init<py::array_t<T>>())
 		.def("__getitem__", [](AR& a, size_t i) { return a[i]; })
 		.def("__setitem__", [](AR& a, size_t i, T val) { a[i] = val; })
@@ -33,7 +33,7 @@ bind_array_types(py::module& m, const std::string& suffix)
 		.def_property_readonly("size", &AR::size)
 		.def("as_numpy", &AR::as_numpy);
 
-	py::class_<G2D>(m, ("Grid2D" + suffix).c_str())
+	py::class_<G2D, std::shared_ptr<G2D>>(m, ("Grid2D" + suffix).c_str())
 		.def(py::init<py::array_t<T>, size_t, size_t>(),
 				 py::arg("array"),
 				 py::arg("rows") = 0,
@@ -49,7 +49,7 @@ bind_array_types(py::module& m, const std::string& suffix)
 		.def_property_readonly("size", &G2D::size)
 		.def("as_numpy", &G2D::as_numpy_2d);
 
-	py::class_<G3D>(m, ("Grid3D" + suffix).c_str())
+	py::class_<G3D, std::shared_ptr<G3D>>(m, ("Grid3D" + suffix).c_str())
 		.def(py::init<py::array_t<T>, size_t, size_t, size_t>(),
 				 py::arg("array"),
 				 py::arg("depth") = 0,
@@ -344,8 +344,9 @@ bind_connector(py::module& m, const std::string& suffix)
 		.def_readwrite("is_reflection", &FlowTransferType::is_reflection)
 		.def_readwrite("exits_domain", &FlowTransferType::exits_domain);
 
-	// Main Connector class
-	py::class_<ConnectorType>(m, ("Connector" + suffix).c_str())
+	// Main Connector class with shared_ptr holder
+	py::class_<ConnectorType, std::shared_ptr<ConnectorType>>(
+		m, ("Connector" + suffix).c_str())
 		// Constructors
 		.def(py::init<size_t, size_t, ConnectivityType>(),
 				 py::arg("rows"),
@@ -532,6 +533,7 @@ bind_arrbcconn(py::module& m)
 	bind_array_types<double>(m, "F64");
 	bind_array_types<int32_t>(m, "I32");
 	bind_array_types<int64_t>(m, "I64");
+	bind_array_types<size_t>(m, "U64");
 
 	// Add this in bind_arrbcconn function, after binding the enums:
 	py::class_<Grid2D<NodeType>, std::shared_ptr<Grid2D<NodeType>>>(
