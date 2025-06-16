@@ -47,7 +47,8 @@ bind_array_types(py::module& m, const std::string& suffix)
 		.def_property_readonly("rows", &G2D::rows)
 		.def_property_readonly("cols", &G2D::cols)
 		.def_property_readonly("size", &G2D::size)
-		.def("as_numpy", &G2D::as_numpy_2d);
+		.def("as_numpy", &G2D::as_numpy_2d)
+		.def("get_arref", &G2D::get_arref);
 
 	py::class_<G3D, std::shared_ptr<G3D>>(m, ("Grid3D" + suffix).c_str())
 		.def(py::init<py::array_t<T>, size_t, size_t, size_t>(),
@@ -196,6 +197,8 @@ bind_bc_builder(py::module& m, const std::string& suffix)
 
 		// Basic patterns - method chaining
 		.def("fill", &BCBuilderType::fill, py::arg("type"))
+		.def("to_numpy_grid", &BCBuilderType::to_numpy_grid)
+
 		.def("set_borders", &BCBuilderType::set_borders, py::arg("type"))
 
 		// Border-specific setters
@@ -209,7 +212,9 @@ bind_bc_builder(py::module& m, const std::string& suffix)
 		.def("closed_borders", &BCBuilderType::closed_borders)
 		.def("periodic_borders", &BCBuilderType::periodic_borders)
 		.def("ns_periodic_ew_closed", &BCBuilderType::ns_periodic_ew_closed)
+		.def("ns_periodic_ew_open", &BCBuilderType::ns_periodic_ew_open)
 		.def("ew_periodic_ns_closed", &BCBuilderType::ew_periodic_ns_closed)
+		.def("ew_periodic_ns_open", &BCBuilderType::ew_periodic_ns_open)
 		.def("inlet_north_outlet_south", &BCBuilderType::inlet_north_outlet_south)
 		.def("inlet_west_outlet_east", &BCBuilderType::inlet_west_outlet_east)
 		.def("corner_outlets", &BCBuilderType::corner_outlets)
@@ -534,6 +539,7 @@ bind_arrbcconn(py::module& m)
 	bind_array_types<int32_t>(m, "I32");
 	bind_array_types<int64_t>(m, "I64");
 	bind_array_types<size_t>(m, "U64");
+	bind_array_types<uint8_t>(m, "U8");
 
 	// Add this in bind_arrbcconn function, after binding the enums:
 	py::class_<Grid2D<NodeType>, std::shared_ptr<Grid2D<NodeType>>>(

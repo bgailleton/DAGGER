@@ -612,6 +612,39 @@ public:
 		}
 	}
 
+	template<typename AccumType>
+	Grid2D<AccumType> compute_drainage_area(const T cell_area) const
+	{
+
+		std::cout << connector_->rows() << "|" << connector_->cols() << std::endl;
+		Grid2D<AccumType> result = Grid2D<AccumType>::full(
+			connector_->rows(), connector_->cols(), cell_area);
+
+		if (!is_built_)
+			throw std::runtime_error("Graph not built");
+
+		// Process in topological order
+		for (size_t node_idx : topological_order_) {
+
+			if (!connector_->is_active_node(node_idx))
+				continue;
+
+			const auto& node = nodes_[node_idx];
+			AccumType node_value = result[node_idx];
+
+			// Distribute to receivers
+			for (size_t link_idx : node.receiver_links) {
+				const auto& link = links_[link_idx];
+				if (!link.is_boundary_exit &&
+						connector_->is_active_node(link.to_index)) {
+					result[link.to_index] += node_value * link.weight;
+				}
+			}
+		}
+
+		return result;
+	}
+
 	/**
 	 * Drainage area accumulation
 	 */

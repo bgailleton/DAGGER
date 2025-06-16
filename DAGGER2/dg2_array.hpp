@@ -151,11 +151,11 @@ public:
 		} else {
 			// Create a new NumPy array that views our data
 			return py::array_t<T>(
-				{ size_ },											// shape
-				{ sizeof(T) },									// strides
-				data_ptr_,											// data pointer
-				py::capsule(this, [](void* p) { // capsule to manage lifetime
-					// This ensures the ArrayRef stays alive as long as NumPy array exists
+				{ size_ },		 // shape
+				{ sizeof(T) }, // strides
+				data_ptr_,		 // data pointer
+				py::capsule(new std::shared_ptr<T[]>(cpp_data_), [](void* p) {
+					delete static_cast<std::shared_ptr<T[]>*>(p);
 				}));
 		}
 	}
@@ -193,7 +193,6 @@ public:
 		, cols_(cols)
 		, size_(rows * cols)
 	{
-		std::cout << "DEBUG::3.7" << std::endl;
 
 		if (data.size() != size_) {
 			throw std::runtime_error("Data size doesn't match grid dimensions");
@@ -217,6 +216,22 @@ public:
 	{
 		std::vector<T> vec(size_, fill_value);
 		data_ = ArrayRef<T>(vec);
+	}
+
+	// Constructor that creates and owns data
+	static Grid2D<T> zeros(size_t rows, size_t cols)
+	{
+		auto size = rows * cols;
+		std::vector<T> vec(size, 0.);
+		return Grid2D<T>(vec, rows, cols);
+	}
+
+	// Constructor that creates and owns data
+	static Grid2D<T> full(size_t rows, size_t cols, T val)
+	{
+		auto size = rows * cols;
+		std::vector<T> vec(size, val);
+		return Grid2D<T>(vec, rows, cols);
 	}
 
 #ifdef DG2_WITH_PYTHON
@@ -310,6 +325,8 @@ public:
 		std::vector<T> new_data(size_, fill_value);
 		data_ = ArrayRef<T>(new_data);
 	}
+
+	const ArrayRef<T>& get_arref() { return this->data_; }
 };
 
 /**

@@ -112,6 +112,19 @@ public:
 	}
 
 	/**
+	 * Convert BC grid to Grid2D<uint8_t> for numpy compatibility
+	 */
+	std::shared_ptr<Grid2D<uint8_t>> to_numpy_grid() const
+	{
+		std::vector<uint8_t> data(size_);
+		for (size_t i = 0; i < size_; ++i) {
+			auto [r, c] = to_2d(i);
+			data[i] = static_cast<uint8_t>(get(r, c));
+		}
+		return std::make_shared<Grid2D<uint8_t>>(data, rows_, cols_);
+	}
+
+	/**
 	 * Reset to all NORMAL nodes
 	 */
 	BCBuilder& reset() { return fill(NodeType::NORMAL); }
