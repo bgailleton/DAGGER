@@ -1389,10 +1389,19 @@ public:
 	/**
 	 * Create periodic domain
 	 */
-	static std::shared_ptr<Grid2D<NodeType>> periodic_domain(size_t rows,
-																													 size_t cols)
+	static std::shared_ptr<Grid2D<NodeType>> periodic_ew_domain(size_t rows,
+																															size_t cols)
 	{
-		return BCBuilder<T>(rows, cols).periodic_borders().get_grid();
+		return BCBuilder<T>(rows, cols).ew_periodic_ns_open().get_grid();
+	}
+
+	/**
+	 * Create periodic domain
+	 */
+	static std::shared_ptr<Grid2D<NodeType>> periodic_ns_domain(size_t rows,
+																															size_t cols)
+	{
+		return BCBuilder<T>(rows, cols).ns_periodic_ew_open().get_grid();
 	}
 
 	/**

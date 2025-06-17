@@ -311,8 +311,12 @@ bind_quick_bc(py::module& m, const std::string& suffix)
 								&QuickBCType::closed_domain,
 								py::arg("rows"),
 								py::arg("cols"))
-		.def_static("periodic_domain",
-								&QuickBCType::periodic_domain,
+		.def_static("periodic_ew_domain",
+								&QuickBCType::periodic_ew_domain,
+								py::arg("rows"),
+								py::arg("cols"))
+		.def_static("periodic_ns_domain",
+								&QuickBCType::periodic_ns_domain,
 								py::arg("rows"),
 								py::arg("cols"))
 		.def_static("sea_level_domain",
