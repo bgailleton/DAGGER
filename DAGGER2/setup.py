@@ -6,6 +6,14 @@ import pybind11
 # Optional: Enable parallel compilation
 ParallelCompile("NPY_NUM_BUILD_JOBS").install()
 
+# Cross-platform O3 optimization flags
+def get_optimization_flags():
+    import platform
+    if platform.system() == "Windows":
+        return ["/O2", "/Ox"]  # MSVC equivalent to O3
+    else:
+        return ["-O3", "-flto"]
+
 # Define the extension module
 ext_modules = [
     Pybind11Extension(
@@ -20,7 +28,9 @@ ext_modules = [
         ],
         language='c++',
         cxx_std=17,  # C++14 standard (required for pybind11),
-        define_macros = [("DG2_WITH_PYTHON", None)]
+        define_macros = [("DG2_WITH_PYTHON", None)],
+        # extra_compile_args=get_optimization_flags()
+        extra_compile_args=get_optimization_flags()+["-g", "-fno-omit-frame-pointer"]
     ),
 ]
 

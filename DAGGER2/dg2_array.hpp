@@ -327,6 +327,62 @@ public:
 	}
 
 	const ArrayRef<T>& get_arref() { return this->data_; }
+
+	// ======================
+	// COPY OPERATIONS
+	// ======================
+
+	/**
+	 * Create a deep copy of this Grid2D
+	 */
+	Grid2D<T> copy() const
+	{
+		std::vector<T> copy_data(data_.begin(), data_.end());
+		return Grid2D<T>(copy_data, rows_, cols_);
+	}
+
+	/**
+	 * Create a copy with a different data type (with conversion)
+	 */
+	template<typename U>
+	Grid2D<U> copy_as() const
+	{
+		std::vector<U> copy_data;
+		copy_data.reserve(size_);
+
+		for (const auto& value : data_) {
+			copy_data.push_back(static_cast<U>(value));
+		}
+
+		return Grid2D<U>(copy_data, rows_, cols_);
+	}
+
+	/**
+	 * Copy data from another Grid2D (must have same dimensions)
+	 */
+	void copy_from(const Grid2D<T>& other)
+	{
+		if (other.rows_ != rows_ || other.cols_ != cols_) {
+			throw std::runtime_error("Grid dimensions must match for copy_from");
+		}
+
+		std::copy(other.data_.begin(), other.data_.end(), data_.begin());
+	}
+
+	/**
+	 * Copy data from another Grid2D with type conversion
+	 */
+	template<typename U>
+	void copy_from(const Grid2D<U>& other)
+	{
+		if (other.rows() != rows_ || other.cols() != cols_) {
+			throw std::runtime_error("Grid dimensions must match for copy_from");
+		}
+
+		for (size_t i = 0; i < size_; ++i) {
+			data_[i] = static_cast<T>(other[i]);
+		}
+	}
 };
 
 /**

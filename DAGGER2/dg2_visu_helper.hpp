@@ -34,7 +34,7 @@ create_d8_hillshade_relief(
 	T sun_elevation = static_cast<T>(45.0), // degrees
 	T z_factor = static_cast<T>(1.0),				// vertical exaggeration
 	T cell_size = static_cast<T>(1.0),			// grid cell size
-	T no_data_value = static_cast<T>(-1.0)	// value for NO_DATA areas
+	T no_data_value = static_cast<T>(0.0)		// value for NO_DATA areas
 )
 {
 	const size_t rows = elevation.rows();
@@ -176,11 +176,8 @@ create_d8_hillshade_relief(
 											std::cos(azimuth_rad - aspect);
 			}
 
-			// Normalize to 0-255 range
-			hillshade = std::max(
-				static_cast<T>(0.0),
-				std::min(static_cast<T>(255.0), hillshade * static_cast<T>(255.0)));
-			hillshade_data[idx] = hillshade;
+			// Normalize to 1-0 range (inverting and normalsing)
+			hillshade_data[idx] = 1 - hillshade;
 		}
 	}
 
