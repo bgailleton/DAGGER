@@ -4,8 +4,6 @@
 #include "dg2_BCs_helper.hpp"
 #include "dg2_array.hpp"
 #include "dg2_connector.hpp"
-#include "dg2_fastconnector.hpp"
-// #include "fastcon_bindings.hpp"
 #include <pybind11/functional.h>
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -80,6 +78,13 @@ bind_array_types(py::module& m, const std::string& suffix)
 		.def("as_numpy", &G3D::as_numpy_3d)
 		.def("get_slice", &G3D::get_slice, "Get 2D slice at specific depth")
 		.def("set_slice", &G3D::set_slice, "Set 2D slice at specific depth");
+
+	// Bind utility functions
+	m.def(
+		("compute_sum_" + suffix).c_str(), &compute_sum<T>, "Compute sum of array");
+	m.def(("compute_grid_average_" + suffix).c_str(),
+				&compute_grid_average<T>,
+				"Compute average of grid");
 }
 
 // ==============================================
@@ -533,394 +538,6 @@ bind_all_bc_types(py::module& m, const std::string& suffix)
 	// bind_all_fast_connector_types<T>(m, suffix);
 }
 
-// ==============================================
-// FAST CONNECTOR NEIGHBOR BINDINGS
-// ==============================================
-
-template<typename T, ConnectivityType CONN>
-void
-bind_fast_connector_neighbor(py::module& m, const std::string& suffix)
-{
-	using FastConnectorType = FastConnector<T, CONN>;
-	using NeighborType = typename FastConnectorType::Neighbor;
-
-	py::class_<NeighborType>(m, ("FastNeighbor" + suffix).c_str())
-		.def(py::init<>())
-		.def(py::init<size_t, T, Direction>(),
-				 py::arg("index"),
-				 py::arg("distance"),
-				 py::arg("direction"))
-		.def(py::init<size_t, T, Direction, NodeType>(),
-				 py::arg("index"),
-				 py::arg("distance"),
-				 py::arg("direction"),
-				 py::arg("boundary_type"))
-		.def_readwrite("index", &NeighborType::index)
-		.def_readwrite("distance", &NeighborType::distance)
-		.def_readwrite("direction", &NeighborType::direction)
-		.def_readwrite("is_valid", &NeighborType::is_valid)
-		.def_readwrite("boundary_type", &NeighborType::boundary_type);
-}
-
-// ==============================================
-// FAST CONNECTOR FLOW TRANSFER BINDINGS
-// ==============================================
-
-template<typename T, ConnectivityType CONN>
-void
-bind_fast_connector_flow_transfer(py::module& m, const std::string& suffix)
-{
-	using FastConnectorType = FastConnector<T, CONN>;
-	using FlowTransferType = typename FastConnectorType::FlowTransfer;
-
-	py::class_<FlowTransferType>(m, ("FastFlowTransfer" + suffix).c_str())
-		.def(py::init<>())
-		.def(py::init<size_t, T, bool, bool, bool>(),
-				 py::arg("dest"),
-				 py::arg("mult"),
-				 py::arg("periodic") = false,
-				 py::arg("reflect") = false,
-				 py::arg("exits") = false)
-		.def_readwrite("destination_index", &FlowTransferType::destination_index)
-		.def_readwrite("flux_multiplier", &FlowTransferType::flux_multiplier)
-		.def_readwrite("is_periodic_wrap", &FlowTransferType::is_periodic_wrap)
-		.def_readwrite("is_reflection", &FlowTransferType::is_reflection)
-		.def_readwrite("exits_domain", &FlowTransferType::exits_domain);
-}
-
-// ==============================================
-// FAST CONNECTOR PERFORMANCE STATS BINDINGS
-// ==============================================
-
-template<typename T, ConnectivityType CONN>
-void
-bind_fast_connector_perf_stats(py::module& m, const std::string& suffix)
-{
-	using FastConnectorType = FastConnector<T, CONN>;
-	using PerfStatsType = typename FastConnectorType::PerfStats;
-
-	py::class_<PerfStatsType>(m, ("FastConnectorPerfStats" + suffix).c_str())
-		.def_readonly("cache_hits", &PerfStatsType::cache_hits)
-		.def_readonly("cache_misses", &PerfStatsType::cache_misses)
-		.def_readonly("simd_operations", &PerfStatsType::simd_operations)
-		.def("cache_hit_ratio", &PerfStatsType::cache_hit_ratio);
-}
-
-// ==============================================
-// MAIN FAST CONNECTOR BINDINGS
-// ==============================================
-
-template<typename T, ConnectivityType CONN>
-void
-bind_fast_connector(py::module& m, const std::string& suffix)
-{
-	// py::class_<Grid2D<NodeType>, std::shared_ptr<Grid2D<NodeType>>>(m,
-	// "Grid2DNodeType_Debug");
-
-	using FastConnectorType = FastConnector<T, CONN>;
-	using NeighborType = typename FastConnectorType::Neighbor;
-	using FlowTransferType = typename FastConnectorType::FlowTransfer;
-	using PerfStatsType = typename FastConnectorType::PerfStats;
-
-	// Bind supporting types first
-	bind_fast_connector_neighbor<T, CONN>(m, suffix);
-	bind_fast_connector_flow_transfer<T, CONN>(m, suffix);
-	bind_fast_connector_perf_stats<T, CONN>(m, suffix);
-
-	// Main FastConnector class
-	auto connector_class =
-		py::class_<FastConnectorType, std::shared_ptr<FastConnectorType>>(
-			m, ("FastConnector" + suffix).c_str())
-			// Constructors
-			.def(py::init<size_t, size_t>(), py::arg("rows"), py::arg("cols"))
-			.def(py::init<size_t, size_t, std::shared_ptr<Grid2D<NodeType>>>(),
-					 py::arg("rows"),
-					 py::arg("cols"),
-					 py::arg("boundary_grid"))
-
-			// Basic properties
-			.def("rows", &FastConnectorType::rows)
-			.def("cols", &FastConnectorType::cols)
-			.def("size", &FastConnectorType::size)
-			.def("connectivity_type", &FastConnectorType::connectivity_type)
-			.def("num_directions", &FastConnectorType::num_directions)
-
-			// Index conversion
-			.def("to_1d", &FastConnectorType::to_1d)
-			.def("to_2d", &FastConnectorType::to_2d)
-			.def("is_valid_coord",
-					 py::overload_cast<size_t, size_t>(&FastConnectorType::is_valid_coord,
-																						 py::const_))
-			.def("is_valid_coord",
-					 py::overload_cast<int, int>(&FastConnectorType::is_valid_coord,
-																			 py::const_))
-			.def("is_valid_index", &FastConnectorType::is_valid_index)
-
-			// Boundary conditions
-			.def("get_boundary_type",
-					 py::overload_cast<size_t, size_t>(
-						 &FastConnectorType::get_boundary_type, py::const_))
-			.def("get_boundary_type",
-					 py::overload_cast<size_t>(&FastConnectorType::get_boundary_type,
-																		 py::const_))
-			.def("set_boundary_type",
-					 py::overload_cast<size_t, size_t, NodeType>(
-						 &FastConnectorType::set_boundary_type))
-			.def("set_boundary_type",
-					 py::overload_cast<size_t, NodeType>(
-						 &FastConnectorType::set_boundary_type))
-			.def("is_active_node",
-					 py::overload_cast<size_t, size_t>(&FastConnectorType::is_active_node,
-																						 py::const_))
-			.def("is_active_node",
-					 py::overload_cast<size_t>(&FastConnectorType::is_active_node,
-																		 py::const_))
-			.def("is_boundary_node",
-					 py::overload_cast<size_t>(&FastConnectorType::is_boundary_node,
-																		 py::const_))
-
-			// Direction-specific neighbors
-			.def("north",
-					 py::overload_cast<size_t, size_t>(&FastConnectorType::north,
-																						 py::const_))
-			.def("north",
-					 py::overload_cast<size_t>(&FastConnectorType::north, py::const_))
-			.def(
-				"east",
-				py::overload_cast<size_t, size_t>(&FastConnectorType::east, py::const_))
-			.def("east",
-					 py::overload_cast<size_t>(&FastConnectorType::east, py::const_))
-			.def("south",
-					 py::overload_cast<size_t, size_t>(&FastConnectorType::south,
-																						 py::const_))
-			.def("south",
-					 py::overload_cast<size_t>(&FastConnectorType::south, py::const_))
-			.def(
-				"west",
-				py::overload_cast<size_t, size_t>(&FastConnectorType::west, py::const_))
-			.def("west",
-					 py::overload_cast<size_t>(&FastConnectorType::west, py::const_));
-
-	// Conditionally add diagonal neighbors for D8
-	if constexpr (CONN == ConnectivityType::D8) {
-		connector_class
-			.def("northeast",
-					 py::overload_cast<size_t, size_t>(
-						 &FastConnectorType::template northeast<CONN>, py::const_))
-			.def("northeast",
-					 py::overload_cast<size_t>(
-						 &FastConnectorType::template northeast<CONN>, py::const_))
-			.def("southeast",
-					 py::overload_cast<size_t, size_t>(
-						 &FastConnectorType::template southeast<CONN>, py::const_))
-			.def("southeast",
-					 py::overload_cast<size_t>(
-						 &FastConnectorType::template southeast<CONN>, py::const_))
-			.def("southwest",
-					 py::overload_cast<size_t, size_t>(
-						 &FastConnectorType::template southwest<CONN>, py::const_))
-			.def("southwest",
-					 py::overload_cast<size_t>(
-						 &FastConnectorType::template southwest<CONN>, py::const_))
-			.def("northwest",
-					 py::overload_cast<size_t, size_t>(
-						 &FastConnectorType::template northwest<CONN>, py::const_))
-			.def("northwest",
-					 py::overload_cast<size_t>(
-						 &FastConnectorType::template northwest<CONN>, py::const_));
-	}
-
-	// Continue with common methods
-	connector_class
-		// All neighbors access
-		.def("get_all_neighbors",
-				 py::overload_cast<size_t, size_t>(
-					 &FastConnectorType::get_all_neighbors, py::const_))
-		.def("get_all_neighbors",
-				 py::overload_cast<size_t>(&FastConnectorType::get_all_neighbors,
-																	 py::const_))
-		.def("get_valid_neighbors",
-				 py::overload_cast<size_t, size_t>(
-					 &FastConnectorType::get_valid_neighbors, py::const_))
-		.def("get_valid_neighbors",
-				 py::overload_cast<size_t>(&FastConnectorType::get_valid_neighbors,
-																	 py::const_))
-		.def("get_neighbors", &FastConnectorType::get_neighbors)
-
-		// Vectorized operations
-		.def("get_neighbor_indices", &FastConnectorType::get_neighbor_indices)
-		.def("get_valid_neighbor_indices",
-				 &FastConnectorType::get_valid_neighbor_indices)
-
-		// Raw neighbor access (high performance)
-		.def(
-			"get_neighbors_raw",
-			[](const FastConnectorType& self, size_t index) -> py::array_t<size_t> {
-				size_t neighbors[8]; // Max possible neighbors
-				size_t count;
-				self.get_neighbors_raw(index, neighbors, count);
-				return py::array_t<size_t>(count, neighbors);
-			})
-		.def(
-			"get_effective_neighbors_raw",
-			[](const FastConnectorType& self, size_t index) -> py::array_t<size_t> {
-				size_t neighbors[8];
-				size_t count;
-				self.get_effective_neighbors_raw(index, neighbors, count);
-				return py::array_t<size_t>(count, neighbors);
-			})
-		.def(
-			"get_effective_valid_neighbors_raw",
-			[](const FastConnectorType& self, size_t index) -> py::array_t<size_t> {
-				size_t neighbors[8];
-				size_t count;
-				self.get_effective_valid_neighbors_raw(index, neighbors, count);
-				return py::array_t<size_t>(count, neighbors);
-			})
-		.def("get_neighbor_raw_direction",
-				 py::overload_cast<size_t, Direction>(
-					 &FastConnectorType::get_neighbor_raw_direction, py::const_))
-		.def("get_neighbor_raw_direction",
-				 py::overload_cast<size_t, size_t, Direction>(
-					 &FastConnectorType::get_neighbor_raw_direction, py::const_))
-
-		// Boundary condition utilities
-		.def("apply_periodic_bc", &FastConnectorType::apply_periodic_bc)
-		.def("get_boundary_nodes", &FastConnectorType::get_boundary_nodes)
-		.def("get_all_boundary_nodes", &FastConnectorType::get_all_boundary_nodes)
-		.def("set_border_boundary", &FastConnectorType::set_border_boundary)
-		.def("set_periodic_boundaries", &FastConnectorType::set_periodic_boundaries)
-		.def("set_reflective_boundaries",
-				 &FastConnectorType::set_reflective_boundaries)
-
-		// Effective neighbor access (with BC handling)
-		.def("get_effective_neighbor", &FastConnectorType::get_effective_neighbor)
-		.def("get_effective_neighbors",
-				 py::overload_cast<size_t, size_t>(
-					 &FastConnectorType::get_effective_neighbors, py::const_))
-		.def("get_effective_neighbors",
-				 py::overload_cast<size_t>(&FastConnectorType::get_effective_neighbors,
-																	 py::const_))
-		.def("get_effective_valid_neighbors",
-				 py::overload_cast<size_t, size_t>(
-					 &FastConnectorType::get_effective_valid_neighbors, py::const_))
-		.def("get_effective_valid_neighbors",
-				 py::overload_cast<size_t>(
-					 &FastConnectorType::get_effective_valid_neighbors, py::const_))
-		.def("has_boundary_handling", &FastConnectorType::has_boundary_handling)
-
-		// Advanced flow handling
-		.def("transfer_flow", &FastConnectorType::transfer_flow)
-
-		// Batch operations
-		.def("get_neighbors_batch", &FastConnectorType::get_neighbors_batch)
-		.def("transform_coordinates_batch",
-				 [](const FastConnectorType& self, py::array_t<size_t> indices)
-					 -> std::pair<py::array_t<T>, py::array_t<T>> {
-					 py::buffer_info buf = indices.request();
-					 if (buf.ndim != 1) {
-						 throw std::runtime_error("Input array must be 1D");
-					 }
-
-					 size_t count = buf.shape[0];
-					 auto x_result = py::array_t<T>(count);
-					 auto y_result = py::array_t<T>(count);
-
-					 auto x_ptr = x_result.template mutable_unchecked<1>();
-					 auto y_ptr = y_result.template mutable_unchecked<1>();
-
-					 self.transform_coordinates_batch(static_cast<size_t*>(buf.ptr),
-																						count,
-																						x_ptr.mutable_data(0),
-																						y_ptr.mutable_data(0));
-
-					 return std::make_pair(x_result, y_result);
-				 })
-		.def("validate_coordinates_batch",
-				 [](const FastConnectorType& self,
-						py::array_t<size_t> rows,
-						py::array_t<size_t> cols) -> py::array_t<bool> {
-					 py::buffer_info rows_buf = rows.request();
-					 py::buffer_info cols_buf = cols.request();
-
-					 if (rows_buf.ndim != 1 || cols_buf.ndim != 1 ||
-							 rows_buf.shape[0] != cols_buf.shape[0]) {
-						 throw std::runtime_error("Input arrays must be 1D and same size");
-					 }
-
-					 size_t count = rows_buf.shape[0];
-					 auto result = py::array_t<bool>(count);
-
-					 auto result_ptr = result.template mutable_unchecked<1>();
-
-					 self.validate_coordinates_batch(static_cast<size_t*>(rows_buf.ptr),
-																					 static_cast<size_t*>(cols_buf.ptr),
-																					 result_ptr.mutable_data(0),
-																					 count);
-
-					 return result;
-				 })
-
-		// Lookup table access
-		.def("get_distance", &FastConnectorType::get_distance)
-		.def("get_opposite_direction", &FastConnectorType::get_opposite_direction)
-
-		// Memory pool access
-		.def("get_temp_buffer",
-				 [](const FastConnectorType& self, size_t size) -> py::array_t<T> {
-					 T* buffer = self.get_temp_buffer(size);
-					 if (!buffer) {
-						 throw std::runtime_error("Requested buffer size too large");
-					 }
-					 return py::array_t<T>(size, buffer);
-				 })
-
-		// Performance monitoring
-		.def("get_performance_stats",
-				 &FastConnectorType::get_performance_stats,
-				 py::return_value_policy::reference_internal)
-		.def("reset_performance_stats",
-				 &FastConnectorType::reset_performance_stats);
-}
-
-// ==============================================
-// CONVENIENCE BINDING FUNCTIONS
-// ==============================================
-
-template<typename T>
-void
-bind_all_fast_connector_types(py::module& m, const std::string& suffix)
-{
-	bind_fast_connector<T, ConnectivityType::D4>(m, "D4" + suffix);
-	bind_fast_connector<T, ConnectivityType::D8>(m, "D8" + suffix);
-}
-
-// ==============================================
-// MAIN BINDING FUNCTION
-// ==============================================
-
-inline void
-bind_fast_connector_module(py::module& m)
-{
-	// Bind template classes for different types
-	bind_all_fast_connector_types<float>(m, "F32");
-	bind_all_fast_connector_types<double>(m, "F64");
-
-	// Module documentation
-	m.doc() = R"pbdoc(
-        ⚡ DAGGER2 FAST CONNECTOR MODULE ⚡
-        ==================================
-
-        Ultra-optimized connector for high-performance PDE solving with:
-        - SIMD vectorization and cache optimization
-        - Template specialization for D4/D8 connectivity
-        - Raw neighbor access for zero-copy operations
-        - Cross-platform compatibility (Windows/Linux/macOS/ARM)
-
-        Performance: 2-10x faster than standard Connector for PDE computations.
-    )pbdoc";
-}
-
 // Main binding function for all BC functionality
 inline void
 bind_arrbcconn(py::module& m)
@@ -937,25 +554,24 @@ bind_arrbcconn(py::module& m)
 	bind_array_types<int64_t>(m, "I64");
 	bind_array_types<size_t>(m, "U64");
 	bind_array_types<uint8_t>(m, "U8");
-	bind_array_types<NodeType>(m, "NodeType");
 
-	// // Add this in bind_arrbcconn function, after binding the enums:
-	// py::class_<Grid2D<NodeType>, std::shared_ptr<Grid2D<NodeType>>>(
-	// 	m, "Grid2DNodeType")
-	// 	.def(py::init<py::array_t<uint8_t>, size_t, size_t>())
-	// 	.def(
-	// 		"__call__",
-	// 		[](Grid2D<NodeType>& g, size_t r, size_t c) -> NodeType& {
-	// 			return g(r, c);
-	// 		},
-	// 		py::return_value_policy::reference_internal)
-	// 	.def("__getitem__",
-	// 			 [](Grid2D<NodeType>& g, size_t i) -> NodeType { return g[i]; })
-	// 	.def("__setitem__",
-	// 			 [](Grid2D<NodeType>& g, size_t i, NodeType val) { g[i] = val; })
-	// 	.def_property_readonly("rows", &Grid2D<NodeType>::rows)
-	// 	.def_property_readonly("cols", &Grid2D<NodeType>::cols)
-	// 	.def_property_readonly("size", &Grid2D<NodeType>::size);
+	// Add this in bind_arrbcconn function, after binding the enums:
+	py::class_<Grid2D<NodeType>, std::shared_ptr<Grid2D<NodeType>>>(
+		m, "Grid2DNodeType")
+		.def(py::init<py::array_t<uint8_t>, size_t, size_t>())
+		.def(
+			"__call__",
+			[](Grid2D<NodeType>& g, size_t r, size_t c) -> NodeType& {
+				return g(r, c);
+			},
+			py::return_value_policy::reference_internal)
+		.def("__getitem__",
+				 [](Grid2D<NodeType>& g, size_t i) -> NodeType { return g[i]; })
+		.def("__setitem__",
+				 [](Grid2D<NodeType>& g, size_t i, NodeType val) { g[i] = val; })
+		.def_property_readonly("rows", &Grid2D<NodeType>::rows)
+		.def_property_readonly("cols", &Grid2D<NodeType>::cols)
+		.def_property_readonly("size", &Grid2D<NodeType>::size);
 
 	// Bind utility functions
 	m.def("compute_sum_f32", &compute_sum<float>, "Compute sum of float array");
@@ -986,8 +602,6 @@ bind_arrbcconn(py::module& m)
 	bind_all_bc_types<double>(m, "F64");
 	bind_all_bc_types<int32_t>(m, "I32");
 	bind_all_bc_types<int64_t>(m, "I64");
-	bind_all_fast_connector_types<float>(m, "F32");
-	bind_all_fast_connector_types<double>(m, "F64");
 }
 
 } // namespace dagger2

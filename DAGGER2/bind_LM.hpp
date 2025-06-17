@@ -1,6 +1,5 @@
 #pragma once
 
-#include "dg2_fastconnector.hpp"
 #include "dg2_priority_flood.hpp"
 #include <pybind11/numpy.h>
 #include <pybind11/pybind11.h>
@@ -58,12 +57,21 @@ bind_priority_flood_results(py::module& m, const std::string& suffix)
 		.def_readonly("nodes_filled",
 									&ResultsType::nodes_filled,
 									"Nodes that had elevation increased")
+		.def_readonly("depressions_filled",
+									&ResultsType::depressions_filled,
+									"Number of separate depressions identified")
 		.def_readonly("total_fill_volume",
 									&ResultsType::total_fill_volume,
 									"Total volume of material added")
 		.def_readonly("max_fill_depth",
 									&ResultsType::max_fill_depth,
 									"Maximum fill depth encountered")
+		.def_readonly("min_elevation",
+									&ResultsType::min_elevation,
+									"Minimum elevation after filling")
+		.def_readonly("max_elevation",
+									&ResultsType::max_elevation,
+									"Maximum elevation after filling")
 		.def_readonly(
 			"iterations", &ResultsType::iterations, "Number of algorithm iterations")
 		.def_readonly("convergence_reached",
@@ -91,33 +99,23 @@ bind_priority_flood(py::module& m, const std::string& suffix)
 	using ResultsType = typename PriorityFloodType::Results;
 
 	py::class_<PriorityFloodType>(m, ("PriorityFlood" + suffix).c_str())
+		.def_static("fill_depressions",
+								py::overload_cast<Grid2D<T>&, const Connector<T>&>(
+									&PriorityFloodType::fill_depressions),
+								"Fill depressions with default config",
+								py::arg("elevation"),
+								py::arg("connector"))
+		.def_static("fill_depressions",
+								py::overload_cast<Grid2D<T>&, const Connector<T>&, T>(
+									&PriorityFloodType::fill_depressions),
+								"Fill depressions with custom epsilon",
+								py::arg("elevation"),
+								py::arg("connector"),
+								py::arg("epsilon"))
 		.def_static(
 			"fill_depressions",
-			[](Grid2D<T>& elevation, const Connector<T>& connector) {
-				return PriorityFloodType::fill_depressions(
-					elevation, connector, typename PriorityFloodType::Config{});
-			},
-			"Fill depressions with default config",
-			py::arg("elevation"),
-			py::arg("connector"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation, const Connector<T>& connector, T epsilon) {
-				return PriorityFloodType::fill_depressions(
-					elevation, connector, epsilon);
-			},
-			"Fill depressions with custom epsilon",
-			py::arg("elevation"),
-			py::arg("connector"),
-			py::arg("epsilon"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation,
-				 const Connector<T>& connector,
-				 const ConfigType& config) {
-				return PriorityFloodType::fill_depressions(
-					elevation, connector, config);
-			},
+			py::overload_cast<Grid2D<T>&, const Connector<T>&, const ConfigType&>(
+				&PriorityFloodType::fill_depressions),
 			"Fill depressions with full config",
 			py::arg("elevation"),
 			py::arg("connector"),
@@ -131,98 +129,25 @@ bind_priority_flood(py::module& m, const std::string& suffix)
 								"Restore elevation from backup",
 								py::arg("elevation"),
 								py::arg("backup"))
+		.def_static("has_proper_drainage",
+								&PriorityFloodType::has_proper_drainage,
+								"Check if grid has proper drainage",
+								py::arg("elevation"),
+								py::arg("connector"))
+		.def_static("find_sinks",
+								&PriorityFloodType::find_sinks,
+								"Find remaining sink nodes",
+								py::arg("elevation"),
+								py::arg("connector"))
+		.def_static("estimate_epsilon",
+								&PriorityFloodType::estimate_epsilon,
+								"Estimate appropriate epsilon value",
+								py::arg("elevation"),
+								py::arg("connector"))
 		.def_static("generate_report",
 								&PriorityFloodType::generate_report,
 								"Generate detailed results report",
 								py::arg("results"));
-}
-
-// ==============================================
-// PRIORITY FLOOD FASTCONNECTOR BINDINGS
-// ==============================================
-
-template<typename T>
-void
-bind_priority_flood_fast(py::module& m, const std::string& suffix)
-{
-	using PriorityFloodType = PriorityFlood<T>;
-	using ConfigType = typename PriorityFloodType::Config;
-	using FastConnectorD4 = FastConnector<T, ConnectivityType::D4>;
-	using FastConnectorD8 = FastConnector<T, ConnectivityType::D8>;
-
-	// Create dummy classes that don't conflict
-	struct PriorityFloodFastD4
-	{};
-	struct PriorityFloodFastD8
-	{};
-
-	// FastConnector D4 bindings
-	py::class_<PriorityFloodFastD4>(m, ("PriorityFloodFastD4" + suffix).c_str())
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation, const FastConnectorD4& connector) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD4>(
-					elevation, connector, typename PriorityFloodType::Config{});
-			},
-			"Fill depressions with FastConnector D4 (default config)",
-			py::arg("elevation"),
-			py::arg("connector"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation, const FastConnectorD4& connector, T epsilon) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD4>(
-					elevation, connector, epsilon);
-			},
-			"Fill depressions with FastConnector D4 (custom epsilon)",
-			py::arg("elevation"),
-			py::arg("connector"),
-			py::arg("epsilon"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation,
-				 const FastConnectorD4& connector,
-				 const ConfigType& config) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD4>(
-					elevation, connector, config);
-			},
-			"Fill depressions with FastConnector D4 (full config)",
-			py::arg("elevation"),
-			py::arg("connector"),
-			py::arg("config"));
-
-	// FastConnector D8 bindings
-	py::class_<PriorityFloodFastD8>(m, ("PriorityFloodFastD8" + suffix).c_str())
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation, const FastConnectorD8& connector) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD8>(
-					elevation, connector, typename PriorityFloodType::Config{});
-			},
-			"Fill depressions with FastConnector D8 (default config)",
-			py::arg("elevation"),
-			py::arg("connector"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation, const FastConnectorD8& connector, T epsilon) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD8>(
-					elevation, connector, epsilon);
-			},
-			"Fill depressions with FastConnector D8 (custom epsilon)",
-			py::arg("elevation"),
-			py::arg("connector"),
-			py::arg("epsilon"))
-		.def_static(
-			"fill_depressions",
-			[](Grid2D<T>& elevation,
-				 const FastConnectorD8& connector,
-				 const ConfigType& config) {
-				return PriorityFloodType::template fill_depressions<FastConnectorD8>(
-					elevation, connector, config);
-			},
-			"Fill depressions with FastConnector D8 (full config)",
-			py::arg("elevation"),
-			py::arg("connector"),
-			py::arg("config"));
 }
 
 // ==============================================
@@ -236,7 +161,6 @@ bind_all_priority_flood_types(py::module& m, const std::string& suffix)
 	bind_priority_flood_config<T>(m, suffix);
 	bind_priority_flood_results<T>(m, suffix);
 	bind_priority_flood<T>(m, suffix);
-	bind_priority_flood_fast<T>(m, suffix);
 }
 
 // ==============================================
@@ -257,8 +181,6 @@ bind_priority_flood_module(py::module& m)
 
         Advanced depression filling using Priority Flood + Epsilon algorithm.
         Handles all boundary conditions and provides comprehensive statistics.
-
-        Supports both regular Connector and optimized FastConnector interfaces.
     )pbdoc";
 }
 
