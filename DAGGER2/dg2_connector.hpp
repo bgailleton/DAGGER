@@ -527,6 +527,391 @@ public:
 	}
 
 	// ======================
+	// EFFICIENT EFFECTIVE NEIGHBOR INDEX ACCESS (NO NEIGHBOR STRUCTURE)
+	// ======================
+
+	/**
+	 * Get effective neighbor index with boundary condition handling
+	 * Direct computation without Neighbor structure for maximum performance
+	 * Returns SIZE_MAX for invalid neighbors or when flow exits domain
+	 */
+	size_t get_effective_neighbor_index(size_t row,
+																			size_t col,
+																			Direction dir) const
+	{
+		uint8_t d = static_cast<uint8_t>(dir);
+		int new_row = static_cast<int>(row) + dr_[d];
+		int new_col = static_cast<int>(col) + dc_[d];
+
+		// Check if we're going out of bounds
+		if (is_valid_coord(new_row, new_col)) {
+			// Normal in-bounds neighbor
+			size_t nr = static_cast<size_t>(new_row);
+			size_t nc = static_cast<size_t>(new_col);
+			NodeType neighbor_bc = get_boundary_type(nr, nc);
+			return NodeTypeUtils::is_active(neighbor_bc) ? to_1d(nr, nc) : SIZE_MAX;
+		}
+
+		// Out of bounds - check current node's boundary condition
+		NodeType current_bc = get_boundary_type(row, col);
+
+		switch (current_bc) {
+			case NodeType::PERIODIC: {
+				auto [wrapped_row, wrapped_col] = apply_periodic_bc(new_row, new_col);
+				NodeType wrapped_bc = get_boundary_type(wrapped_row, wrapped_col);
+				return NodeTypeUtils::is_active(wrapped_bc)
+								 ? to_1d(wrapped_row, wrapped_col)
+								 : SIZE_MAX;
+			}
+			case NodeType::REFLECT: {
+				return to_1d(row, col); // Reflect back to current node
+			}
+			default:
+				return SIZE_MAX; // Flow exits domain or invalid
+		}
+	}
+
+	size_t get_effective_neighbor_index(size_t index, Direction dir) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_neighbor_index(row, col, dir);
+	}
+
+	/**
+	 * Get effective neighbor 2D coordinates with boundary condition handling
+	 * Returns {SIZE_MAX, SIZE_MAX} for invalid neighbors
+	 */
+	std::pair<size_t, size_t> get_effective_neighbor_2d(size_t row,
+																											size_t col,
+																											Direction dir) const
+	{
+		uint8_t d = static_cast<uint8_t>(dir);
+		int new_row = static_cast<int>(row) + dr_[d];
+		int new_col = static_cast<int>(col) + dc_[d];
+
+		// Check if we're going out of bounds
+		if (is_valid_coord(new_row, new_col)) {
+			// Normal in-bounds neighbor
+			size_t nr = static_cast<size_t>(new_row);
+			size_t nc = static_cast<size_t>(new_col);
+			NodeType neighbor_bc = get_boundary_type(nr, nc);
+			return NodeTypeUtils::is_active(neighbor_bc)
+							 ? std::make_pair(nr, nc)
+							 : std::make_pair(SIZE_MAX, SIZE_MAX);
+		}
+
+		// Out of bounds - check current node's boundary condition
+		NodeType current_bc = get_boundary_type(row, col);
+
+		switch (current_bc) {
+			case NodeType::PERIODIC: {
+				auto [wrapped_row, wrapped_col] = apply_periodic_bc(new_row, new_col);
+				NodeType wrapped_bc = get_boundary_type(wrapped_row, wrapped_col);
+				return NodeTypeUtils::is_active(wrapped_bc)
+								 ? std::make_pair(wrapped_row, wrapped_col)
+								 : std::make_pair(SIZE_MAX, SIZE_MAX);
+			}
+			case NodeType::REFLECT: {
+				return std::make_pair(row, col); // Reflect back to current node
+			}
+			default:
+				return std::make_pair(SIZE_MAX,
+															SIZE_MAX); // Flow exits domain or invalid
+		}
+	}
+
+	std::pair<size_t, size_t> get_effective_neighbor_2d(size_t index,
+																											Direction dir) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_neighbor_2d(row, col, dir);
+	}
+
+	// ======================
+	// FAST DIRECTIONAL NEIGHBOR INDEX ACCESS (1D)
+	// ======================
+
+	// 1D index versions - optimized for speed
+	size_t effective_north_index(size_t index) const
+	{
+		return get_effective_neighbor_index(index, Direction::NORTH);
+	}
+	size_t effective_east_index(size_t index) const
+	{
+		return get_effective_neighbor_index(index, Direction::EAST);
+	}
+	size_t effective_south_index(size_t index) const
+	{
+		return get_effective_neighbor_index(index, Direction::SOUTH);
+	}
+	size_t effective_west_index(size_t index) const
+	{
+		return get_effective_neighbor_index(index, Direction::WEST);
+	}
+	size_t effective_northeast_index(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(index, Direction::NORTHEAST)
+						 : SIZE_MAX;
+	}
+	size_t effective_southeast_index(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(index, Direction::SOUTHEAST)
+						 : SIZE_MAX;
+	}
+	size_t effective_southwest_index(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(index, Direction::SOUTHWEST)
+						 : SIZE_MAX;
+	}
+	size_t effective_northwest_index(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(index, Direction::NORTHWEST)
+						 : SIZE_MAX;
+	}
+
+	// 2D coordinate versions
+	size_t effective_north_index(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_index(row, col, Direction::NORTH);
+	}
+	size_t effective_east_index(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_index(row, col, Direction::EAST);
+	}
+	size_t effective_south_index(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_index(row, col, Direction::SOUTH);
+	}
+	size_t effective_west_index(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_index(row, col, Direction::WEST);
+	}
+	size_t effective_northeast_index(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(row, col, Direction::NORTHEAST)
+						 : SIZE_MAX;
+	}
+	size_t effective_southeast_index(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(row, col, Direction::SOUTHEAST)
+						 : SIZE_MAX;
+	}
+	size_t effective_southwest_index(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(row, col, Direction::SOUTHWEST)
+						 : SIZE_MAX;
+	}
+	size_t effective_northwest_index(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_index(row, col, Direction::NORTHWEST)
+						 : SIZE_MAX;
+	}
+
+	// ======================
+	// FAST DIRECTIONAL NEIGHBOR 2D ACCESS
+	// ======================
+
+	std::pair<size_t, size_t> effective_north_2d(size_t index) const
+	{
+		return get_effective_neighbor_2d(index, Direction::NORTH);
+	}
+	std::pair<size_t, size_t> effective_east_2d(size_t index) const
+	{
+		return get_effective_neighbor_2d(index, Direction::EAST);
+	}
+	std::pair<size_t, size_t> effective_south_2d(size_t index) const
+	{
+		return get_effective_neighbor_2d(index, Direction::SOUTH);
+	}
+	std::pair<size_t, size_t> effective_west_2d(size_t index) const
+	{
+		return get_effective_neighbor_2d(index, Direction::WEST);
+	}
+	std::pair<size_t, size_t> effective_northeast_2d(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(index, Direction::NORTHEAST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_southeast_2d(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(index, Direction::SOUTHEAST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_southwest_2d(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(index, Direction::SOUTHWEST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_northwest_2d(size_t index) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(index, Direction::NORTHWEST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+
+	std::pair<size_t, size_t> effective_north_2d(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_2d(row, col, Direction::NORTH);
+	}
+	std::pair<size_t, size_t> effective_east_2d(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_2d(row, col, Direction::EAST);
+	}
+	std::pair<size_t, size_t> effective_south_2d(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_2d(row, col, Direction::SOUTH);
+	}
+	std::pair<size_t, size_t> effective_west_2d(size_t row, size_t col) const
+	{
+		return get_effective_neighbor_2d(row, col, Direction::WEST);
+	}
+	std::pair<size_t, size_t> effective_northeast_2d(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(row, col, Direction::NORTHEAST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_southeast_2d(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(row, col, Direction::SOUTHEAST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_southwest_2d(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(row, col, Direction::SOUTHWEST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+	std::pair<size_t, size_t> effective_northwest_2d(size_t row, size_t col) const
+	{
+		return (connectivity_ == ConnectivityType::D8)
+						 ? get_effective_neighbor_2d(row, col, Direction::NORTHWEST)
+						 : std::make_pair(SIZE_MAX, SIZE_MAX);
+	}
+
+	// ======================
+	// VECTORIZED EFFECTIVE NEIGHBOR INDEX ACCESS
+	// ======================
+
+	/**
+	 * Get all effective neighbor indices with boundary condition handling
+	 * Returns SIZE_MAX for invalid neighbors - optimized version
+	 */
+	std::vector<size_t> get_effective_neighbor_indices(size_t row,
+																										 size_t col) const
+	{
+		std::vector<size_t> indices;
+		indices.reserve(num_directions_);
+
+		for (size_t d = 0; d < num_directions_; ++d) {
+			Direction dir = static_cast<Direction>(d);
+			indices.push_back(get_effective_neighbor_index(row, col, dir));
+		}
+
+		return indices;
+	}
+
+	std::vector<size_t> get_effective_neighbor_indices(size_t index) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_neighbor_indices(row, col);
+	}
+
+	/**
+	 * Get only valid effective neighbor indices (excludes SIZE_MAX entries)
+	 * Optimized to avoid Neighbor structure creation
+	 */
+	std::vector<size_t> get_effective_valid_neighbor_indices(size_t row,
+																													 size_t col) const
+	{
+		std::vector<size_t> indices;
+		indices.reserve(num_directions_);
+
+		for (size_t d = 0; d < num_directions_; ++d) {
+			Direction dir = static_cast<Direction>(d);
+			size_t idx = get_effective_neighbor_index(row, col, dir);
+			if (idx != SIZE_MAX) {
+				indices.push_back(idx);
+			}
+		}
+
+		return indices;
+	}
+
+	std::vector<size_t> get_effective_valid_neighbor_indices(size_t index) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_valid_neighbor_indices(row, col);
+	}
+
+	/**
+	 * Get all effective neighbor 2D coordinates with boundary condition handling
+	 * Returns {SIZE_MAX, SIZE_MAX} for invalid neighbors - optimized version
+	 */
+	std::vector<std::pair<size_t, size_t>> get_effective_neighbor_coords(
+		size_t row,
+		size_t col) const
+	{
+		std::vector<std::pair<size_t, size_t>> coords;
+		coords.reserve(num_directions_);
+
+		for (size_t d = 0; d < num_directions_; ++d) {
+			Direction dir = static_cast<Direction>(d);
+			coords.push_back(get_effective_neighbor_2d(row, col, dir));
+		}
+
+		return coords;
+	}
+
+	std::vector<std::pair<size_t, size_t>> get_effective_neighbor_coords(
+		size_t index) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_neighbor_coords(row, col);
+	}
+
+	/**
+	 * Get only valid effective neighbor 2D coordinates (excludes {SIZE_MAX,
+	 * SIZE_MAX} entries)
+	 */
+	std::vector<std::pair<size_t, size_t>> get_effective_valid_neighbor_coords(
+		size_t row,
+		size_t col) const
+	{
+		std::vector<std::pair<size_t, size_t>> coords;
+		coords.reserve(num_directions_);
+
+		for (size_t d = 0; d < num_directions_; ++d) {
+			Direction dir = static_cast<Direction>(d);
+			auto coord = get_effective_neighbor_2d(row, col, dir);
+			if (coord.first != SIZE_MAX) {
+				coords.push_back(coord);
+			}
+		}
+
+		return coords;
+	}
+
+	std::vector<std::pair<size_t, size_t>> get_effective_valid_neighbor_coords(
+		size_t index) const
+	{
+		auto [row, col] = to_2d(index);
+		return get_effective_valid_neighbor_coords(row, col);
+	}
+
+	// ======================
 	// VECTORIZED OPERATIONS
 	// ======================
 

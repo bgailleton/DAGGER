@@ -37,7 +37,10 @@ bind_priority_flood_config(py::module& m, const std::string& suffix)
 									 "Maximum allowed fill depth")
 		.def_readwrite("max_iterations",
 									 &ConfigType::max_iterations,
-									 "Safety limit on iterations");
+									 "Safety limit on iterations")
+		.def_readwrite("use_optimized",
+									 &ConfigType::use_optimized,
+									 "Use ultra-optimized raw index version");
 }
 
 // ==============================================
@@ -112,6 +115,13 @@ bind_priority_flood(py::module& m, const std::string& suffix)
 								py::arg("elevation"),
 								py::arg("connector"),
 								py::arg("epsilon"))
+		.def_static("fill_depressions",
+								py::overload_cast<Grid2D<T>&, const Connector<T>&, bool>(
+									&PriorityFloodType::fill_depressions),
+								"Fill depressions with optimization flag",
+								py::arg("elevation"),
+								py::arg("connector"),
+								py::arg("use_optimized"))
 		.def_static(
 			"fill_depressions",
 			py::overload_cast<Grid2D<T>&, const Connector<T>&, const ConfigType&>(
@@ -133,17 +143,20 @@ bind_priority_flood(py::module& m, const std::string& suffix)
 								&PriorityFloodType::has_proper_drainage,
 								"Check if grid has proper drainage",
 								py::arg("elevation"),
-								py::arg("connector"))
+								py::arg("connector"),
+								py::arg("use_optimized") = true)
 		.def_static("find_sinks",
 								&PriorityFloodType::find_sinks,
 								"Find remaining sink nodes",
 								py::arg("elevation"),
-								py::arg("connector"))
+								py::arg("connector"),
+								py::arg("use_optimized") = true)
 		.def_static("estimate_epsilon",
 								&PriorityFloodType::estimate_epsilon,
 								"Estimate appropriate epsilon value",
 								py::arg("elevation"),
-								py::arg("connector"))
+								py::arg("connector"),
+								py::arg("use_optimized") = true)
 		.def_static("generate_report",
 								&PriorityFloodType::generate_report,
 								"Generate detailed results report",
@@ -181,6 +194,12 @@ bind_priority_flood_module(py::module& m)
 
         Advanced depression filling using Priority Flood + Epsilon algorithm.
         Handles all boundary conditions and provides comprehensive statistics.
+
+        Features:
+        - Ultra-optimized raw index version (use_optimized=True)
+        - Original Neighbor structure version (use_optimized=False)
+        - Full boundary condition support (PERIODIC, REFLECT, etc.)
+        - Detailed statistics and validation
     )pbdoc";
 }
 
